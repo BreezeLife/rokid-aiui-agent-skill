@@ -28,7 +28,7 @@ The Skill supports five request classes:
 4. Diagnose AIUI runtime, focus, hardware-key, voice, media, or API problems.
 5. Preview, validate, package, and prepare an agent for the platform workflow.
 
-It begins by inspecting the target project and target surface. Conversation-flow cards are display-only; full-screen pages may be interactive. It then loads only the references relevant to the request. When platform facts are uncertain or version-sensitive, it checks the local project, installed CLI help, and current official documentation rather than guessing.
+It begins by inspecting the target project and target surface. Conversation-embedded pages can support click, selection, input, and host-mediated expansion; full-screen pages provide more space and deeper flows. It then loads only the references relevant to the request. When platform facts are uncertain or version-sensitive, it checks the local project, installed CLI help, current official documentation, implementation, and samples rather than guessing.
 
 ## Repository layout
 
@@ -60,18 +60,19 @@ It begins by inspecting the target project and target surface. Conversation-flow
 
 ## Validator contract
 
-`scripts/validate_aiui_project.py PROJECT_DIR` returns zero for a structurally valid project and nonzero when errors exist. It emits stable severity/code/path messages suitable for humans and CI.
+`scripts/validate_aiui_project.py PROJECT_DIR` returns zero when no errors exist and nonzero when errors exist. Warnings describe maintainability or packaging risks without claiming the runtime rejects the project. `--strict` makes warnings fail CI. Diagnostics use stable severity/code/path messages suitable for humans and automation.
 
 Initial checks:
 
-- Required `AGENTS.md`, `app.json`, `app.js`, and `pages/` exist.
+- Required `app.json` exists and parses. Missing `AGENTS.md` or `app.js` is a warning because official project structure recommends them but the package reader does not establish both as hard requirements.
 - `app.json` parses, has a non-empty string `pages` array, and does not contain duplicate routes.
-- Every declared route resolves to exactly one authoring mode: one `.ink` file, or the supported multi-file page set.
-- An `.ink` route contains one `<script def>`, one `<script setup>`, one `<page>`, and one `<style>` block; the definition block contains a JSON object.
-- A route does not mix `.ink` and same-route multi-file definitions.
-- Missing `AGENTS.md` identity/capabilities headings and target-sensitive design issues are warnings, not invented hard runtime errors.
+- Every declared page route resolves to an `.ink` file or at least a `.wxml` entry for multi-file mode.
+- A page `.ink` route contains exactly one `<page>` root and no `<widget>` root. Optional `<script def>`, `<script setup>`, and `<style>` blocks may occur at most once; a present definition block contains a JSON object.
+- Declared Widgets resolve to `.ink`, use a documented `1x1` or `1x2` family, and contain exactly one `<widget>` root.
+- Declared Agent Worker scripts exist and use a supported `.js` or `.ts` entry path.
+- Mixed `.ink` and same-route multi-file definitions, missing manifest headings, reserved generated AIX paths, and target-sensitive design issues are warnings rather than invented runtime errors.
 
-The validator deliberately avoids pretending to compile JavaScript, WXML, or WXSS. Runtime support remains the authority for those semantics.
+The validator deliberately avoids pretending to compile JavaScript, WXML, or WXSS. Runtime support remains the authority for those semantics. Its XML-like block checks are intentionally structural rather than a full `.ink` parser.
 
 ## AIX workflow
 
@@ -98,7 +99,7 @@ Independent agents receive representative tasks without the new Skill. Evaluatio
 The same tasks run with the Skill. Success is based on observable invariants, not matching prose:
 
 - correct project and `.ink` structure;
-- correct card versus page interaction model;
+- correct `_current` versus `_blank` interaction, focus, and density model;
 - no fabricated AIUI or AIX APIs;
 - target-aware ROKID display and input decisions;
 - successful static validation;
@@ -112,7 +113,7 @@ CI runs the unit tests, project fixtures, frontmatter/placeholder checks, Markdo
 
 ## Failure handling
 
-- If official sources conflict, prefer the current canonical repository and changelog, then state the conflict.
+- If official sources conflict, prefer the current changelog and implementation-aligned documentation, corroborate with runtime/source and runnable samples, and state the conflict.
 - If a command is absent from `--help`, stop prescribing it and offer the supported alternative.
 - If packaging fails, preserve the first actionable diagnostic and do not proceed to upload claims.
 - If device-only behavior cannot be verified, label it as an on-device validation step.
@@ -120,4 +121,3 @@ CI runs the unit tests, project fixtures, frontmatter/placeholder checks, Markdo
 ## GitHub delivery
 
 After local verification, create the public `BreezeLife/rokid-aiui-agent-skill` repository, push `main`, confirm the remote files and default branch, and report the install URL. No live ROKID deployment is part of this delivery.
-

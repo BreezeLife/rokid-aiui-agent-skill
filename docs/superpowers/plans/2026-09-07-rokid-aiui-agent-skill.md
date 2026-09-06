@@ -22,7 +22,7 @@
 - Create: `tests/scenarios/03-aix-workflow.md`
 - Create: `tests/evaluations/baseline.md`
 
-- [ ] Write three scenario prompts that separately test display-only cards, interactive full-screen hardware input, and released AIX capability discovery.
+- [ ] Write three scenario prompts that separately test current conversation-embedded interaction/design, full-screen hardware input, and released AIX capability discovery.
 - [ ] Dispatch fresh agents without access to the new Skill and save their responses verbatim under `tests/evaluations/baseline/`.
 - [ ] Evaluate responses against explicit invariants and record observed failures in `tests/evaluations/baseline.md`.
 - [ ] Run `git diff --check`; expect exit code 0.
@@ -54,7 +54,7 @@
 
 - [ ] Populate `source-of-truth.md` with canonical URLs, inspected commit hashes, source class, version caveats, and conflict rules.
 - [ ] Synthesize project files, page data contracts, `.ink` authoring, routing, and authoring-mode invariants from current official AIUI docs.
-- [ ] Synthesize conversation-card/full-screen behavior, 480 by 352 green-display constraints, theme-token use, focus, keyup interception, voice, head gesture, and on-device gates.
+- [ ] Synthesize interactive `_current`/`_blank` behavior, 480 by 352 green-display constraints, current low-mass 1px/4px/6px visual grammar, theme-token use, focus, keyup interception, voice, head gesture, and on-device gates.
 - [ ] Build a capability index that directs agents to the narrow official component/API source and forbids inferred browser compatibility.
 - [ ] Document released AIX install, help probing, pack/list/preview capability branches, and the separate platform publish flow.
 - [ ] Document a symptom-led debugging and release checklist with evidence requirements.
@@ -68,12 +68,12 @@
 - Create: `tests/test_validate_aiui_project.py`
 - Create: `tests/fixtures/valid-minimal/`
 - Create: `tests/fixtures/invalid-missing-route/`
-- Create: `tests/fixtures/invalid-mixed-mode/`
+- Create: `tests/fixtures/warning-mixed-mode/`
 - Create: `tests/fixtures/invalid-ink-blocks/`
 
-- [ ] Write unit tests for missing required files, malformed/non-object `app.json`, empty/duplicate routes, unresolved routes, mixed page modes, missing/duplicate `.ink` blocks, invalid `<script def>` JSON, and valid minimal projects.
+- [ ] Write unit tests for missing/malformed/non-object `app.json`, empty/duplicate routes, unresolved routes, mixed page-mode warnings, wrong or duplicate `.ink` roots, duplicate optional blocks, invalid `<script def>` JSON, missing Widget and Agent Worker entries, and valid minimal projects.
 - [ ] Run `python3 -m unittest discover -s tests -v`; expect failures because the validator is missing.
-- [ ] Implement stable `ERROR`/`WARNING` diagnostics and exit codes using only Python's standard library.
+- [ ] Implement stable `ERROR`/`WARNING` diagnostics, normal/`--strict` exit behavior, and JSON output using only Python's standard library.
 - [ ] Run the full unit test command; expect all tests to pass with no warnings from the test runner.
 - [ ] Run the validator directly on every fixture and confirm valid exits 0 while invalid fixtures exit nonzero with the expected diagnostic code.
 - [ ] Commit with `feat: add AIUI project validator`.
@@ -122,4 +122,3 @@
 - [ ] Dispatch an independent spec-compliance review followed by a code-quality review; resolve every critical or important finding and re-review.
 - [ ] Create the public GitHub repository `BreezeLife/rokid-aiui-agent-skill`, add it as `origin`, push `main`, and verify the remote default branch and files through the GitHub API.
 - [ ] Confirm that the public install URL resolves, update `TASKS.md` and `WORKLOG.md`, and report the repository URL plus verification evidence.
-

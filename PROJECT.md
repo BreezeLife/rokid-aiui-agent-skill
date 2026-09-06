@@ -22,11 +22,12 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 ## Principles
 
 1. Current official AIUI and AIX sources outrank tutorials and third-party kits.
-2. Preserve the distinction between non-interactive conversation-flow cards and interactive full-screen pages.
+2. Preserve the distinction between conversation-embedded (`_current`) and full-screen (`_blank`) surfaces. Current AIUI supports interaction in both; available space, focus, density, and flow depth differ.
 3. Treat AIUI as its own runtime: do not infer unsupported browser, WeChat, CSS, or AIX behavior.
 4. Detect installed CLI capabilities before prescribing commands.
-5. Prefer progressive disclosure over a monolithic reference dump.
-6. Make generated work testable with deterministic checks and a real AIX pack/list smoke flow when available.
+5. When official repository artifacts conflict, prefer newer changelog/documentation plus implementation and runnable samples over a stale bundled Skill summary.
+6. Prefer progressive disclosure over a monolithic reference dump.
+7. Make generated work testable with deterministic checks and a real AIX pack/list smoke flow when available.
 
 ## Non-goals
 
@@ -42,4 +43,3 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 - Independent forward tests can create or review representative AIUI projects using the correct authoring mode, input model, design constraints, and AIX commands.
 - A fixture packages and lists successfully with a supported published AIX CLI.
 - The public GitHub installation URL resolves and the repository CI is green.
-
