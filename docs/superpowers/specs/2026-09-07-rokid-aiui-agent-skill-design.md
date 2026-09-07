@@ -12,7 +12,7 @@ This would contain only workflow instructions and require users to install the u
 
 ### 2. Curated standalone Skill with pinned sources — selected
 
-The repository contains a concise root Skill, focused references, a static validator, fixtures, behavioral scenarios, and source pins. It covers common development locally and sends agents to the pinned canonical source for volatile or exhaustive API details. This balances reliability, context size, and maintenance.
+The repository contains one concise, conventionally packaged Skill, focused references, a static validator, fixtures, behavioral scenarios, and source pins. It covers common development locally and sends agents to the pinned canonical source for volatile or exhaustive API details. This balances reliability, context size, and maintenance.
 
 ### 3. Full upstream mirror plus extensions
 
@@ -28,23 +28,30 @@ The Skill supports five request classes:
 4. Diagnose AIUI runtime, focus, hardware-key, voice, media, or API problems.
 5. Preview, validate, package, and prepare an agent for the platform workflow.
 
-It begins by inspecting the target project and target surface. Conversation-embedded pages can support click, selection, input, and host-mediated expansion; full-screen pages provide more space and deeper flows. It then loads only the references relevant to the request. When platform facts are uncertain or version-sensitive, it checks the local project, installed CLI help, current official documentation, implementation, and samples rather than guessing.
+It begins by inspecting the target project and the host targets a Page must support. Conversation-embedded pages can support click, selection, input, and host-mediated expansion; full-screen pages provide more space and deeper flows. The host selects target and may transition a reusable Page between them, so target is not treated as a static Page declaration. The Skill then loads only the references relevant to the request. When platform facts are uncertain or version-sensitive, it checks the local project, installed CLI help, current official documentation, implementation, and samples rather than guessing.
+
+For creation and implementation requests, success means delivering editable source as a complete AIUI project directory. The directory selected for local import—or the repository root/explicit GitHub subdirectory selected for remote import—contains `AGENTS.md`, `app.json`, an application entry, all declared Page entries, and referenced code/assets. A packaged `.aix` can accompany that source but cannot replace it.
+
+The default compatibility target is the official `0.17.0` stable line when the project and host provide no stronger signal. `0.18.0` additions, including Widgets and Agent Workers, are opt-in and require an explicit target or verified capability evidence.
 
 ## Repository layout
 
 ```text
 .
-├── SKILL.md
-├── agents/openai.yaml
-├── references/
-│   ├── source-of-truth.md
-│   ├── project-anatomy.md
-│   ├── ink-authoring.md
-│   ├── interaction-and-design.md
-│   ├── runtime-capabilities.md
-│   ├── aix-workflow.md
-│   └── debugging-and-release.md
-├── scripts/validate_aiui_project.py
+├── skills/
+│   └── rokid-aiui-agent/
+│       ├── SKILL.md
+│       ├── agents/openai.yaml
+│       ├── references/
+│       │   ├── source-of-truth.md
+│       │   ├── project-anatomy.md
+│       │   ├── ink-authoring.md
+│       │   ├── interaction-and-design.md
+│       │   ├── runtime-capabilities.md
+│       │   ├── aix-workflow.md
+│       │   └── debugging-and-release.md
+│       ├── scripts/validate_aiui_project.py
+│       └── assets/studio-importable-minimal/
 ├── tests/
 │   ├── fixtures/
 │   ├── scenarios/
@@ -56,20 +63,21 @@ It begins by inspecting the target project and target surface. Conversation-embe
 └── project continuity files
 ```
 
-`SKILL.md` is the routing and decision layer, not an API encyclopedia. Each reference has one responsibility and states when it should be read. `source-of-truth.md` records canonical locations, inspected commits, official/third-party status, and conflict rules.
+`skills/rokid-aiui-agent/SKILL.md` is the routing and decision layer, not an API encyclopedia. The named directory satisfies Agent Skills discovery and matches frontmatter `name`. Each reference has one responsibility and states when it should be read. `source-of-truth.md` records canonical locations, inspected commits, official/third-party status, and conflict rules.
 
 ## Validator contract
 
-`scripts/validate_aiui_project.py PROJECT_DIR` returns zero when no errors exist and nonzero when errors exist. Warnings describe maintainability or packaging risks without claiming the runtime rejects the project. `--strict` makes warnings fail CI. Diagnostics use stable severity/code/path messages suitable for humans and automation.
+`skills/rokid-aiui-agent/scripts/validate_aiui_project.py PROJECT_DIR` defaults to the stable `0.17.0` compatibility target and accepts an explicit `--target-version`. It returns zero when no errors exist and nonzero when errors exist. Warnings describe maintainability or packaging risks without claiming the runtime rejects the project. `--strict` makes warnings fail CI. Diagnostics use stable severity/code/path messages suitable for humans and automation.
 
 Initial checks:
 
-- Required `app.json` exists and parses. Missing `AGENTS.md` or `app.js` is a warning because official project structure recommends them but the package reader does not establish both as hard requirements.
+- Required `app.json` exists and parses. Missing `AGENTS.md` or both supported application entries (`app.js` / target-supported `app.ink`) is a warning for inspection compatibility; strict delivery validation fails on either warning. An `app.ink` entry must contain a non-empty, closed setup logic block.
 - `app.json` parses, has a non-empty string `pages` array, and does not contain duplicate routes.
-- Every declared page route resolves to an `.ink` file or at least a `.wxml` entry for multi-file mode.
-- A page `.ink` route contains exactly one `<page>` root and no `<widget>` root. Optional `<script def>`, `<script setup>`, and `<style>` blocks may occur at most once; a present definition block contains a JSON object.
-- Declared Widgets resolve to `.ink`, use a documented `1x1` or `1x2` family, and contain exactly one `<widget>` root.
+- Every declared page route resolves to an `.ink` file or a non-empty `.wxml` entry for multi-file mode; XML-like markup tag ordering and nesting must balance.
+- A page `.ink` route contains exactly one `<page>` root and no `<widget>` root. Optional `<script def>`, `<script setup>`, and `<style>` blocks may occur at most once; a present definition block contains a JSON object and markup tag ordering/nesting must balance.
+- Declared Widgets resolve to `.ink`, use a documented `1x1` or `1x2` family in both manifest and `<script def>`, match those values, and contain exactly one `<widget>` root.
 - Declared Agent Worker scripts exist and use a supported `.js` or `.ts` entry path.
+- `widgets` and `agentWorkers` are rejected below target `0.18.0`, even when their internal structure is otherwise valid.
 - Mixed `.ink` and same-route multi-file definitions, missing manifest headings, reserved generated AIX paths, and target-sensitive design issues are warnings rather than invented runtime errors.
 
 The validator deliberately avoids pretending to compile JavaScript, WXML, or WXSS. Runtime support remains the authority for those semantics. Its XML-like block checks are intentionally structural rather than a full `.ink` parser.
@@ -78,7 +86,7 @@ The validator deliberately avoids pretending to compile JavaScript, WXML, or WXS
 
 The Skill never assumes a command from a repository branch exists in the user's installed release. It runs `aix --help` (or an equivalent `npx` invocation), chooses only advertised commands, uses `pack` for artifacts, `list`/`ls` for inspection, and `preview` only when available. Deployment/publishing remains a ROKID platform action, not an invented CLI command.
 
-A smoke test packages the valid fixture to a temporary `.aix` file and lists it. It does not upload or publish anything.
+A smoke test packages both the valid fixture and the Studio-importable example to a temporary `.aix` file and lists them. It does not upload or publish anything.
 
 ## Source and licensing policy
 
@@ -113,7 +121,7 @@ CI runs the unit tests, project fixtures, frontmatter/placeholder checks, Markdo
 
 ## Failure handling
 
-- If official sources conflict, prefer the current changelog and implementation-aligned documentation, corroborate with runtime/source and runnable samples, and state the conflict.
+- If official sources conflict, preserve the selected runtime contract first; corroborate within that version using documentation, implementation, and runnable samples, then label newer preview evidence separately.
 - If a command is absent from `--help`, stop prescribing it and offer the supported alternative.
 - If packaging fails, preserve the first actionable diagnostic and do not proceed to upload claims.
 - If device-only behavior cannot be verified, label it as an on-device validation step.

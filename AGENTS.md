@@ -20,5 +20,4 @@ This repository develops a reusable Agent Skill for building ROKID AIUI agents.
 
 - Preserve the source author's intent while synthesizing high-signal developer guidance.
 - Avoid generic agent prose and copied manuals.
-- Keep the root skill concise; route conditional detail to `references/`.
-
+- Keep the packaged root `skills/rokid-aiui-agent/SKILL.md` concise; route conditional detail to its `references/` directory.

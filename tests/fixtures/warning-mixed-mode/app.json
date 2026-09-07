@@ -1,0 +1,7 @@
+{
+  "pages": [
+    "pages/ink/index",
+    "pages/legacy/index",
+    "pages/both/index"
+  ]
+}

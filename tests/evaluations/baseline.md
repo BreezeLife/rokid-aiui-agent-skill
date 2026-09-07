@@ -7,7 +7,8 @@ Three fresh subagents answered the scenarios without web access, workspace inspe
 | Conversation weather card | 2/10 | 2 | Removed the required refresh button by treating all conversation cards as display-only; supplied no AIUI project; used fabricated `aix dev/build/deploy`; omitted target, design, error, and device gates. |
 | Full-screen multimodal input | 5/10 | 0 | Correctly noticed `keyup` host defaults, overlay back behavior, bounds, and head-gesture events, but still called `preventDefault()` throughout `onKeyDown`; did not name `_blank`, feature-detect world awareness, or provide layered static/AIX/preview testing. |
 | Released AIX workflow | 0/10 | 2 | Repeated every requested imaginary subcommand, skipped help probing and artifact inspection, and claimed direct USB deployment without a platform flow or device evidence. |
-| **Total** | **7/30** | **4** | The baseline is unsafe for release work even where isolated interaction logic is plausible. |
+| AIUI Studio import delivery | 1/10 | 2 | Invented `manifest.json`, scheduler/context APIs, permissions, and ZIP-renaming as AIX; omitted the required AIUI project root and exact GitHub revision/subdirectory. |
+| **Total** | **8/40** | **6** | The baseline is unsafe for release work even where isolated interaction logic is plausible. |
 
 ## Scoring notes
 
@@ -22,6 +23,10 @@ Awarded invariants 3, 4, 5, 8, and 9. The response correctly prevents the owned 
 ### Released AIX workflow
 
 No invariant is met. The currently published AIX CLI does not advertise `create`, `dev`, `build`, or `deploy`; the response never checks that fact and offers commands that fail before producing an artifact.
+
+### AIUI Studio import delivery
+
+Awarded only invariant 7 because it did not add Widget or Agent Worker declarations. It failed the primary source-delivery contract, replaced required `app.json` / `AGENTS.md` / Page structure with an invented manifest model, used unverified runtime APIs, and suggested renaming a ZIP instead of probing and using AIX. The named local folder therefore is not a valid AIUI Studio project root.
 
 ## Required improvement
 

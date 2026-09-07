@@ -1,0 +1,15 @@
+{
+  "pages": ["pages/index/index"],
+  "widgets": [
+    { "path": "widgets/status/index", "family": "1x2" }
+  ],
+  "agentWorkers": [
+    {
+      "name": "bluetooth",
+      "script": "workers/bluetooth.js",
+      "trigger": { "type": "open" },
+      "lifetime": "foreground",
+      "capabilities": ["bluetooth-peripheral"]
+    }
+  ]
+}

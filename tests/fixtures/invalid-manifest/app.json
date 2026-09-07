@@ -1,0 +1,46 @@
+{
+  "pages": ["pages/index/index"],
+  "widgets": [
+    "not-an-object",
+    { "path": "/absolute/widget", "family": "1x1" },
+    { "path": "widgets/bad/index", "family": "2x2" },
+    { "path": "widgets/missing/index", "family": "1x2" },
+    { "path": "widgets/mismatch/index", "family": "1x2" }
+  ],
+  "agentWorkers": [
+    "not-an-object",
+    {
+      "name": "",
+      "script": "workers/no-extension",
+      "trigger": { "type": "close" },
+      "lifetime": "background",
+      "capabilities": "bluetooth-peripheral"
+    },
+    {
+      "name": "sync",
+      "script": "workers/missing.js",
+      "trigger": { "type": "open" },
+      "lifetime": "instant"
+    },
+    {
+      "name": "sync",
+      "script": "workers/sync.py",
+      "trigger": { "type": "open" },
+      "lifetime": "foreground"
+    },
+    {
+      "name": "bluetooth",
+      "script": "workers/../escape.ts",
+      "trigger": { "type": "open" },
+      "lifetime": "instant",
+      "capabilities": ["bluetooth-peripheral"]
+    },
+    {
+      "name": "extra",
+      "script": "workers/extra.ts",
+      "trigger": { "type": "open" },
+      "lifetime": "foreground",
+      "capabilities": ["camera"]
+    }
+  ]
+}

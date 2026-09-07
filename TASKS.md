@@ -2,14 +2,8 @@
 
 ## In progress
 
-- [ ] Finish source audit and record authoritative URLs, versions, and caveats.
-- [x] Run baseline behavioral scenarios without the new Skill and capture failures.
-- [ ] Implement the root Skill, metadata, and routed references.
-- [ ] Implement and test the dependency-free AIUI project validator.
-- [ ] Verify a representative fixture through AIX capability detection, pack, and list.
-- [ ] Run independent forward tests with the completed Skill and close observed gaps.
-- [ ] Add CI, repository documentation, licensing, and source notices.
 - [ ] Create and push the public GitHub repository.
+- [ ] Verify public GitHub installation flows, default branch/files, and green Actions CI.
 
 ## Done
 
@@ -17,4 +11,16 @@
 - [x] Initialized the empty local workspace as a Git repository.
 - [x] Inspected the current canonical AIUI, AIX, Awesome AIUI, and third-party kit repositories.
 - [x] Extracted and visually reviewed the official ROKID AIUI courseware PDF.
-- [x] Captured and scored three independent pre-Skill behavioral baselines (7/30, four critical failures).
+- [x] Finished the source audit and recorded authoritative URLs, pinned versions, conflicts, and third-party boundaries.
+- [x] Captured and scored four independent pre-Skill behavioral baselines (8/40, six critical failures).
+- [x] Implemented the discoverable `skills/rokid-aiui-agent/` package, metadata, seven routed references, and Studio-importable asset.
+- [x] Implemented and tested the dependency-free AIUI project validator, including adversarial markup, entry, Widget, and version-gate cases.
+- [x] Verified published AIX 0.8.2 capability detection, exact package listing, pack, static preview, and installed-Skill execution.
+- [x] Ran four independent forward scenarios (40/40, zero critical failures) and closed the observed evidence-integrity gap.
+- [x] Added CI, repository documentation, Apache-2.0 licensing, and source notices.
+- [x] Completed independent Studio-contract and code/CI reviews with no remaining implementation P0/P1.
+
+## External manual gates
+
+- [ ] Import the example through an authenticated AIUI Studio account using the published GitHub coordinates.
+- [ ] Verify product-specific agents on the target physical Rokid Glasses before making device-behavior or release-readiness claims.

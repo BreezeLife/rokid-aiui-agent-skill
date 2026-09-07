@@ -4,7 +4,9 @@
 
 **Goal:** Deliver and publish a tested, source-traceable Agent Skill for developing ROKID AIUI agents.
 
-**Architecture:** A compact root `SKILL.md` routes work to focused references. A dependency-free Python validator and fixtures turn important structural rules into executable checks, while behavioral scenarios verify that coding agents apply platform constraints and released AIX capabilities correctly.
+**Delivery contract:** Creation and implementation tasks produce a complete editable AIUI project directory. The local folder or declared GitHub repository subdirectory must be directly importable into AIUI Studio. Default to stable AIUI `0.17.0` compatibility unless the target proves support for newer features.
+
+**Architecture:** A compact `skills/rokid-aiui-agent/SKILL.md` routes work to focused references from a standard discoverable package. A dependency-free Python validator and fixtures turn important structural rules into executable checks, while behavioral scenarios verify that coding agents apply platform constraints and released AIX capabilities correctly.
 
 **Tech Stack:** Markdown/YAML Agent Skill, Python 3 standard library, `unittest`, GitHub Actions, GitHub CLI, published AIX npm CLI.
 
@@ -31,11 +33,11 @@
 ### Task 2: Implement the minimal Skill router
 
 **Files:**
-- Create: `SKILL.md`
-- Create: `agents/openai.yaml`
+- Create: `skills/rokid-aiui-agent/SKILL.md`
+- Create: `skills/rokid-aiui-agent/agents/openai.yaml`
 
 - [ ] Write a failing structure test that checks required frontmatter, discriminating trigger text, every routed reference path, and absence of scaffold placeholders.
-- [ ] Run the structure test; expect failure because `SKILL.md` does not exist.
+- [ ] Run the structure test; expect failure because `skills/rokid-aiui-agent/SKILL.md` does not exist.
 - [ ] Write the minimal root Skill with task classification, source precedence, surface/target discovery, implementation workflow, verification gates, and routed reference links.
 - [ ] Add UI metadata with display name `ROKID AIUI Agent Developer`, a short description, and a default prompt that invokes the Skill for an AIUI development task.
 - [ ] Run the structure test and the bundled `quick_validate.py`; expect both to pass.
@@ -44,13 +46,13 @@
 ### Task 3: Add focused, source-pinned references
 
 **Files:**
-- Create: `references/source-of-truth.md`
-- Create: `references/project-anatomy.md`
-- Create: `references/ink-authoring.md`
-- Create: `references/interaction-and-design.md`
-- Create: `references/runtime-capabilities.md`
-- Create: `references/aix-workflow.md`
-- Create: `references/debugging-and-release.md`
+- Create: `skills/rokid-aiui-agent/references/source-of-truth.md`
+- Create: `skills/rokid-aiui-agent/references/project-anatomy.md`
+- Create: `skills/rokid-aiui-agent/references/ink-authoring.md`
+- Create: `skills/rokid-aiui-agent/references/interaction-and-design.md`
+- Create: `skills/rokid-aiui-agent/references/runtime-capabilities.md`
+- Create: `skills/rokid-aiui-agent/references/aix-workflow.md`
+- Create: `skills/rokid-aiui-agent/references/debugging-and-release.md`
 
 - [ ] Populate `source-of-truth.md` with canonical URLs, inspected commit hashes, source class, version caveats, and conflict rules.
 - [ ] Synthesize project files, page data contracts, `.ink` authoring, routing, and authoring-mode invariants from current official AIUI docs.
@@ -64,7 +66,7 @@
 ### Task 4: Build the AIUI project validator with TDD
 
 **Files:**
-- Create: `scripts/validate_aiui_project.py`
+- Create: `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`
 - Create: `tests/test_validate_aiui_project.py`
 - Create: `tests/fixtures/valid-minimal/`
 - Create: `tests/fixtures/invalid-missing-route/`
@@ -81,7 +83,7 @@
 ### Task 5: Verify the real AIX packaging flow
 
 **Files:**
-- Create: `scripts/smoke_aix.sh`
+- Create: `skills/rokid-aiui-agent/scripts/smoke_aix.sh`
 - Modify: `tests/fixtures/valid-minimal/` if packaging reveals a real missing requirement.
 - Create: `tests/evaluations/aix-smoke.md`
 
@@ -99,7 +101,7 @@
 - Create: `THIRD_PARTY_NOTICES.md`
 - Create: `.github/workflows/ci.yml`
 - Create: `tests/test_skill_structure.py`
-- Create: `scripts/verify_references.py`
+- Create: `skills/rokid-aiui-agent/scripts/verify_references.py`
 
 - [ ] Document install, invocation, supported workflows, source policy, local validation, AIX smoke test, and hardware-test limitations in the README.
 - [ ] Add an Apache-2.0 license and notices for paraphrased or adapted official Apache-2.0 material; list unmodified links for non-vendored sources.
@@ -112,13 +114,14 @@
 
 **Files:**
 - Create: `tests/evaluations/forward.md`
-- Modify: `SKILL.md` or relevant references only for observed scenario gaps.
+- Modify: `skills/rokid-aiui-agent/SKILL.md` or relevant references only for observed scenario gaps.
 - Modify: `TASKS.md`
 - Modify: `WORKLOG.md`
 
 - [ ] Dispatch fresh agents with the completed Skill for the same three scenarios and save their outputs under `tests/evaluations/forward/`.
 - [ ] Score observable invariants, compare with baseline, and record the results in `tests/evaluations/forward.md`.
 - [ ] Fix only demonstrated gaps, rerun affected scenarios, then rerun the entire local verification suite.
+- [ ] Strict-validate and real-AIX-package `skills/rokid-aiui-agent/assets/studio-importable-minimal`, and verify that its documented GitHub subdirectory is the import root.
 - [ ] Dispatch an independent spec-compliance review followed by a code-quality review; resolve every critical or important finding and re-review.
 - [ ] Create the public GitHub repository `BreezeLife/rokid-aiui-agent-skill`, add it as `origin`, push `main`, and verify the remote default branch and files through the GitHub API.
 - [ ] Confirm that the public install URL resolves, update `TASKS.md` and `WORKLOG.md`, and report the repository URL plus verification evidence.

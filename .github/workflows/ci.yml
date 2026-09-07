@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate skill and examples
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout pinned OpenAI skill validator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: openai/skills
+          ref: 49f948faa9258a0c61caceaf225e179651397431
+          path: .ci/openai-skills
+          persist-credentials: false
+          sparse-checkout: skills/.system/skill-creator/scripts/quick_validate.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install validator dependency
+        run: 'python -m pip install --only-binary=:all: "PyYAML==6.0.3"'
+
+      - name: Check tracked whitespace
+        run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD
+
+      - name: Validate Agent Skill structure
+        run: >-
+          python
+          .ci/openai-skills/skills/.system/skill-creator/scripts/quick_validate.py
+          skills/rokid-aiui-agent
+
+      - name: Run unit suite including offline AIX smoke tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Validate importable AIUI projects strictly
+        run: |
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-widget-worker --target-version 0.18.0 --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
+
+      - name: Verify references
+        run: python skills/rokid-aiui-agent/scripts/verify_references.py .
+
+  aix-smoke:
+    name: Package importable projects with published AIX
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Pack and inspect stable AIUI projects
+        env:
+          AIX_FORCE_PACKAGE: "1"
+          AIX_PACKAGE: "@yodaos-pkg/aix-cli@0.8.2"
+        run: |
+          bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
+          bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal

@@ -1,0 +1,8 @@
+interface:
+  display_name: "ROKID AIUI Agent Developer"
+  short_description: "Build and validate ROKID AIUI agents"
+  brand_color: "#40FF5E"
+  default_prompt: "Use $rokid-aiui-agent to create and validate a complete ROKID AIUI project for AIUI Studio import."
+
+policy:
+  allow_implicit_invocation: true
