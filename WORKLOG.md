@@ -27,3 +27,7 @@
 - Installed the Skill to isolated temporary directories with GitHub CLI, discovered it with the generic Skills CLI, and successfully ran the installed copy's bundled AIX smoke flow.
 - Ran four fresh forward scenarios with the Skill. Results improved from 8/40 to 40/40 with no critical failures; the Studio scenario was rerun after adding an explicit prohibition on fabricated verification claims.
 - Completed independent Studio-contract and adversarial code/CI reviews. Fixed the discovered selector, validator, reference, AIX listing, and pinned-CI execution issues; final reviewers reported no remaining implementation P0/P1.
+- Created the public `BreezeLife/rokid-aiui-agent-skill` repository, pushed `main`, and verified its public visibility, default branch, homepage, topics, and published Skill/example paths through the GitHub API.
+- Confirmed GitHub Actions run `34138056856` succeeded at commit `bb33dbe4e907aa1fe617690431d60e635c485886`, including both the validation job and the published-AIX packaging job.
+- Reinstalled the published repository through both documented paths. `gh skill install` resolved the public `main` branch and copied the complete package; `npx skills add` resolved the same commit, copied all 16 Skill files without a diff, and the installed validator accepted its bundled Studio example in strict `0.17.0` mode.
+- Re-ran `gh skill publish . --dry-run` after publication; discovery passed. The authenticated AIUI Studio import and physical-glasses checks remain explicitly separate manual gates.

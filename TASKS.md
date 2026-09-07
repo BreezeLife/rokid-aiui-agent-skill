@@ -2,8 +2,7 @@
 
 ## In progress
 
-- [ ] Create and push the public GitHub repository.
-- [ ] Verify public GitHub installation flows, default branch/files, and green Actions CI.
+- No active implementation tasks.
 
 ## Done
 
@@ -19,6 +18,8 @@
 - [x] Ran four independent forward scenarios (40/40, zero critical failures) and closed the observed evidence-integrity gap.
 - [x] Added CI, repository documentation, Apache-2.0 licensing, and source notices.
 - [x] Completed independent Studio-contract and code/CI reviews with no remaining implementation P0/P1.
+- [x] Created and pushed the public `BreezeLife/rokid-aiui-agent-skill` GitHub repository.
+- [x] Verified the public default branch and files, both documented remote installation flows, and a green GitHub Actions run.
 
 ## External manual gates
 
