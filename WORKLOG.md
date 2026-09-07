@@ -31,3 +31,21 @@
 - Confirmed GitHub Actions run `34138056856` succeeded at commit `bb33dbe4e907aa1fe617690431d60e635c485886`, including both the validation job and the published-AIX packaging job.
 - Reinstalled the published repository through both documented paths. `gh skill install` resolved the public `main` branch and copied the complete package; `npx skills add` resolved the same commit, copied all 16 Skill files without a diff, and the installed validator accepted its bundled Studio example in strict `0.17.0` mode.
 - Re-ran `gh skill publish . --dry-run` after publication; discovery passed. The authenticated AIUI Studio import and physical-glasses checks remain explicitly separate manual gates.
+- Began the first product-shaped project generated with the published Skill. Compared a next-action card, translation card, and field checklist, then selected the offline stable-0.17 `Next Step Agent` to exercise Agent-to-Page input, local interaction state, and `_current`/`_blank` density without unverified capabilities.
+- During version-matched source review, found that the Skill's Page definition example omitted the official `schema.data` envelope. Scoped a regression-first correction before generating the new Agent.
+
+## 2026-09-08
+
+- Added a regression for the official Page `schema.data` envelope and corrected the routed Ink authoring reference.
+- Defined the Next Step Agent contract before implementation, then applied review-driven fixes covering all five states, 12 invalid transitions, at least 11 boundary and Unicode input cases, per-action element focus, and the official `scroll-view` component.
+- Ran the full unit suite with 56/56 passing tests, and accepted `examples/next-step-agent/` with the strict AIUI `0.17.0` validator.
+- Pinned both verification jobs to Node.js `24.19.0` and locked `@yodaos-pkg/aix-cli@0.8.2` through `package-lock.json`; local installation used `npm ci`.
+- The lockfile-resolved AIX pack/list run produced a `10939`-byte archive containing exactly `AGENTS.md`, `META-INF/aix/manifest.json`, `VERSION`, `app.js`, `app.json`, and `pages/index/index.ink`.
+- The lockfile-resolved AIX preview produced `28338` bytes and contained the exact Page path `pages/index/index.ink`.
+- Browser inspection showed `Preview ready`, source `next-step-agent`, four files, and a legible green-on-black `_current` empty state at `480x352`, with no overlap or clipping. The console had no errors and one upstream `@yodaos-pkg/ink@0.17.1` deprecated `initialization-parameters` warning.
+- This is browser evidence only; it does not prove authenticated AIUI Studio import or physical-device behavior.
+- Re-ran the final local gate from the feature branch: all 56 unit tests passed; all four stable/preview fixture and example strict validators exited cleanly; reference and OpenAI Skill validation passed; Bash syntax, both YAML files, and tracked whitespace passed.
+- Reinstalled the lockfile with Node.js `24.19.0` and ran all three AIX pack/list gates successfully. The first local attempt exposed an unhealthy Homebrew Node selected by `/usr/bin/env`; explicitly placing the verified Node runtime first on `PATH` fixed the environment, and the complete gate was rerun rather than treating the first attempt as evidence.
+- Regenerated the exact Next Step preview at 28,338 bytes, confirmed `pages/index/index.ink`, and completed `gh skill publish . --dry-run`. The dry run passed with only the repository's existing advisory that tag-protection rules are not configured.
+- Final delivery review found that reference validation re-scanned Markdown inside installed dependencies. Added a RED/GREEN regression and pruned `.git`, `.worktrees`, and `node_modules` during traversal so the documented local workflow is repeatable after `npm ci` and in repository worktrees.
+- Re-ran the complete suite after the review fix: all 57 unit tests passed, including the real Page state-machine harness and the installed-dependency reference regression.

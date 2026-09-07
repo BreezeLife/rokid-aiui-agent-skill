@@ -1,0 +1,7 @@
+{
+  "name": "rokid-aiui-agent-skill",
+  "private": true,
+  "devDependencies": {
+    "@yodaos-pkg/aix-cli": "0.8.2"
+  }
+}

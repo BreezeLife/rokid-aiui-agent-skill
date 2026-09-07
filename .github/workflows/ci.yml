@@ -44,8 +44,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.19.0"
+
       - name: Install validator dependency
-        run: 'python -m pip install --only-binary=:all: "PyYAML==6.0.3"'
+        run: 'python -m pip install --only-binary=:all: -r requirements-dev.txt'
 
       - name: Check tracked whitespace
         run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD
@@ -64,6 +69,7 @@ jobs:
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --strict
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-widget-worker --target-version 0.18.0 --strict
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
 
       - name: Verify references
         run: python skills/rokid-aiui-agent/scripts/verify_references.py .
@@ -82,7 +88,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "24"
+          node-version: "24.19.0"
+
+      - name: Install locked AIX CLI
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -91,8 +100,20 @@ jobs:
 
       - name: Pack and inspect stable AIUI projects
         env:
-          AIX_FORCE_PACKAGE: "1"
-          AIX_PACKAGE: "@yodaos-pkg/aix-cli@0.8.2"
+          AIX_BIN: ${{ github.workspace }}/node_modules/.bin/aix
         run: |
           bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
           bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
+          bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/next-step-agent
+
+      - name: Generate the Next Step Agent static preview
+        shell: bash
+        env:
+          AIX_BIN: ${{ github.workspace }}/node_modules/.bin/aix
+        run: |
+          set -euo pipefail
+          preview_html="$RUNNER_TEMP/next-step-agent-preview.html"
+          "$AIX_BIN" --help | grep -Eq '(^|[[:space:]])preview([[:space:]<]|$)'
+          "$AIX_BIN" preview examples/next-step-agent --html-out "$preview_html"
+          test -s "$preview_html"
+          grep -Fq 'pages/index/index.ink' "$preview_html"

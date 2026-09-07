@@ -48,6 +48,18 @@ class ReferenceVerifierTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual([], json.loads(result.stdout)["diagnostics"])
 
+    def test_ignores_local_dependency_and_worktree_markdown(self):
+        result = self.run_verifier(
+            {
+                "README.md": "[Guide](references/guide.md)\n",
+                "references/guide.md": "Repository guide.\n",
+                "node_modules/vendor/README.md": "[Missing](missing.md)\n",
+                ".worktrees/feature/README.md": "[Missing](missing.md)\n",
+            }
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([], json.loads(result.stdout)["diagnostics"])
+
     def test_rejects_missing_local_link(self):
         result = self.run_verifier({"README.md": "[Missing](references/nope.md)\n"})
         self.assertEqual(1, result.returncode)

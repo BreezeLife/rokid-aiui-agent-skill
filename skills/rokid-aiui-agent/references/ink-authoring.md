@@ -27,9 +27,11 @@ It must not contain a `<widget>` root. The current structure and block roles are
 {
   "description": "Show the current task and allow confirmation",
   "schema": {
-    "type": "object",
-    "properties": {
-      "title": { "type": "string" }
+    "data": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" }
+      }
     }
   }
 }

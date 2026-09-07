@@ -53,6 +53,22 @@ validate the project, preview it when supported, and package an AIX artifact.
 
 也可直接提出 AIUI 开发、代码审查、调试、AIX 打包或真机验收需求；支持隐式触发的 Agent 会根据 Skill 描述加载它。
 
+## 使用 Skill 生成的 Agent
+
+[examples/next-step-agent](examples/next-step-agent/) 是使用本 Skill 生成的首个完整、可编辑、稳定版 AIUI `0.17.0` 项目。它将 `goal` 收敛为一个 `nextStep`，并在 Page 内呈现 `empty`、`error`、`ready`、`active`、`done` 五种状态；有效行动可依次开始、完成和重新开始。
+
+该项目不使用网络、设备权限、持久化存储、计时器、Widget 或 Agent Worker。`_current` 和 `_blank` 只调整信息密度，不改变业务状态。
+
+AIUI Studio GitHub 导入坐标：
+
+```text
+Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
+Ref: main
+Directory: examples/next-step-agent
+```
+
+自动验证不能替代账号侧 AIUI Studio 导入和 Rokid Glasses 真机验收。
+
 ## 开发闭环
 
 1. 确定 AIUI Studio 将导入的准确目录，读取其中的项目指引、`app.json`、入口、页面和现有脚本。
@@ -67,15 +83,26 @@ validate the project, preview it when supported, and package an AIX artifact.
 ## 本地验证
 
 ```bash
+python3 -m pip install --only-binary=:all: -r requirements-dev.txt
 python3 -m unittest discover -s tests -v
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/verify_references.py .
+npm ci --ignore-scripts --no-audit --no-fund
+AIX_BIN="$PWD/node_modules/.bin/aix"
+export AIX_BIN
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/next-step-agent
+preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/next-step-preview.XXXXXX")"
+preview_html="$preview_dir/next-step-agent.html"
+"$AIX_BIN" preview examples/next-step-agent --html-out "$preview_html"
+test -s "$preview_html"
+grep -Fq 'pages/index/index.ink' "$preview_html"
 ```
 
-AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的 `@yodaos-pkg/aix-cli@0.8.2`。可用 `AIX_BIN` 指定可执行文件，或同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI 并验证指定发布版。脚本只打包到自身临时目录，不上传或部署。
+上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署。
 
 ## 目录
 

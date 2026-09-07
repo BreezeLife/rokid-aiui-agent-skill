@@ -1,3 +1,4 @@
+import json
 import re
 import unittest
 from pathlib import Path
@@ -114,6 +115,24 @@ class SkillStructureTests(unittest.TestCase):
                 (STUDIO_EXAMPLE_PATH / relative).is_file(),
                 f"missing Studio example file: {relative}",
             )
+
+    def test_page_definition_example_uses_schema_data_envelope(self):
+        reference = (SKILL_ROOT / "references" / "ink-authoring.md").read_text(
+            encoding="utf-8"
+        )
+        example_match = re.search(
+            r"```html\s*<script def>\s*(?P<definition>\{.*?\})\s*</script>",
+            reference,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(example_match)
+        definition = json.loads(example_match.group("definition"))
+        schema = definition["schema"]
+        self.assertNotIn("type", schema)
+        self.assertNotIn("properties", schema)
+        self.assertIn("data", schema)
+        self.assertEqual("object", schema["data"]["type"])
+        self.assertIn("properties", schema["data"])
 
     def test_metadata_is_complete_and_strings_are_quoted(self):
         self.assertTrue(METADATA_PATH.is_file(), f"missing metadata: {METADATA_PATH}")

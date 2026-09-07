@@ -16,6 +16,8 @@
 - 2026-09-07: The official documentation selector currently labels AIUI `0.17.0` as stable. Use it as the conservative default when a target cannot be discovered. The inspected repository documents `0.18.0` additions such as Widgets and Agent Workers; do not emit them into a `0.17.0` project without explicit support evidence.
 - 2026-09-07: Package the repository Skill at `skills/rokid-aiui-agent/`, because Agent Skills discovery requires a named directory whose basename matches frontmatter `name`. Keep the Studio-importable example inside the package as `assets/studio-importable-minimal/` so it survives installation.
 - 2026-09-07: Never report validation, AIX, Studio, platform, or device success from a proposed command alone; success claims require an execution record from the current environment.
+- 2026-09-08: The first generated product example is `examples/next-step-agent/`. It uses the official `schema.data` Page input envelope, local Page state, no permissions, and target-specific density without target-specific business state.
+- 2026-09-08: Bound `goal` and `nextStep` to 120 and 48 Unicode code points. Keep long Page content inside the official `scroll-view` component, and drive focus feedback from each actionable element's `focus` and `blur` events.
 
 ## Source priority
 

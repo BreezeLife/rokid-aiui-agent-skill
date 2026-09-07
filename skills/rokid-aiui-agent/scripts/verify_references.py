@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import asdict, dataclass
@@ -24,6 +25,7 @@ PINNED_SOURCE_RE = re.compile(
 )
 FULL_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$", flags=re.IGNORECASE)
 STALE_AIX_HOST = "jsar-project.github.io"
+IGNORED_MARKDOWN_DIRECTORIES = frozenset({".git", ".worktrees", "node_modules"})
 
 
 @dataclass(frozen=True, order=True)
@@ -38,11 +40,20 @@ class Diagnostic:
 
 
 def markdown_files(root: Path) -> list[Path]:
-    return sorted(
-        path
-        for path in root.rglob("*.md")
-        if path.is_file() and ".git" not in path.relative_to(root).parts
-    )
+    markdown_paths: list[Path] = []
+    for directory, child_directories, filenames in os.walk(root):
+        child_directories[:] = sorted(
+            name
+            for name in child_directories
+            if name not in IGNORED_MARKDOWN_DIRECTORIES
+        )
+        for filename in filenames:
+            if not filename.endswith(".md"):
+                continue
+            path = Path(directory) / filename
+            if path.is_file():
+                markdown_paths.append(path)
+    return sorted(markdown_paths)
 
 
 def normalize_target(raw_target: str) -> str:

@@ -2,7 +2,7 @@
 
 ## In progress
 
-- No active implementation tasks.
+- [ ] Push the locally verified Agent example and confirm the resulting public GitHub Actions run.
 
 ## Done
 
@@ -20,6 +20,9 @@
 - [x] Completed independent Studio-contract and code/CI reviews with no remaining implementation P0/P1.
 - [x] Created and pushed the public `BreezeLife/rokid-aiui-agent-skill` GitHub repository.
 - [x] Verified the public default branch and files, both documented remote installation flows, and a green GitHub Actions run.
+- [x] Corrected the discovered AIUI `schema.data` reference drift with a regression test.
+- [x] Built the stable `examples/next-step-agent/` Studio-importable project through RED/GREEN tests.
+- [x] Added strict validation, published-AIX package/preview coverage, documentation, and visual preview evidence.
 
 ## External manual gates
 
