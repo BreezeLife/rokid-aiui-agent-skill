@@ -2,7 +2,7 @@
 
 ## In progress
 
-- [ ] Push the locally verified Agent example and confirm the resulting public GitHub Actions run.
+- No active implementation tasks.
 
 ## Done
 
@@ -23,6 +23,7 @@
 - [x] Corrected the discovered AIUI `schema.data` reference drift with a regression test.
 - [x] Built the stable `examples/next-step-agent/` Studio-importable project through RED/GREEN tests.
 - [x] Added strict validation, published-AIX package/preview coverage, documentation, and visual preview evidence.
+- [x] Published the Next Step Agent to public `main` at `eb8204799b0cb13aae180e00a30283eb5367b35a` and confirmed GitHub Actions run `34158236017` passed both jobs.
 
 ## External manual gates
 

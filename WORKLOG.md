@@ -49,3 +49,6 @@
 - Regenerated the exact Next Step preview at 28,338 bytes, confirmed `pages/index/index.ink`, and completed `gh skill publish . --dry-run`. The dry run passed with only the repository's existing advisory that tag-protection rules are not configured.
 - Final delivery review found that reference validation re-scanned Markdown inside installed dependencies. Added a RED/GREEN regression and pruned `.git`, `.worktrees`, and `node_modules` during traversal so the documented local workflow is repeatable after `npm ci` and in repository worktrees.
 - Re-ran the complete suite after the review fix: all 57 unit tests passed, including the real Page state-machine harness and the installed-dependency reference regression.
+- Recovered the exact verified feature snapshot into a clean clone after iCloud offloaded part of the local Git metadata; recovered files were checked against the original commit blobs before publication.
+- Fast-forwarded public `main` to `eb8204799b0cb13aae180e00a30283eb5367b35a` and verified the remote `examples/next-step-agent/app.json` through the GitHub API.
+- GitHub Actions run `34158236017` completed successfully: both `Validate skill and examples` and `Package importable projects with published AIX` passed, including the locked preview gate.
