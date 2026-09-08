@@ -69,6 +69,22 @@ Directory: examples/next-step-agent
 
 自动验证不能替代账号侧 AIUI Studio 导入和 Rokid Glasses 真机验收。
 
+### Japanese Focus Timer Agent
+
+[examples/focus-timer-agent](examples/focus-timer-agent/) 是面向 Rokid Glasses 的日文专注计时器，同样保持稳定版 AIUI `0.17.0`、Page-only 和零权限边界。Agent 从对话中提取 1～3600 的整数 `durationSeconds` 与可选 `label`；页面提供 `idle`、`running`、`paused`、`finished`、`error`，以及开始、暂停、继续、重新开始和重置。
+
+运行期间以绝对截止时间和 `Date.now()` 计算真实剩余时间，刷新定时器不逐秒修改业务时间。页面隐藏时停止刷新，重新显示时校准，卸载时清理定时器。它不承诺后台持续运行、系统闹钟、通知或持久化恢复。
+
+AIUI Studio GitHub 导入坐标：
+
+```text
+Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
+Ref: main
+Directory: examples/focus-timer-agent
+```
+
+页面文案与 Agent 提示词为日文；字段名和状态名保留英文技术契约。账号登录后的 Studio 导入与 Rokid Glasses 真机操作仍需人工验收。
+
 ## 开发闭环
 
 1. 确定 AIUI Studio 将导入的准确目录，读取其中的项目指引、`app.json`、入口、页面和现有脚本。
@@ -88,6 +104,7 @@ python3 -m unittest discover -s tests -v
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/verify_references.py .
 npm ci --ignore-scripts --no-audit --no-fund
 AIX_BIN="$PWD/node_modules/.bin/aix"
@@ -95,11 +112,17 @@ export AIX_BIN
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/next-step-agent
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/focus-timer-agent
 preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/next-step-preview.XXXXXX")"
 preview_html="$preview_dir/next-step-agent.html"
 "$AIX_BIN" preview examples/next-step-agent --html-out "$preview_html"
 test -s "$preview_html"
 grep -Fq 'pages/index/index.ink' "$preview_html"
+focus_preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/focus-timer-preview.XXXXXX")"
+focus_preview_html="$focus_preview_dir/focus-timer-agent.html"
+"$AIX_BIN" preview examples/focus-timer-agent --html-out "$focus_preview_html"
+test -s "$focus_preview_html"
+grep -Fq 'pages/index/index.ink' "$focus_preview_html"
 ```
 
 上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署。

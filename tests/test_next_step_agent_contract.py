@@ -219,6 +219,8 @@ class NextStepAgentContractTests(unittest.TestCase):
                     "skills/rokid-aiui-agent/assets/studio-importable-minimal",
                     "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
                     "examples/next-step-agent",
+                    "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
+                    "examples/focus-timer-agent",
                 ),
             )
 

@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "examples" / "focus-timer-agent"
@@ -29,6 +31,57 @@ def extract_block(source: str, pattern: str, label: str) -> str:
 
 
 class FocusTimerAgentContractTests(unittest.TestCase):
+    def test_readme_and_ci_cover_delivery_flow(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for fragment in (
+            "examples/focus-timer-agent",
+            "Japanese Focus Timer Agent",
+            "durationSeconds",
+            "Date.now()",
+            "Directory: examples/focus-timer-agent",
+        ):
+            self.assertIn(fragment, readme)
+
+        workflow = yaml.safe_load(
+            (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        validate_run = next(
+            step["run"]
+            for step in workflow["jobs"]["validate"]["steps"]
+            if step.get("name") == "Validate importable AIUI projects strictly"
+        )
+        self.assertIn(
+            "examples/focus-timer-agent --target-version 0.17.0 --strict",
+            validate_run,
+        )
+        aix_steps = workflow["jobs"]["aix-smoke"]["steps"]
+        pack_run = next(
+            step["run"]
+            for step in aix_steps
+            if step.get("name") == "Pack and inspect stable AIUI projects"
+        )
+        self.assertIn(
+            "smoke_aix.sh examples/focus-timer-agent", pack_run
+        )
+        preview = next(
+            step
+            for step in aix_steps
+            if step.get("name") == "Generate the Focus Timer Agent static preview"
+        )
+        self.assertEqual(
+            preview["env"],
+            {"AIX_BIN": "${{ github.workspace }}/node_modules/.bin/aix"},
+        )
+        self.assertIn(
+            '"$AIX_BIN" --help', preview["run"]
+        )
+        self.assertIn(
+            '"$AIX_BIN" preview examples/focus-timer-agent', preview["run"]
+        )
+        self.assertIn("test -s", preview["run"])
+
     def test_import_root_is_page_only_aiui_017_project(self) -> None:
         self.assertTrue(EXAMPLE.is_dir(), f"missing import root: {EXAMPLE}")
         expected = {
