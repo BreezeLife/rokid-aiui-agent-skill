@@ -53,5 +53,4 @@
 - [ ] Run `aix --help` from the lockfile-resolved binary and confirm `preview`, `pack`, and `list` are advertised.
 - [ ] Run strict validation, static preview, pack, and list against the exact focus-timer import directory; record command results, artifact size, and listing.
 - [ ] Inspect the generated preview in a browser and report only what that layer proves.
-- [ ] Run the full repository verification flow fresh, update continuity files with exact evidence, and keep Studio login/import plus physical-glasses checks as manual gates.
-
+- [x] Run the full repository verification flow fresh, update continuity files with exact evidence, and keep Studio login/import plus physical-glasses checks as manual gates.
