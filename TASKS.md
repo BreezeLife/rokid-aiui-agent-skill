@@ -25,9 +25,14 @@
 - [x] Added strict validation, published-AIX package/preview coverage, documentation, and visual preview evidence.
 - [x] Published the Next Step Agent to public `main` at `eb8204799b0cb13aae180e00a30283eb5367b35a` and confirmed GitHub Actions run `34158236017` passed both jobs.
 - [x] Built and locally verified the Japanese `examples/focus-timer-agent/` stable AIUI 0.17 Page project with deterministic fake-clock coverage and AIX preview/pack/list evidence.
+- [x] Added locally verified nod-driven primary actions to the Focus Timer Page without introducing eye tracking; retained physical-glasses gesture behavior as a manual gate.
+- [x] Corrected voice-driven timer setup routing so valid new or changed durations require a fresh Page call, including the 25-minute-to-1500-second contract and reconfiguration regression.
+- [x] Audited the Focus Timer against pinned AIUI 0.17 examples, hardened the World Awareness fallback, removed the error-state dead action, and visually inspected the generated AIX preview.
 
 ## External manual gates
 
 - [ ] Import the example through an authenticated AIUI Studio account using the published GitHub coordinates.
 - [ ] Verify product-specific agents on the target physical Rokid Glasses before making device-behavior or release-readiness claims.
 - [ ] Import `examples/focus-timer-agent/` through an authenticated AIUI Studio account and verify both `_current` and `_blank` on physical Rokid Glasses.
+- [ ] Verify World Awareness nod recognition and the start/pause/continue/restart mapping on physical Rokid Glasses.
+- [ ] Verify that spoken timer setup and changes cause a new Page invocation in authenticated AIUI Studio and on physical Rokid Glasses.

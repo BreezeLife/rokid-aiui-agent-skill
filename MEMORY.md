@@ -20,6 +20,8 @@
 - 2026-09-08: Bound `goal` and `nextStep` to 120 and 48 Unicode code points. Keep long Page content inside the official `scroll-view` component, and drive focus feedback from each actionable element's `focus` and `blur` events.
 - 2026-09-08: The Japanese `examples/focus-timer-agent/` uses a Page-local absolute deadline for timing. `Date.now()` is the source of remaining time, the interval only refreshes presentation, hide/show suspends and recalculates refresh, and no background execution, alarm, notification, or persistence is promised.
 - 2026-09-08: Focus Timer actions use per-button focus state. Running progress is capped at 99%; only `finished` displays 100%, so presentation never claims completion before the absolute deadline.
+- 2026-09-09: Focus Timer uses AIUI 0.17 Page World Awareness for head gestures, not eye tracking. A visible Page maps `nod` to its primary state action: idle/start, running/pause, paused/continue, and finished/restart; error is a no-op and button focus/tap remains available.
+- 2026-09-09: Voice-driven Focus Timer reconfiguration must happen through a new Page invocation with converted integer `durationSeconds`; AIUI 0.17 `onLoad(query)` runs only once per Page instance, so later conversation must not claim to mutate an already-rendered timer card in place.
 
 ## Source priority
 

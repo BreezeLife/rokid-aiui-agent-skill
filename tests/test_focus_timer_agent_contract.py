@@ -119,6 +119,11 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             "`error`",
             "`_current`",
             "`_blank`",
+            "点頭",
+            "眼球追跡は使用しません",
+            "25 分",
+            "1500",
+            "新しい Page",
             "バックグラウンド",
             "通知",
             "永続化",
@@ -135,6 +140,8 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         definition = json.loads(
             extract_block(ink, r"<script def>\s*(.*?)\s*</script>", "definition")
         )
+        self.assertIn("変更", definition["description"])
+        self.assertIn("专注 25 分钟", definition["description"])
         schema = definition["schema"]
         self.assertEqual(set(schema), {"data"})
         data_schema = schema["data"]
@@ -147,7 +154,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 3600,
-                "description": "集中する時間（秒）。",
+                "description": "集中する時間を換算した整数秒。例：25 分は 1500。",
             },
         )
         label = data_schema["properties"]["label"]
@@ -216,6 +223,13 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertIn("clearInterval", setup)
         for lifecycle in ("onShow", "onHide", "onUnload"):
             self.assertRegex(setup, rf"(?m)^\s{{2}}{lifecycle}\(\)\s*\{{")
+        self.assertIn("this.enableWorldAwareness()", setup)
+        self.assertIn("typeof this.enableWorldAwareness === 'function'", setup)
+        self.assertRegex(setup, r"(?m)^\s{2}onHeadGesture\(event\)\s*\{")
+        self.assertIn("event.gesture !== 'nod'", setup)
+        self.assertIn("うなずく", ink)
+        self.assertNotIn(".state-error .action-reset", style)
+        self.assertRegex(style, r"\.nod-hint\s*\{[^}]*font-size:\s*12px")
         for forbidden in ("fetch(", "wx.request", "getStorage", "setStorage"):
             self.assertNotIn(forbidden, setup)
 
@@ -241,15 +255,21 @@ globalThis.setInterval = (callback, delay) => {
 };
 globalThis.clearInterval = (id) => intervals.delete(id);
 
-function mount(query) {
+function mount(query, options = {}) {
   const page = {
     data: JSON.parse(JSON.stringify(definition.data)),
     patches: [],
+    worldAwarenessEnableCalls: 0,
     setData(patch) {
       this.patches.push(JSON.parse(JSON.stringify(patch)));
       Object.assign(this.data, patch);
     }
   };
+  if (!options.withoutWorldAwareness) {
+    page.enableWorldAwareness = function () {
+      this.worldAwarenessEnableCalls += 1;
+    };
+  }
   for (const [name, value] of Object.entries(definition)) {
     if (typeof value === 'function') page[name] = value;
   }
@@ -392,6 +412,71 @@ const stateActions = {
   }),
 };
 
+const headGestures = {
+  enabledOnLoad: isolated({ durationSeconds: 5 }, (page) =>
+    page.worldAwarenessEnableCalls
+  ),
+  ignoredGesture: isolated({ durationSeconds: 5 }, (page) => {
+    page.onHeadGesture({ gesture: 'shake' });
+    page.onHeadGesture(null);
+    return snapshot(page);
+  }),
+  idleNod: isolated({ durationSeconds: 5 }, (page) => {
+    page.onHeadGesture({ gesture: 'nod' });
+    return snapshot(page);
+  }),
+  runningNod: isolated({ durationSeconds: 5 }, (page) => {
+    page.startTimer();
+    advance(1250);
+    page.onHeadGesture({ gesture: 'nod' });
+    return snapshot(page);
+  }),
+  pausedNod: isolated({ durationSeconds: 5 }, (page) => {
+    page.startTimer();
+    advance(1000);
+    page.pauseTimer();
+    page.onHeadGesture({ gesture: 'nod' });
+    return snapshot(page);
+  }),
+  finishedNod: isolated({ durationSeconds: 5 }, (page) => {
+    page.startTimer();
+    advance(5000);
+    page.onHeadGesture({ gesture: 'nod' });
+    return snapshot(page);
+  }),
+  errorNod: isolated({ durationSeconds: 0 }, (page) => {
+    page.onHeadGesture({ gesture: 'nod' });
+    return snapshot(page);
+  }),
+};
+
+const reconfigured = (() => {
+  intervals.clear();
+  nowMs = 100000;
+  const first = mount({ durationSeconds: 5, label: '読書' });
+  first.startTimer();
+  advance(1000);
+  const previous = snapshot(first);
+  first.onUnload();
+  const next = mount({ durationSeconds: 1500, label: '執筆' });
+  const updated = snapshot(next);
+  next.onUnload();
+  intervals.clear();
+  return { previous, updated };
+})();
+
+const noWorldAwareness = (() => {
+  intervals.clear();
+  nowMs = 100000;
+  const page = mount({ durationSeconds: 5 }, { withoutWorldAwareness: true });
+  const loaded = snapshot(page);
+  page.startTimer();
+  const startedByButton = snapshot(page);
+  page.onUnload();
+  intervals.clear();
+  return { loaded, startedByButton };
+})();
+
 console.log(JSON.stringify({
   inputs,
   flow,
@@ -399,6 +484,9 @@ console.log(JSON.stringify({
   actions,
   nearFinish,
   stateActions,
+  headGestures,
+  reconfigured,
+  noWorldAwareness,
 }));
 """
         with tempfile.TemporaryDirectory(prefix="focus-timer-agent-") as directory:
@@ -518,6 +606,40 @@ console.log(JSON.stringify({
         self.assertEqual(payload["stateActions"]["finishedReset"]["state"], "idle")
         self.assertEqual(payload["stateActions"]["finishedReset"]["remainingMs"], 5000)
         self.assertEqual(payload["stateActions"]["finishedReset"]["intervals"], 0)
+
+        head_gestures = payload["headGestures"]
+        self.assertEqual(head_gestures["enabledOnLoad"], 1)
+        self.assertEqual(head_gestures["ignoredGesture"]["state"], "idle")
+        self.assertEqual(head_gestures["ignoredGesture"]["intervals"], 0)
+        self.assertEqual(head_gestures["idleNod"]["state"], "running")
+        self.assertEqual(head_gestures["idleNod"]["intervals"], 1)
+        self.assertEqual(head_gestures["runningNod"]["state"], "paused")
+        self.assertEqual(head_gestures["runningNod"]["remainingMs"], 3750)
+        self.assertEqual(head_gestures["runningNod"]["intervals"], 0)
+        self.assertEqual(head_gestures["pausedNod"]["state"], "running")
+        self.assertEqual(head_gestures["pausedNod"]["remainingMs"], 4000)
+        self.assertEqual(head_gestures["pausedNod"]["intervals"], 1)
+        self.assertEqual(head_gestures["finishedNod"]["state"], "running")
+        self.assertEqual(head_gestures["finishedNod"]["remainingMs"], 5000)
+        self.assertEqual(head_gestures["finishedNod"]["intervals"], 1)
+        self.assertEqual(head_gestures["errorNod"]["state"], "error")
+        self.assertEqual(head_gestures["errorNod"]["intervals"], 0)
+
+        self.assertEqual(payload["reconfigured"]["previous"]["state"], "running")
+        self.assertEqual(payload["reconfigured"]["previous"]["displayTime"], "00:04")
+        self.assertEqual(payload["reconfigured"]["updated"]["state"], "idle")
+        self.assertEqual(payload["reconfigured"]["updated"]["durationSeconds"], 1500)
+        self.assertEqual(payload["reconfigured"]["updated"]["displayTime"], "25:00")
+        self.assertEqual(payload["reconfigured"]["updated"]["label"], "執筆")
+        self.assertEqual(payload["reconfigured"]["updated"]["intervals"], 0)
+
+        self.assertEqual(payload["noWorldAwareness"]["loaded"]["state"], "idle")
+        self.assertEqual(
+            payload["noWorldAwareness"]["startedByButton"]["state"], "running"
+        )
+        self.assertEqual(
+            payload["noWorldAwareness"]["startedByButton"]["intervals"], 1
+        )
 
 
 if __name__ == "__main__":

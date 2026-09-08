@@ -47,4 +47,3 @@ Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
 Ref: main
 Directory: examples/focus-timer-agent
 ```
-

@@ -1,7 +1,7 @@
 <script def>
 {
   "navigationBarTitleText": "フォーカスタイマー",
-  "description": "指定された時間の集中セッションを、この Page が表示されている間に計測します。",
+  "description": "集中時間を新しく指定または変更するたびに呼び出します。「25 分集中」「专注 25 分钟」「改成 10 分钟」などの時間を整数秒へ換算し、この Page が表示されている間に計測します。",
   "schema": {
     "data": {
       "type": "object",
@@ -10,7 +10,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 3600,
-          "description": "集中する時間（秒）。"
+          "description": "集中する時間を換算した整数秒。例：25 分は 1500。"
         },
         "label": {
           "type": "string",
@@ -33,23 +33,28 @@ const DEFAULT_LABEL = 'フォーカスタイマー';
 const STATE_CONTENT = {
   idle: {
     statusLabel: '準備完了',
-    statusDetail: '開始すると、この画面で集中時間を計測します。'
+    statusDetail: '開始すると、この画面で集中時間を計測します。',
+    nodHint: 'うなずく：開始'
   },
   running: {
     statusLabel: '集中中',
-    statusDetail: '残り時間は実際の終了時刻から計算しています。'
+    statusDetail: '残り時間は実際の終了時刻から計算しています。',
+    nodHint: 'うなずく：一時停止'
   },
   paused: {
     statusLabel: '一時停止',
-    statusDetail: '再開するまで残り時間は変わりません。'
+    statusDetail: '再開するまで残り時間は変わりません。',
+    nodHint: 'うなずく：再開'
   },
   finished: {
     statusLabel: '完了',
-    statusDetail: '集中セッションが終了しました。'
+    statusDetail: '集中セッションが終了しました。',
+    nodHint: 'うなずく：最初から'
   },
   error: {
     statusLabel: '入力エラー',
-    statusDetail: '1～3600 秒の集中時間を会話で指定してください。'
+    statusDetail: '1～3600 秒の集中時間を会話で指定してください。',
+    nodHint: '会話で時間を指定してください'
   }
 };
 
@@ -78,6 +83,7 @@ function buildTimerPatch(state, totalMs, remainingMs, deadlineMs) {
       Math.min(99, Math.floor(elapsedRatio * 100)),
     statusLabel: content.statusLabel,
     statusDetail: content.statusDetail,
+    nodHint: content.nodHint,
     focusedAction: ''
   };
 }
@@ -121,12 +127,16 @@ export default {
     progressPercent: 0,
     statusLabel: STATE_CONTENT.error.statusLabel,
     statusDetail: STATE_CONTENT.error.statusDetail,
+    nodHint: STATE_CONTENT.error.nodHint,
     focusedAction: ''
   },
 
   onLoad(query) {
     this._refreshTimerId = null;
     this._isVisible = false;
+    if (typeof this.enableWorldAwareness === 'function') {
+      this.enableWorldAwareness();
+    }
     const input = normalizeInput(query);
     if (!input.valid) {
       this.setData({
@@ -162,6 +172,19 @@ export default {
   onUnload() {
     this._isVisible = false;
     this._stopRefresh();
+  },
+
+  onHeadGesture(event) {
+    if (!this._isVisible || !event || event.gesture !== 'nod') return;
+    if (this.data.state === 'idle') {
+      this.startTimer();
+    } else if (this.data.state === 'running') {
+      this.pauseTimer();
+    } else if (this.data.state === 'paused') {
+      this.continueTimer();
+    } else if (this.data.state === 'finished') {
+      this.restartTimer();
+    }
   },
 
   focusStartAction() {
@@ -316,6 +339,7 @@ export default {
         </view>
       </view>
       <text class="status-detail expanded-only">{{statusDetail}}</text>
+      <text class="nod-hint">{{nodHint}}</text>
     </view>
     <view class="actions">
       <button class="action action-start action-focused-{{focusedAction}}" bindtap="startTimer" bindfocus="focusStartAction" bindblur="onActionBlur">開始</button>
@@ -435,6 +459,13 @@ export default {
   color: rgba(184, 255, 195, 0.76);
 }
 
+.nod-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(64, 255, 94, 0.7);
+}
+
 .actions {
   flex-shrink: 0;
   justify-content: flex-start;
@@ -466,8 +497,7 @@ export default {
 .state-idle .action-start,
 .state-running .action-pause,
 .state-paused .action-continue,
-.state-finished .action-restart,
-.state-error .action-reset { display: flex; }
+.state-finished .action-restart { display: flex; }
 
 @media (target: _current) {
   .page-shell { padding: 8px; }
