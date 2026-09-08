@@ -2,7 +2,7 @@
 
 ## In progress
 
-- [ ] Build and verify the Japanese `examples/focus-timer-agent/` stable AIUI 0.17 Page project.
+- No active implementation tasks.
 
 ## Done
 
@@ -24,8 +24,10 @@
 - [x] Built the stable `examples/next-step-agent/` Studio-importable project through RED/GREEN tests.
 - [x] Added strict validation, published-AIX package/preview coverage, documentation, and visual preview evidence.
 - [x] Published the Next Step Agent to public `main` at `eb8204799b0cb13aae180e00a30283eb5367b35a` and confirmed GitHub Actions run `34158236017` passed both jobs.
+- [x] Built and locally verified the Japanese `examples/focus-timer-agent/` stable AIUI 0.17 Page project with deterministic fake-clock coverage and AIX preview/pack/list evidence.
 
 ## External manual gates
 
 - [ ] Import the example through an authenticated AIUI Studio account using the published GitHub coordinates.
 - [ ] Verify product-specific agents on the target physical Rokid Glasses before making device-behavior or release-readiness claims.
+- [ ] Import `examples/focus-timer-agent/` through an authenticated AIUI Studio account and verify both `_current` and `_blank` on physical Rokid Glasses.

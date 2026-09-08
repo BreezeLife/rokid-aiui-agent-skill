@@ -18,6 +18,8 @@
 - 2026-09-07: Never report validation, AIX, Studio, platform, or device success from a proposed command alone; success claims require an execution record from the current environment.
 - 2026-09-08: The first generated product example is `examples/next-step-agent/`. It uses the official `schema.data` Page input envelope, local Page state, no permissions, and target-specific density without target-specific business state.
 - 2026-09-08: Bound `goal` and `nextStep` to 120 and 48 Unicode code points. Keep long Page content inside the official `scroll-view` component, and drive focus feedback from each actionable element's `focus` and `blur` events.
+- 2026-09-08: The Japanese `examples/focus-timer-agent/` uses a Page-local absolute deadline for timing. `Date.now()` is the source of remaining time, the interval only refreshes presentation, hide/show suspends and recalculates refresh, and no background execution, alarm, notification, or persistence is promised.
+- 2026-09-08: Focus Timer actions use per-button focus state. Running progress is capped at 99%; only `finished` displays 100%, so presentation never claims completion before the absolute deadline.
 
 ## Source priority
 
