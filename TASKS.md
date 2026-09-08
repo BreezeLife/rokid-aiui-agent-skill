@@ -28,6 +28,7 @@
 - [x] Added locally verified nod-driven primary actions to the Focus Timer Page without introducing eye tracking; retained physical-glasses gesture behavior as a manual gate.
 - [x] Corrected voice-driven timer setup routing so valid new or changed durations require a fresh Page call, including the 25-minute-to-1500-second contract and reconfiguration regression.
 - [x] Audited the Focus Timer against pinned AIUI 0.17 examples, hardened the World Awareness fallback, removed the error-state dead action, and visually inspected the generated AIX preview.
+- [x] Published the complete Focus Timer history and audit fix to public `main`, verified the remote import directory, and observed a successful GitHub Actions run for the feature commit.
 
 ## External manual gates
 
