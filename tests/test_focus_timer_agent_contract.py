@@ -167,6 +167,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertIn("border-radius: 6px", style)
         for text in (
             "フォーカスタイマー",
+            "集中",
             "開始",
             "一時停止",
             "再開",
@@ -174,21 +175,36 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             "リセット",
         ):
             self.assertIn(text, ink)
+        self.assertNotIn(">FOCUS<", ink)
 
         buttons = re.findall(r"<button\b[^>]*>", page, flags=re.DOTALL)
         self.assertEqual(len(buttons), 5)
         handlers = []
+        focus_handlers = []
         for button in buttons:
             tap = re.findall(r'\bbindtap="([A-Za-z_$][\w$]*)"', button)
             self.assertEqual(len(tap), 1, button)
             handlers.extend(tap)
-            self.assertIn('bindfocus="onActionFocus"', button)
+            focus = re.findall(r'\bbindfocus="([A-Za-z_$][\w$]*)"', button)
+            self.assertEqual(len(focus), 1, button)
+            focus_handlers.extend(focus)
             self.assertIn('bindblur="onActionBlur"', button)
+            self.assertIn("action-focused-{{focusedAction}}", button)
         self.assertCountEqual(
             handlers,
             ["startTimer", "pauseTimer", "continueTimer", "restartTimer", "resetTimer"],
         )
-        for handler in handlers + ["onActionFocus", "onActionBlur"]:
+        self.assertEqual(
+            focus_handlers,
+            [
+                "focusStartAction",
+                "focusPauseAction",
+                "focusContinueAction",
+                "focusRestartAction",
+                "focusResetAction",
+            ],
+        )
+        for handler in handlers + focus_handlers + ["onActionBlur"]:
             self.assertRegex(setup, rf"(?m)^\s{{2}}{handler}\([^)]*\)\s*\{{")
 
         current = style[style.index("@media (target: _current)") :]
@@ -332,10 +348,10 @@ const lifecycle = isolated({ durationSeconds: 10, label: '設計' }, (page) => {
 });
 
 const actions = isolated({ durationSeconds: 5 }, (page) => {
-  page.onActionFocus();
-  const focused = page.data.actionFocused;
+  page.focusRestartAction();
+  const focused = page.data.focusedAction;
   page.onActionBlur();
-  const blurred = page.data.actionFocused;
+  const blurred = page.data.focusedAction;
   page.pauseTimer();
   const invalidPause = snapshot(page);
   page.restartTimer();
@@ -343,7 +359,47 @@ const actions = isolated({ durationSeconds: 5 }, (page) => {
   return { focused, blurred, invalidPause, invalidRestart };
 });
 
-console.log(JSON.stringify({ inputs, flow, lifecycle, actions }));
+const nearFinish = isolated({ durationSeconds: 3600 }, (page) => {
+  page.startTimer();
+  advance(3599999);
+  return snapshot(page);
+});
+
+const stateActions = {
+  errorReset: isolated({ durationSeconds: 0 }, (page) => {
+    page.resetTimer();
+    return snapshot(page);
+  }),
+  pausedReset: isolated({ durationSeconds: 5 }, (page) => {
+    page.startTimer();
+    advance(1000);
+    page.pauseTimer();
+    page.resetTimer();
+    return snapshot(page);
+  }),
+  pausedRestart: isolated({ durationSeconds: 5 }, (page) => {
+    page.startTimer();
+    advance(1000);
+    page.pauseTimer();
+    page.restartTimer();
+    return snapshot(page);
+  }),
+  finishedReset: isolated({ durationSeconds: 5 }, (page) => {
+    page.startTimer();
+    advance(5000);
+    page.resetTimer();
+    return snapshot(page);
+  }),
+};
+
+console.log(JSON.stringify({
+  inputs,
+  flow,
+  lifecycle,
+  actions,
+  nearFinish,
+  stateActions,
+}));
 """
         with tempfile.TemporaryDirectory(prefix="focus-timer-agent-") as directory:
             temp = Path(directory)
@@ -411,6 +467,10 @@ console.log(JSON.stringify({ inputs, flow, lifecycle, actions }));
         self.assertEqual(flow[10]["remainingMs"], 10000)
         self.assertEqual(flow[10]["intervals"], 0)
 
+        self.assertEqual(payload["nearFinish"]["state"], "running")
+        self.assertEqual(payload["nearFinish"]["remainingMs"], 1)
+        self.assertEqual(payload["nearFinish"]["progressPercent"], 99)
+
         lifecycle = payload["lifecycle"]
         self.assertEqual(lifecycle["hidden"]["intervals"], 0)
         self.assertEqual(lifecycle["hiddenLater"]["remainingMs"], 8000)
@@ -423,8 +483,8 @@ console.log(JSON.stringify({ inputs, flow, lifecycle, actions }));
         self.assertEqual(
             payload["actions"],
             {
-                "focused": True,
-                "blurred": False,
+                "focused": "restart",
+                "blurred": "",
                 "invalidPause": {
                     "state": "idle",
                     "durationSeconds": 5,
@@ -447,6 +507,17 @@ console.log(JSON.stringify({ inputs, flow, lifecycle, actions }));
                 },
             },
         )
+        self.assertEqual(payload["stateActions"]["errorReset"]["state"], "error")
+        self.assertEqual(payload["stateActions"]["errorReset"]["intervals"], 0)
+        self.assertEqual(payload["stateActions"]["pausedReset"]["state"], "idle")
+        self.assertEqual(payload["stateActions"]["pausedReset"]["remainingMs"], 5000)
+        self.assertEqual(payload["stateActions"]["pausedReset"]["intervals"], 0)
+        self.assertEqual(payload["stateActions"]["pausedRestart"]["state"], "running")
+        self.assertEqual(payload["stateActions"]["pausedRestart"]["remainingMs"], 5000)
+        self.assertEqual(payload["stateActions"]["pausedRestart"]["intervals"], 1)
+        self.assertEqual(payload["stateActions"]["finishedReset"]["state"], "idle")
+        self.assertEqual(payload["stateActions"]["finishedReset"]["remainingMs"], 5000)
+        self.assertEqual(payload["stateActions"]["finishedReset"]["intervals"], 0)
 
 
 if __name__ == "__main__":

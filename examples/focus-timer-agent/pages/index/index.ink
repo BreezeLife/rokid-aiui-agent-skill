@@ -74,10 +74,11 @@ function buildTimerPatch(state, totalMs, remainingMs, deadlineMs) {
     remainingMs: safeRemaining,
     deadlineMs,
     displayTime: formatTime(safeRemaining),
-    progressPercent: Math.round(elapsedRatio * 100),
+    progressPercent: state === 'finished' ? 100 :
+      Math.min(99, Math.floor(elapsedRatio * 100)),
     statusLabel: content.statusLabel,
     statusDetail: content.statusDetail,
-    actionFocused: false
+    focusedAction: ''
   };
 }
 
@@ -120,7 +121,7 @@ export default {
     progressPercent: 0,
     statusLabel: STATE_CONTENT.error.statusLabel,
     statusDetail: STATE_CONTENT.error.statusDetail,
-    actionFocused: false
+    focusedAction: ''
   },
 
   onLoad(query) {
@@ -163,12 +164,28 @@ export default {
     this._stopRefresh();
   },
 
-  onActionFocus() {
-    this.setData({ actionFocused: true });
+  focusStartAction() {
+    this.setData({ focusedAction: 'start' });
+  },
+
+  focusPauseAction() {
+    this.setData({ focusedAction: 'pause' });
+  },
+
+  focusContinueAction() {
+    this.setData({ focusedAction: 'continue' });
+  },
+
+  focusRestartAction() {
+    this.setData({ focusedAction: 'restart' });
+  },
+
+  focusResetAction() {
+    this.setData({ focusedAction: 'reset' });
   },
 
   onActionBlur() {
-    this.setData({ actionFocused: false });
+    this.setData({ focusedAction: '' });
   },
 
   _startRefresh() {
@@ -282,7 +299,7 @@ export default {
 <page class="page-shell state-{{state}}">
   <view class="surface">
     <view class="topline">
-      <text class="eyebrow">FOCUS</text>
+      <text class="eyebrow">集中</text>
       <text class="state-label expanded-only">{{statusLabel}}</text>
     </view>
     <view class="divider"></view>
@@ -301,11 +318,11 @@ export default {
       <text class="status-detail expanded-only">{{statusDetail}}</text>
     </view>
     <view class="actions">
-      <button class="action action-start action-focused-{{actionFocused}}" bindtap="startTimer" bindfocus="onActionFocus" bindblur="onActionBlur">開始</button>
-      <button class="action action-pause action-focused-{{actionFocused}}" bindtap="pauseTimer" bindfocus="onActionFocus" bindblur="onActionBlur">一時停止</button>
-      <button class="action action-continue action-focused-{{actionFocused}}" bindtap="continueTimer" bindfocus="onActionFocus" bindblur="onActionBlur">再開</button>
-      <button class="action action-restart action-focused-{{actionFocused}}" bindtap="restartTimer" bindfocus="onActionFocus" bindblur="onActionBlur">最初から</button>
-      <button class="action action-reset action-focused-{{actionFocused}}" bindtap="resetTimer" bindfocus="onActionFocus" bindblur="onActionBlur">リセット</button>
+      <button class="action action-start action-focused-{{focusedAction}}" bindtap="startTimer" bindfocus="focusStartAction" bindblur="onActionBlur">開始</button>
+      <button class="action action-pause action-focused-{{focusedAction}}" bindtap="pauseTimer" bindfocus="focusPauseAction" bindblur="onActionBlur">一時停止</button>
+      <button class="action action-continue action-focused-{{focusedAction}}" bindtap="continueTimer" bindfocus="focusContinueAction" bindblur="onActionBlur">再開</button>
+      <button class="action action-restart action-focused-{{focusedAction}}" bindtap="restartTimer" bindfocus="focusRestartAction" bindblur="onActionBlur">最初から</button>
+      <button class="action action-reset action-focused-{{focusedAction}}" bindtap="resetTimer" bindfocus="focusResetAction" bindblur="onActionBlur">リセット</button>
     </view>
   </view>
 </page>
@@ -437,7 +454,11 @@ export default {
   background-color: rgba(64, 255, 94, 0.08);
 }
 
-.action-focused-true {
+.action-start.action-focused-start,
+.action-pause.action-focused-pause,
+.action-continue.action-focused-continue,
+.action-restart.action-focused-restart,
+.action-reset.action-focused-reset {
   border: 2px solid #40ff5e;
   background-color: rgba(64, 255, 94, 0.12);
 }
