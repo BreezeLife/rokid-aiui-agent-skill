@@ -2,7 +2,7 @@
 
 ## In progress
 
-- No active implementation tasks.
+- [ ] Build and verify the Japanese `examples/focus-timer-agent/` stable AIUI 0.17 Page project.
 
 ## Done
 
