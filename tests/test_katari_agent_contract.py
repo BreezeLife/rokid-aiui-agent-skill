@@ -39,6 +39,56 @@ def extract_block(source: str, pattern: str, label: str) -> str:
     return match.group(1).strip()
 
 
+def run_page_cases(cases: list[dict[str, object]]) -> list[dict[str, object]]:
+    node = shutil.which("node")
+    if node is None:
+        raise AssertionError("node is required for KATARI Page behavior tests")
+    setup = extract_block(
+        read_example("pages/index/index.ink"),
+        r"<script setup>\s*(.*?)\s*</script>",
+        "setup",
+    )
+    setup = setup.replace("export default", "const pageDefinition =", 1)
+    with tempfile.TemporaryDirectory() as directory:
+        module_path = Path(directory) / "page.mjs"
+        runner_path = Path(directory) / "runner.mjs"
+        module_path.write_text(
+            setup + "\nexport { pageDefinition };\n", encoding="utf-8"
+        )
+        runner_path.write_text(
+            """
+import { pageDefinition } from './page.mjs';
+
+const cases = JSON.parse(process.argv[2]);
+const results = cases.map(({ name, query, omitQuery }) => {
+  const instance = {
+    data: structuredClone(pageDefinition.data),
+    calls: [],
+    setData(patch) {
+      this.calls.push(structuredClone(patch));
+      this.data = { ...this.data, ...patch };
+    }
+  };
+  if (omitQuery) {
+    pageDefinition.onLoad.call(instance);
+  } else {
+    pageDefinition.onLoad.call(instance, query);
+  }
+  return { name, calls: instance.calls, data: instance.data };
+});
+process.stdout.write(JSON.stringify(results));
+""".strip(),
+            encoding="utf-8",
+        )
+        completed = subprocess.run(
+            [node, str(runner_path), json.dumps(cases, ensure_ascii=False)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    return json.loads(completed.stdout)
+
+
 class KatariAgentContractTests(unittest.TestCase):
     def test_source_registry_has_twenty_complete_story_spots(self) -> None:
         sources = read_example("SOURCES.md")
@@ -186,6 +236,179 @@ class KatariAgentContractTests(unittest.TestCase):
                 r"(?m)^- Knowledge kind: (?:fact|legend|tradition)$",
             )
             self.assertNotRegex(section, r"\b(?:TBD|TODO)\b")
+
+    def test_page_schema_declares_bounded_five_state_input(self) -> None:
+        definition = json.loads(
+            extract_block(
+                read_example("pages/index/index.ink"),
+                r"<script def>\s*(.*?)\s*</script>",
+                "definition",
+            )
+        )
+        schema = definition["schema"]["data"]
+        self.assertEqual(schema["type"], "object")
+        properties = schema["properties"]
+        self.assertEqual(
+            properties["status"]["enum"],
+            ["matched", "uncertain", "no_story", "no_match", "invalid"],
+        )
+        for field, maximum in (
+            ("spotId", 48),
+            ("placeNameJa", 48),
+            ("placeNameEn", 64),
+            ("localityLabel", 48),
+            ("memoryHook", 140),
+            ("confidenceLabel", 64),
+            ("evidenceNote", 160),
+            ("recoveryHint", 160),
+        ):
+            self.assertEqual(properties[field], {
+                "type": "string",
+                "maxLength": maximum,
+            })
+        self.assertEqual(
+            properties["storyDurationSeconds"],
+            {"type": "integer", "minimum": 15, "maximum": 30},
+        )
+        self.assertEqual(
+            properties["knowledgeKind"],
+            {"type": "string", "enum": ["fact", "legend", "tradition"]},
+        )
+
+    def test_page_normalizer_accepts_valid_states_and_rejects_bad_roots(self) -> None:
+        matched = {
+            "status": "matched",
+            "spotId": "ebisu-bridge",
+            "placeNameJa": "戎橋",
+            "placeNameEn": "Ebisu Bridge",
+            "localityLabel": "Dotonbori, Osaka",
+            "storyDurationSeconds": 24,
+            "memoryHook": "参拝と芝居の橋",
+            "confidenceLabel": "GPS + 2 VISUAL ANCHORS",
+            "evidenceNote": "Bridge, canal, and adjacent signs agree.",
+            "knowledgeKind": "fact",
+            "recoveryHint": "",
+        }
+        cases = [
+            {"name": "matched-ja", "query": matched},
+            {
+                "name": "matched-en",
+                "query": {**matched, "placeNameEn": "Tower of the Sun"},
+            },
+            {"name": "uncertain", "query": {"status": "uncertain"}},
+            {
+                "name": "no-story",
+                "query": {
+                    "status": "no_story",
+                    "placeNameJa": "確認済みの場所",
+                    "placeNameEn": "CONFIRMED PLACE",
+                },
+            },
+            {"name": "no-match", "query": {"status": "no_match"}},
+            {"name": "explicit-invalid", "query": {"status": "invalid"}},
+            {"name": "missing", "omitQuery": True},
+            {"name": "array", "query": []},
+            {"name": "number", "query": 7},
+            {"name": "unknown", "query": {"status": "maybe"}},
+        ]
+        results = {item["name"]: item for item in run_page_cases(cases)}
+        complete_keys = {
+            "status", "spotId", "placeNameJa", "placeNameEn",
+            "localityLabel", "storyDurationSeconds", "memoryHook",
+            "confidenceLabel", "evidenceNote", "knowledgeKind",
+            "knowledgeLabel", "recoveryHint", "showStoryMeta",
+            "showExpandedDetail",
+        }
+        for item in results.values():
+            self.assertEqual(len(item["calls"]), 1, item["name"])
+            self.assertEqual(set(item["calls"][0]), complete_keys, item["name"])
+
+        self.assertEqual(results["matched-ja"]["data"]["status"], "matched")
+        self.assertEqual(results["matched-ja"]["data"]["knowledgeLabel"], "FACT")
+        self.assertIs(results["matched-ja"]["data"]["showStoryMeta"], True)
+        self.assertEqual(results["matched-en"]["data"]["placeNameEn"], "Tower of the Sun")
+        recovery_titles = []
+        for name, state in (
+            ("uncertain", "uncertain"),
+            ("no-story", "no_story"),
+            ("no-match", "no_match"),
+        ):
+            self.assertEqual(results[name]["data"]["status"], state)
+            self.assertFalse(results[name]["data"]["showStoryMeta"])
+            self.assertTrue(results[name]["data"]["recoveryHint"])
+            recovery_titles.append(results[name]["data"]["placeNameJa"])
+        self.assertEqual(len(set(recovery_titles)), 3)
+
+        safe_invalid = {
+            "status": "invalid",
+            "spotId": "",
+            "placeNameJa": "場所を見せてください",
+            "placeNameEn": "LOOK AT A LANDMARK",
+            "localityLabel": "",
+            "storyDurationSeconds": 0,
+            "memoryHook": "",
+            "confidenceLabel": "KATARI",
+            "evidenceNote": "",
+            "knowledgeKind": "fact",
+            "knowledgeLabel": "",
+            "recoveryHint": "建物や看板が見える向きでもう一度聞いてください。",
+            "showStoryMeta": False,
+            "showExpandedDetail": False,
+        }
+        for name in ("explicit-invalid", "missing", "array", "number", "unknown"):
+            self.assertEqual(results[name]["calls"][0], safe_invalid, name)
+
+    def test_page_normalizer_enforces_types_durations_and_unicode_limits(self) -> None:
+        base = {
+            "status": "matched",
+            "spotId": "spot",
+            "placeNameJa": "場所",
+            "placeNameEn": "Place",
+            "localityLabel": "Osaka",
+            "storyDurationSeconds": 20,
+            "memoryHook": "記憶",
+            "confidenceLabel": "GPS + VISUAL",
+            "evidenceNote": "Evidence agrees.",
+            "knowledgeKind": "tradition",
+            "recoveryHint": "",
+        }
+        cases: list[dict[str, object]] = []
+        for value in (14, 31, 20.5, "20"):
+            cases.append({
+                "name": f"duration-{value}",
+                "query": {**base, "storyDurationSeconds": value},
+            })
+        for field in (
+            "spotId", "placeNameJa", "placeNameEn", "localityLabel",
+            "memoryHook", "confidenceLabel", "evidenceNote", "recoveryHint",
+        ):
+            cases.append({
+                "name": f"type-{field}",
+                "query": {**base, field: 99},
+            })
+        for field, maximum in (
+            ("spotId", 48),
+            ("placeNameJa", 48),
+            ("placeNameEn", 64),
+            ("localityLabel", 48),
+            ("memoryHook", 140),
+            ("confidenceLabel", 64),
+            ("evidenceNote", 160),
+            ("recoveryHint", 160),
+        ):
+            for offset in (-1, 0, 1):
+                cases.append({
+                    "name": f"limit-{field}-{offset}",
+                    "query": {**base, field: "𠮷" * (maximum + offset)},
+                })
+        results = {item["name"]: item["data"] for item in run_page_cases(cases)}
+        for name, data in results.items():
+            if name.endswith("--1") or name.endswith("-0"):
+                self.assertEqual(data["status"], "matched", name)
+            else:
+                self.assertEqual(data["status"], "invalid", name)
+                self.assertNotIn("99", json.dumps(data, ensure_ascii=False), name)
+                self.assertNotIn("𠮷" * 49, json.dumps(data, ensure_ascii=False), name)
 
 
 if __name__ == "__main__":
