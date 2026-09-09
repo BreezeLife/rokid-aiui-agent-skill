@@ -1,0 +1,10 @@
+{
+  "claimedCapabilities": [],
+  "items": [],
+  "policyVersion": "fixture-policy-v1",
+  "projectRevision": "TEST-FIXTURE",
+  "schemaVersion": 2,
+  "targetVersion": "0.17.0",
+  "unmatchedSymbols": [],
+  "versionViolations": []
+}

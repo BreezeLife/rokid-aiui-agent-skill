@@ -292,6 +292,7 @@ class NextStepAgentContractTests(unittest.TestCase):
         self.assertTrue(EXAMPLE.is_dir(), f"missing import root: {EXAMPLE}")
         expected = {
             "AGENTS.md",
+            "aiui-audit-claims.json",
             "app.js",
             "app.json",
             "pages/index/index.ink",
@@ -306,6 +307,10 @@ class NextStepAgentContractTests(unittest.TestCase):
         self.assertEqual(manifest["pages"], ["pages/index/index"])
         self.assertNotIn("widgets", manifest)
         self.assertNotIn("agentWorkers", manifest)
+        claims = json.loads(read_example("aiui-audit-claims.json"))
+        self.assertEqual(
+            {"schemaVersion": 1, "scopeClosed": True, "claims": []}, claims
+        )
 
         result = subprocess.run(
             [

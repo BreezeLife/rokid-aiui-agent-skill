@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 2,
+  "projectRevision": "TEST-FIXTURE",
+  "subject": {
+    "projectRevision": "TEST-FIXTURE",
+    "importRoot": "tests/fixtures/valid-minimal"
+  },
+  "sourceSnapshot": {
+    "fingerprint": "TEST-FIXTURE",
+    "inventoryPath": "tests/fixtures/evidence/inventory.json",
+    "inventorySha256": "4af6de2643836004b6abc1a6c5bf046276ff9a5cc9c8264e0c86cb5ebea95c25",
+    "capturedAt": "2026-09-09T20:00:30+08:00"
+  },
+  "completionSnapshot": {
+    "fingerprint": "TEST-FIXTURE",
+    "capturedAt": "2026-09-09T20:01:30+08:00"
+  },
+  "entries": [
+    {
+      "id": "reused-proof",
+      "captureId": "capture-reused-proof-20260909",
+      "collector": {"name": "fixture-capture", "version": "1.0"},
+      "row": "CONTROL-REUSE",
+      "gate": "control-reuse",
+      "layer": "AIX",
+      "kind": "command",
+      "result": "PASS",
+      "environment": {
+        "tool": "aix",
+        "toolVersion": "0.8.2",
+        "host": "darwin-arm64"
+      },
+      "criterion": "CONTROL REUSE criterion",
+      "observed": "the same artifact is being reused for a different gate",
+      "path": "tests/fixtures/evidence/logic-pass-copy.log",
+      "sha256": "9fd5cab5876b13234a98038e1081bf4dd28477f2c29027f5db47e2a1c2dd37fb",
+      "bytes": 32,
+      "artifactRole": "stdout",
+      "mediaType": "text/plain",
+      "operation": "aix-preview",
+      "argv": ["aix", "preview", ".", "--html-out", ".aiui-evidence/reuse.html"],
+      "cwd": "tests/fixtures/valid-minimal",
+      "tool": {"name": "aix", "version": "0.8.2"},
+      "exitCode": 0,
+      "stdoutSha256": "9fd5cab5876b13234a98038e1081bf4dd28477f2c29027f5db47e2a1c2dd37fb",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "projectRevision": "TEST-FIXTURE",
+      "startedAt": "2026-09-09T20:00:59+08:00",
+      "capturedAt": "2026-09-09T20:01:00+08:00"
+    }
+  ]
+}

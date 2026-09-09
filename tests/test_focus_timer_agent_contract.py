@@ -86,6 +86,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertTrue(EXAMPLE.is_dir(), f"missing import root: {EXAMPLE}")
         expected = {
             "AGENTS.md",
+            "aiui-audit-claims.json",
             "app.js",
             "app.json",
             "pages/index/index.ink",
@@ -100,6 +101,29 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertEqual(manifest["pages"], ["pages/index/index"])
         self.assertNotIn("widgets", manifest)
         self.assertNotIn("agentWorkers", manifest)
+        claims = json.loads(read_example("aiui-audit-claims.json"))
+        self.assertEqual(1, claims["schemaVersion"])
+        self.assertIs(claims["scopeClosed"], True)
+        self.assertEqual(
+            [
+                {
+                    "family": "input.voice.unknown",
+                    "surface": "App",
+                    "description": (
+                        "Spoken timer setup and duration changes invoke a fresh Page"
+                    ),
+                },
+                {
+                    "family": "page.route",
+                    "surface": "App",
+                    "description": (
+                        "The Agent host opens a fresh Page for each new or changed "
+                        "timer duration"
+                    ),
+                },
+            ],
+            claims["claims"],
+        )
 
     def test_japanese_agent_contract_declares_inputs_states_and_limits(self) -> None:
         agents = read_example("AGENTS.md")

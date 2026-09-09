@@ -1,0 +1,1 @@
+Known source defect: luminance is the only state signal.

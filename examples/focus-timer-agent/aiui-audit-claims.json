@@ -1,0 +1,1 @@
+{"schemaVersion":1,"scopeClosed":true,"claims":[{"family":"input.voice.unknown","surface":"App","description":"Spoken timer setup and duration changes invoke a fresh Page"},{"family":"page.route","surface":"App","description":"The Agent host opens a fresh Page for each new or changed timer duration"}]}

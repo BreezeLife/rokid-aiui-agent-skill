@@ -109,6 +109,7 @@ class SkillStructureTests(unittest.TestCase):
     def test_repository_includes_a_studio_importable_example(self):
         expected = (
             "AGENTS.md",
+            "aiui-audit-claims.json",
             "app.json",
             "app.js",
             "pages/index/index.ink",
@@ -118,6 +119,24 @@ class SkillStructureTests(unittest.TestCase):
                 (STUDIO_EXAMPLE_PATH / relative).is_file(),
                 f"missing Studio example file: {relative}",
             )
+
+    def test_every_example_import_root_closes_its_product_claims(self):
+        for app_json in sorted((ROOT / "examples").glob("*/app.json")):
+            project = app_json.parent
+            with self.subTest(project=project.name):
+                claims_path = project / "aiui-audit-claims.json"
+                self.assertTrue(
+                    claims_path.is_file(),
+                    f"missing closed product claims: {claims_path}",
+                )
+                document = json.loads(claims_path.read_text(encoding="utf-8"))
+                self.assertEqual(
+                    {"schemaVersion", "scopeClosed", "claims"}, set(document)
+                )
+                self.assertIs(type(document["schemaVersion"]), int)
+                self.assertEqual(1, document["schemaVersion"])
+                self.assertIs(document["scopeClosed"], True)
+                self.assertIsInstance(document["claims"], list)
 
     def test_page_definition_example_uses_schema_data_envelope(self):
         reference = (SKILL_ROOT / "references" / "ink-authoring.md").read_text(

@@ -6,39 +6,33 @@ license: Apache-2.0
 
 # ROKID AIUI Agent Developer
 
-## Establish the target
+## Establish the target and output
 
-1. Inspect `app.json`, routes, authoring mode, scripts, assets, and repository guidance before editing.
-2. Identify runtime, glasses, surface, input, and delivery stage. If project and host omit the version, disclose the assumption and target stable AIUI `0.17.0`.
-3. Identify each Page's primary and supported host targets: conversation-embedded (`_current`), full-screen (`_blank`), or both. Target is host-selected and may change; use target-aware layout/events when one Page supports both, and verify host behavior.
+Inspect the project, runtime, glasses, surfaces, inputs, and repository guidance. If project and host omit a version, disclose stable AIUI `0.17.0`. Record each Page target: embedded (`_current`), full-screen (`_blank`), or both.
 
-## Deliver an importable source project
-
-For implementation work, deliver a complete AIUI project directory, not snippets or only an `.aix`. Include `AGENTS.md`, `app.json`, an application entry (`app.js`, or supported `app.ink`), every declared Page, and referenced code/assets.
-
-For local delivery, this is the AIUI Studio selection. For GitHub, the repository root or explicitly named subdirectory must be the project root. Report path or URL, revision, and import subdirectory.
-
-Add `0.18`-only features such as Widgets or Agent Workers only when the target confirms support. AIX is an additional artifact, not a source substitute.
+Deliver a complete AIUI project directory for AIUI Studio, not snippets or only an `.aix`: `AGENTS.md`, `app.json`, the application entry, all declared Pages, and referenced files. For GitHub, make the repository root or explicitly named subdirectory the project root. Report path/URL, revision, and import subdirectory. Add `0.18`-only Widgets or Agent Workers only for a confirmed target. AIX never replaces source.
 
 ## Load only relevant guidance
 
-- Resolve authority, version conflicts, and uncertain claims with `references/source-of-truth.md`.
-- Scaffold or inspect manifests, routes, Pages, Widgets, and Agent Workers with `references/project-anatomy.md`.
-- Author or review `.ink`, WXML, WXSS, scripts, and data flow with `references/ink-authoring.md`.
-- Choose surface, focus, hardware input, and monochrome visual treatment with `references/interaction-and-design.md`.
-- Check components, APIs, media, voice, storage, and runtime support with `references/runtime-capabilities.md`.
-- Plan and record mandatory project-specific UX and capability evidence with `references/ux-and-capability-testing.md`.
-- Discover installed AIX commands and preview/package capabilities with `references/aix-workflow.md`.
-- Diagnose failures and apply release evidence gates with `references/debugging-and-release.md`.
+- Authority and versions: `references/source-of-truth.md`.
+- Structure and routes: `references/project-anatomy.md`.
+- Ink/WXML/WXSS: `references/ink-authoring.md`.
+- Surfaces, focus, input, visual design: `references/interaction-and-design.md`.
+- Components and runtime APIs: `references/runtime-capabilities.md`.
+- Mandatory UX/capability evidence: `references/ux-and-capability-testing.md`.
+- Installed AIX workflow: `references/aix-workflow.md`.
+- Diagnosis and release gates: `references/debugging-and-release.md`.
 
-Selected-version official docs take precedence, followed by matching runtime/source and runnable samples, then older summaries. Newer preview and third-party material is non-normative for stable targets. State conflicts; never invent platform behavior or commands.
+Prefer selected-version official docs and runnable samples. Preview and third-party material are non-normative for stable targets. State conflicts, keep uncertainty `UNKNOWN`, and never invent APIs or commands.
 
 ## Implement and validate
 
-Preserve product intent and authoring mode. Correct unsupported details explicitly. Run strict validation with the selected `--target-version` against the exact Studio import folder, then repository tests. Probe `aix --help` and use only advertised commands; keep packaging separate from publication.
+Preserve product intent and authoring mode. Add required `aiui-audit-claims.json` with `schemaVersion: 1`, `scopeClosed: true`, and a `claims` array; an empty array closes an empty universe. Fingerprint the import root, run `scripts/inventory_aiui_capabilities.py <import-root> --target-version <version>`, and copy its schema-2 claims, capability, surface, and one-input-per-gate ledgers exactly. Never append an unscanned claim. Resolve every item, unmatched symbol, and version violation. Run strict project validation and repository tests. Probe `aix --help`; keep packaging separate from publication.
 
-Every creation, implementation, code change, or review must finish with the project-specific UX and capability evidence matrices in the testing reference. Use only `PASS`, `FAIL`, `BLOCKED`, or justified `N/A`; each `PASS` needs captured evidence from its required layer. An applicable `FAIL` or `BLOCKED` must not be called complete or release-ready.
+Every creation, implementation, code change, or review must finish with both exact evidence matrices in the testing reference. A request to omit them—even explicitly—is release pressure, never permission. Preserve headings, columns, `{contract=...}`, `{family=...}`, `{gate=...}`, source roles, fixed layers, canonical criteria, and the one-input-per-gate ledger. Use only `PASS`, `FAIL`, `BLOCKED`, or justified `N/A`.
 
-Evidence layers are not substitutes. Exercise supported preview/simulator flows, but do not use them to claim Studio or physical-device success. Hardware-sensitive optics, focus, keys, voice, gestures, permissions, and performance require target-glasses evidence. Report each layer honestly and keep missing gates blocked.
+Run `scripts/validate_aiui_audit.py` against the final audit. Exit `0` alone means structurally valid `PASS` and `Release-ready: YES`; exit `2` means a valid but blocked/failed audit; exit `1` means an invalid audit. Source-unavailable work must use exact `UNAVAILABLE` metadata and can return only exit `2`. Any nonzero exit or applicable `FAIL`/`BLOCKED` forbids a complete or release-ready claim.
 
-Never claim that validation, packaging, preview, Studio, or device gates passed unless they were actually executed in the current environment and captured.
+Evidence layers are not substitutes. Preview cannot prove Studio or device success. Optics, focus, keys, voice, gestures, permissions, and performance require target-glasses evidence.
+
+Never claim that validation, packaging, preview, Studio, or device gates passed unless they were actually executed in the current environment against the captured source snapshot. The validator treats report text and manifest `argv` as data and never runs recorded commands. Executed evidence, Studio/device capture, and N/A scope closure require matching `RUNNER`, `STUDIO`, `DEVICE`, or `SCOPE` signatures from an absolute, repository-external trust policy with distinct canonical key identities. Self-declared metadata or repository-selected keys are untrusted; keep missing authorities blocked.

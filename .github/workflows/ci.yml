@@ -64,6 +64,11 @@ jobs:
       - name: Run unit suite including offline AIX smoke tests
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
+      - name: Prove the only release-ready audit exit-zero path end to end
+        run: >-
+          python -m unittest -v
+          tests.test_validate_aiui_audit.ValidateAiuiAuditTests.test_full_pass_black_box_is_the_only_release_ready_exit_zero
+
       - name: Validate importable AIUI projects strictly
         run: |
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --strict

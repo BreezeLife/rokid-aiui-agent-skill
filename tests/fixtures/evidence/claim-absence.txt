@@ -1,0 +1,1 @@
+Product contract excludes a full-screen target claim for CONTROL-NA.

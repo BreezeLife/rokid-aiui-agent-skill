@@ -38,7 +38,7 @@ The upstream bundled component/API summaries are useful indexes, but not exhaust
 
 ## Permissions
 
-Declare only exact, documented permissions and only when code uses them. The current official capabilities sample shows `GEOLOCATION`, `CAMERA`, and `RECORD_AUDIO` as manifest entries: [sample manifest](https://github.com/yodaos-project/AIUI/blob/8b19a87b4ba8b486c0dd4dd3fd32290d27891069/samples/capabilities/app.json#L55-L63). This is evidence for those names in that snapshot, not a license to infer other names.
+Declare only exact, documented permissions and only when inspected code uses them. The stable pinned capabilities manifest shows `CAMERA` on [line 57](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/samples/capabilities/app.json#L57). Use that single line only as CAMERA declaration evidence: the surrounding permission array also contains GEOLOCATION and RECORD_AUDIO, while lines 5–54 contain Widget declarations, so never copy the full array or manifest as a clean 0.17 template. `RECORD_AUDIO` elsewhere in the sample does not prove that an unqualified voice feature uses SpeechRecognition, `onVoiceWakeup`, or any permission; inspect the actual mechanism first.
 
 At runtime, handle denial/unavailability without hiding the main task. Before platform review, permission declarations, code behavior, and the human-readable purpose must agree; see [debugging-and-release.md](debugging-and-release.md).
 

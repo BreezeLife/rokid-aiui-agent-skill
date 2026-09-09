@@ -36,7 +36,7 @@
 - [x] Reproduced and fixed Focus Timer touchpad single-click activation in the AIX simulator, including visible conditional action buttons and Page-level Enter/GlobalHook handling.
 - [x] Published SceneQuest through GitHub pull request #1 to public `main` at `1b08da9fb8e39ab3e2e6bc4c3b7b894fb41f7583`, verified the remote import directory, and observed both GitHub Actions jobs succeed.
 - [x] Added mandatory AIUI-standard UX and per-capability evidence matrices, six non-substitutable evidence layers, stable result semantics, and source-backed optical acceptance thresholds to the packaged Skill.
-- [x] Ran the focused RED/GREEN behavior campaign: the pre-enhancement Skill scored 8/12 with one matrix-artifact failure; the enhanced Skill scored 12/12 with no critical failure.
+- [x] Ran two isolated RED/GREEN behavior gates: the audit improved from 8/12 to 12/12 and the implementation-change gate from 2/7 to 7/7; final post-hardening blind transcripts preserve exact matrix schemas, stable capability IDs, narrow version-pinned sources, and zero critical failures.
 
 ## External manual gates
 
