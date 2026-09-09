@@ -221,6 +221,8 @@ class NextStepAgentContractTests(unittest.TestCase):
                     "examples/next-step-agent",
                     "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
                     "examples/focus-timer-agent",
+                    "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
+                    "examples/katari-agent",
                 ),
             )
 

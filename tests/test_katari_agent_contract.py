@@ -483,6 +483,71 @@ class KatariAgentContractTests(unittest.TestCase):
         ):
             self.assertIn(fragment, report)
 
+    def test_delivery_docs_and_ci_include_katari(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for fragment in (
+            "KATARI Local Story Agent",
+            "examples/katari-agent",
+            "20 个",
+            "15–30 秒",
+            "katari-capability.md",
+            "katari-ux.md",
+            "Directory: examples/katari-agent",
+            "codex/katari-agent",
+        ):
+            self.assertIn(fragment, readme)
+
+        project = (ROOT / "PROJECT.md").read_text(encoding="utf-8")
+        self.assertIn("`examples/katari-agent/`", project)
+        self.assertIn("Page-only", project)
+        self.assertIn("AIUI `0.17.0`", project)
+
+        workflow = yaml.safe_load(
+            (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        jobs = workflow["jobs"]
+
+        def step_named(job: dict, name: str) -> dict:
+            matches = [
+                step for step in job["steps"] if step.get("name") == name
+            ]
+            self.assertEqual(len(matches), 1, name)
+            return matches[0]
+
+        validate = step_named(
+            jobs["validate"], "Validate importable AIUI projects strictly"
+        )
+        self.assertIn(
+            "python skills/rokid-aiui-agent/scripts/validate_aiui_project.py "
+            "examples/katari-agent --target-version 0.17.0 --strict",
+            validate["run"].splitlines(),
+        )
+        pack = step_named(
+            jobs["aix-smoke"], "Pack and inspect stable AIUI projects"
+        )
+        self.assertIn(
+            "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
+            "examples/katari-agent",
+            pack["run"].splitlines(),
+        )
+        preview = step_named(
+            jobs["aix-smoke"], "Generate the KATARI static preview"
+        )
+        self.assertEqual(preview["shell"], "bash")
+        self.assertIn('"$AIX_BIN" --help', preview["run"])
+        self.assertIn(
+            '"$AIX_BIN" preview examples/katari-agent '
+            '--html-out "$preview_html"',
+            preview["run"],
+        )
+        self.assertIn('test -s "$preview_html"', preview["run"])
+        self.assertIn(
+            "grep -Fq 'pages/index/index.ink' \"$preview_html\"",
+            preview["run"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

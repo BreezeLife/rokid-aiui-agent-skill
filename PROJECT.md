@@ -20,6 +20,7 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 - `skills/rokid-aiui-agent/assets/studio-importable-minimal/`: complete stable-baseline AIUI source project and Studio import fixture.
 - `examples/next-step-agent/`: first product-shaped project generated with the Skill; a stable-0.17, Page-only Studio import root.
 - `examples/focus-timer-agent/`: Japanese stable-0.17 Page-only focus timer with deterministic absolute-deadline tests.
+- `examples/katari-agent/`: Osaka KATARI Local Story Agent; a source-traceable, Page-only AIUI `0.17.0` Studio import root with bounded five-state output.
 - `tests/`: validator fixtures, unit tests, behavioral scenarios, and recorded evaluations.
 - `docs/superpowers/`: approved design and executable implementation plan.
 

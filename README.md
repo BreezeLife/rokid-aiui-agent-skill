@@ -90,6 +90,22 @@ Directory: examples/focus-timer-agent
 
 页面文案与 Agent 提示词为日文；字段名和状态名保留英文技术契约。账号登录后的 Studio 导入与 Rokid Glasses 真机操作仍需人工验收。
 
+### KATARI Local Story Agent
+
+[examples/katari-agent](examples/katari-agent/) 是大阪限定的本地故事发现 Agent。首版收录 20 个经过来源门槛的 Story Spot；宿主提供可用的画面、GPS、地点、语音和 locale，Agent 用位置与多个视觉锚点交叉确认，只讲一段预写的日文或英文故事。每段为 15–30 秒，不做实时检索，也不扩写目录外的历史。
+
+结果 Page 使用 A · Quiet Marker：`_current` 只保留地点、区域和时长，`_blank` 再显示记忆点、`FACT` / `LEGEND` / `TRADITION` 与证据说明。`matched`、`uncertain`、`no_story`、`no_match`、`invalid` 五个状态分别覆盖成功、一次定向重试、有地点但无可靠故事、无法识别和无有效输入。Page 本身不读取相机或 GPS，也没有按钮、路线规划、推荐、实时新闻或主动打扰。
+
+AIUI Studio GitHub 导入坐标：
+
+```text
+Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
+Ref: codex/katari-agent
+Directory: examples/katari-agent
+```
+
+本地测试证据见 [能力评估](tests/evaluations/katari-capability.md) 和 [UX 评估](tests/evaluations/katari-ux.md)。这些记录覆盖 prompt contract、输入边界、AIX preview 与浏览器 480×352 视觉矩阵；登录后的 Studio 导入、真实宿主画面/GPS/locale 与权限行为、语音节奏和 Page 协同、target 切换，以及 Rokid Glasses 在明亮/暗色/杂乱背景上的可读性仍是独立人工门槛。
+
 ## 开发闭环
 
 1. 确定 AIUI Studio 将导入的准确目录，读取其中的项目指引、`app.json`、入口、页面和现有脚本。
@@ -112,6 +128,7 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/katari-agent --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/verify_references.py .
 npm ci --ignore-scripts --no-audit --no-fund
 AIX_BIN="$PWD/node_modules/.bin/aix"
@@ -120,6 +137,7 @@ bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/next-step-agent
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/focus-timer-agent
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/katari-agent
 preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/next-step-preview.XXXXXX")"
 preview_html="$preview_dir/next-step-agent.html"
 "$AIX_BIN" preview examples/next-step-agent --html-out "$preview_html"
@@ -130,6 +148,11 @@ focus_preview_html="$focus_preview_dir/focus-timer-agent.html"
 "$AIX_BIN" preview examples/focus-timer-agent --html-out "$focus_preview_html"
 test -s "$focus_preview_html"
 grep -Fq 'pages/index/index.ink' "$focus_preview_html"
+katari_preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/katari-preview.XXXXXX")"
+katari_preview_html="$katari_preview_dir/katari-agent.html"
+"$AIX_BIN" preview examples/katari-agent --html-out "$katari_preview_html"
+test -s "$katari_preview_html"
+grep -Fq 'pages/index/index.ink' "$katari_preview_html"
 ```
 
 上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署。
@@ -141,6 +164,7 @@ grep -Fq 'pages/index/index.ink' "$focus_preview_html"
 - `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`：零依赖结构检查器，默认以 `0.17.0` 为目标，支持 `--target-version` / `--strict` / `--json`。
 - `skills/rokid-aiui-agent/scripts/smoke_aix.sh`：真实 AIX pack + list 冒烟流程。
 - `skills/rokid-aiui-agent/assets/studio-importable-minimal/`：按 AIUI Studio 本地/GitHub 指定目录结构准备的最小 `0.17.0` 兼容工程。
+- `examples/katari-agent/`：大阪 20 地点、双语短故事、五状态 Quiet Marker 的 `0.17.0` Page-only 导入工程。
 - `tests/`：单元测试、正反 fixtures 和前后行为评估。
 - `PROJECT.md` / `MEMORY.md` / `TASKS.md` / `WORKLOG.md`：跨设备项目连续性。
 
