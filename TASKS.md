@@ -2,7 +2,7 @@
 
 ## In progress
 
-- No active implementation tasks.
+- [ ] Complete RED/GREEN behavioral evaluation, full local verification, publication, and remote CI confirmation.
 
 ## Done
 
@@ -31,6 +31,8 @@
 - [x] Published the complete Focus Timer history and audit fix to public `main`, verified the remote import directory, and observed a successful GitHub Actions run for the feature commit.
 - [x] Added a tested 10-minute Focus Timer default for invocations without an explicit duration, while preserving errors for explicitly invalid values.
 - [x] Reproduced and fixed Focus Timer touchpad single-click activation in the AIX simulator, including visible conditional action buttons and Page-level Enter/GlobalHook handling.
+- [x] Added mandatory AIUI-standard UX and per-capability evidence matrices, six non-substitutable evidence layers, stable result semantics, and source-backed optical acceptance thresholds to the packaged Skill.
+- [x] Ran the focused RED/GREEN behavior campaign: the pre-enhancement Skill scored 8/12 with one matrix-artifact failure; the enhanced Skill scored 12/12 with no critical failure.
 
 ## External manual gates
 

@@ -14,6 +14,7 @@ This repository is a compact, source-traceable development workflow—not a froz
 - 先确认设备、runtime、Page / Widget / Agent Worker，以及 `_current` / `_blank` 承载面；
 - 显式处理官方资料内部的版本冲突，例如对话流交互、CSS animation、页面注册和视觉 token；
 - 运行静态验证，按本机 `aix --help` 选择真实存在的命令；
+- 对每次创建、实现、修改或审查强制生成项目级 UX 证据矩阵和逐能力证据矩阵；
 - 把浏览器 preview、平台上传和真机验收视为不同证据层级。
 
 ## 输出契约
@@ -25,6 +26,8 @@ This repository is a compact, source-traceable development workflow—not a froz
 - 示例：本仓库的 [`skills/rokid-aiui-agent/assets/studio-importable-minimal`](skills/rokid-aiui-agent/assets/studio-importable-minimal) 按官方 GitHub 指定目录契约准备，并经过严格结构检查、真实 AIX 打包和浏览器预览。GitHub 导入坐标是仓库 `https://github.com/BreezeLife/rokid-aiui-agent-skill`、ref `main`、指定目录 `skills/rokid-aiui-agent/assets/studio-importable-minimal`。账号侧 Studio 导入仍是单独的人工验收门槛，不能由这些本地证据替代。
 
 当工程和宿主都没有暴露目标版本时，本 Skill 明示假设并默认使用官网标记为稳定版的 AIUI `0.17.0`。Widget、Agent Worker 等 `0.18.0` 新能力只有在目标版本明确支持后才会生成，避免把预览版配置混进稳定版项目。
+
+每个项目还必须交付两张审查表：UX 表逐项覆盖承载面、状态、长文本、焦点、输入、恢复、生命周期、单绿色视觉、真实背景和性能；能力表对每个 API、组件、事件或设备能力记录版本/设备/承载面、权限、固定版本官方来源、成功与失败路径、fallback、清理和证据。结果只允许 `PASS`、`FAIL`、`BLOCKED`、有理由的 `N/A`。缺少相应证据层级时只能记为 `BLOCKED`；关键路径仍有 `FAIL` 或 `BLOCKED` 时，不得称为完整或可发布。测试记录默认放在交付说明或导入目录外层，不为凑检查项污染 Studio 项目根。
 
 ## 安装
 
@@ -92,9 +95,11 @@ Directory: examples/focus-timer-agent
 1. 确定 AIUI Studio 将导入的准确目录，读取其中的项目指引、`app.json`、入口、页面和现有脚本。
 2. 明确 runtime、设备、承载面、输入方式和交付阶段；无法识别版本时采用并声明 `0.17.0` 稳定基线。
 3. 只加载与当前任务有关的 `references/` 指南，并按来源优先级消解冲突。
-4. 小步实现，保留既有 authoring mode，运行项目静态验证。
-5. 探测 AIX 能力；支持时执行 preview，并用 pack + list 检查产物。
-6. 对按键、焦点、语音、手势、光学显示、弱网和返回流进行真机验证。
+4. 在签字前建立 UX 与逐能力矩阵，先把尚未执行的适用项记为 `BLOCKED`。
+5. 小步实现，保留既有 authoring mode，运行静态验证与真实业务逻辑的确定性测试。
+6. 探测 AIX 能力；支持时执行 preview，并用 pack + list 检查产物。
+7. 在登录后的 Studio 和目标眼镜上执行对应矩阵项，包括按键、焦点、语音、手势、权限、光学显示、弱网、生命周期与返回流。
+8. 为每个 `PASS` 附上实际证据；任何适用的 `FAIL` / `BLOCKED` 都必须限制最终完成或发布声明。
 
 物理眼镜和 ROKID 平台凭据不属于本仓库，CI 不会伪造这两类证据。
 
@@ -132,7 +137,7 @@ grep -Fq 'pages/index/index.ink' "$focus_preview_html"
 ## 目录
 
 - `skills/rokid-aiui-agent/SKILL.md`：任务路由、证据原则和验证门槛。
-- `skills/rokid-aiui-agent/references/`：工程、`.ink`、交互设计、runtime、AIX 与发布指南。
+- `skills/rokid-aiui-agent/references/`：工程、`.ink`、交互设计、runtime、强制 UX/能力测试、AIX 与发布指南。
 - `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`：零依赖结构检查器，默认以 `0.17.0` 为目标，支持 `--target-version` / `--strict` / `--json`。
 - `skills/rokid-aiui-agent/scripts/smoke_aix.sh`：真实 AIX pack + list 冒烟流程。
 - `skills/rokid-aiui-agent/assets/studio-importable-minimal/`：按 AIUI Studio 本地/GitHub 指定目录结构准备的最小 `0.17.0` 兼容工程。

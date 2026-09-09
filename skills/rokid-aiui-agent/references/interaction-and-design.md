@@ -70,20 +70,22 @@ Use only the callbacks documented for the target host, and provide a key/voice f
 
 ### Current AIUI monochrome-green beta layer
 
-The current repository's beta design is a **480 × 352** runtime/reference canvas for RokidGlasses1/2, with a transparent black floor and one green luminance channel: [scope and constraints](https://github.com/yodaos-project/AIUI/blob/8b19a87b4ba8b486c0dd4dd3fd32290d27891069/design/monochrome/design-system-green.md#L1-L23).
+The official beta design is a **480 × 352** runtime/reference canvas for RokidGlasses1/2, with a transparent black floor and one green luminance channel: [scope and constraints](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/design/monochrome/design-system-green.md#L1-L23).
 
 Use its current low-mass grammar:
 
 - 1px normal structural lines; 2px only for strong focus
+- 16px horizontal safe inset and 12px vertical safe inset
+- primary readable text at no less than 72% green luminance
 - 4px control radius; 6px panel/group radius
 - normal large/local green fill at no more than 12%
 - open rows and whitespace before repeated card wrappers
 - full green reserved for active focus/key values; do not encode state by luminance alone
 - short, event-driven motion; avoid multiple ambient loops
 
-The exact tokens and panel rules are [here](https://github.com/yodaos-project/AIUI/blob/8b19a87b4ba8b486c0dd4dd3fd32290d27891069/design/monochrome/design-system-green.md#L407-L484), motion guidance is [here](https://github.com/yodaos-project/AIUI/blob/8b19a87b4ba8b486c0dd4dd3fd32290d27891069/design/monochrome/design-system-green.md#L576-L636), and its device acceptance checklist is [here](https://github.com/yodaos-project/AIUI/blob/8b19a87b4ba8b486c0dd4dd3fd32290d27891069/design/monochrome/design-system-green.md#L723-L766).
+The exact layout and structural rules are [here](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/design/monochrome/design-system-green.md#L407-L455), motion guidance is [here](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/design/monochrome/design-system-green.md#L576-L636), and its device acceptance checklist is [here](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/design/monochrome/design-system-green.md#L751-L766).
 
-This file is marked beta and belongs to the 0.18 repository snapshot. Apply it as the preferred current visual direction only when it fits the target product; do not silently turn it into an asserted 0.17 runtime feature.
+This file is marked beta and is present in the 0.17 tag. Treat it as visual guidance for its named devices, not as evidence that an unrelated runtime capability exists.
 
 ### Older official optical guideline layer
 

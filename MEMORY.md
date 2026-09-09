@@ -24,6 +24,8 @@
 - 2026-09-09: Voice-driven Focus Timer reconfiguration must happen through a new Page invocation with converted integer `durationSeconds`; AIUI 0.17 `onLoad(query)` runs only once per Page instance, so later conversation must not claim to mutate an already-rendered timer card in place.
 - 2026-09-09: Focus Timer defaults an omitted `durationSeconds` to 600 seconds (10 minutes), including empty, null, or undefined Page input. An explicitly supplied invalid duration remains an error rather than silently falling back.
 - 2026-09-09: Focus Timer treats Page-level `onKeyUp` codes `Enter` and `GlobalHook` as a direct touchpad single-click primary action and prevents the host default to avoid duplicate activation. State-specific buttons are mounted with stable `ink:if` branches instead of depending on dynamic descendant CSS to enter the focus tree.
+- 2026-09-09: UX and capability testing is a mandatory Skill completion gate for every AIUI project creation, implementation, code change, or review. Deliver separate project-specific UX and per-capability matrices using only `PASS`, `FAIL`, `BLOCKED`, and justified `N/A`; a `PASS` requires captured evidence from its named layer, and missing Studio/device environments remain `BLOCKED` rather than inferred from preview.
+- 2026-09-09: Rechecked official AIUI `main` at `63bb5f5efa2f0c11a2defca35bc00777150f43d2`. Its `skills/aiui-dev/references/checklist.md` is a useful general UX/capability/evidence protocol, but the same snapshot identifies v0.18.0; feature availability for stable projects still comes from the selected `v0.17.0` sources, not the newer checklist.
 
 ## Source priority
 
