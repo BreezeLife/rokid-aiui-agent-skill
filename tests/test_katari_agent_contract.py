@@ -147,7 +147,9 @@ class KatariAgentContractTests(unittest.TestCase):
         for forbidden in ("widgets", "agentWorkers", "permissions"):
             self.assertNotIn(forbidden, manifest)
 
-        self.assertIn("App({", read_example("app.js"))
+        app_entry = read_example("app.js")
+        self.assertIn("export default", app_entry)
+        self.assertNotIn("App(", app_entry)
         ink = read_example("pages/index/index.ink")
         self.assertIn("<script def>", ink)
         self.assertIn("<script setup>", ink)
@@ -317,7 +319,7 @@ class KatariAgentContractTests(unittest.TestCase):
             "localityLabel", "storyDurationSeconds", "memoryHook",
             "confidenceLabel", "evidenceNote", "knowledgeKind",
             "knowledgeLabel", "recoveryHint", "showStoryMeta",
-            "showExpandedDetail",
+            "showExpandedDetail", "nameDensity",
         }
         for item in results.values():
             self.assertEqual(len(item["calls"]), 1, item["name"])
@@ -354,6 +356,7 @@ class KatariAgentContractTests(unittest.TestCase):
             "recoveryHint": "建物や看板が見える向きでもう一度聞いてください。",
             "showStoryMeta": False,
             "showExpandedDetail": False,
+            "nameDensity": "regular",
         }
         for name in ("explicit-invalid", "missing", "array", "number", "unknown"):
             self.assertEqual(results[name]["calls"][0], safe_invalid, name)
@@ -410,6 +413,24 @@ class KatariAgentContractTests(unittest.TestCase):
                 self.assertNotIn("99", json.dumps(data, ensure_ascii=False), name)
                 self.assertNotIn("𠮷" * 49, json.dumps(data, ensure_ascii=False), name)
 
+        density_results = {
+            item["name"]: item["data"]
+            for item in run_page_cases([
+                {"name": "regular", "query": base},
+                {
+                    "name": "japanese-long",
+                    "query": {**base, "placeNameJa": "𠮷" * 48},
+                },
+                {
+                    "name": "english-long",
+                    "query": {**base, "placeNameEn": "W" * 64},
+                },
+            ])
+        }
+        self.assertEqual(density_results["regular"]["nameDensity"], "regular")
+        self.assertEqual(density_results["japanese-long"]["nameDensity"], "compact")
+        self.assertEqual(density_results["english-long"]["nameDensity"], "compact")
+
     def test_quiet_marker_has_target_aware_low_mass_ui(self) -> None:
         ink = read_example("pages/index/index.ink")
         page = extract_block(ink, r"<page\b[^>]*>(.*?)</page>", "page")
@@ -425,6 +446,7 @@ class KatariAgentContractTests(unittest.TestCase):
             "{{evidenceNote}}",
             "{{knowledgeLabel}}",
             "{{recoveryHint}}",
+            "name-density-{{nameDensity}}",
             'ink:if="{{showStoryMeta}}"',
             'ink:if="{{!showStoryMeta}}"',
         ):
@@ -437,6 +459,8 @@ class KatariAgentContractTests(unittest.TestCase):
         self.assertIn("border-top: 1px solid", style)
         self.assertIn("border-radius: 6px", style)
         self.assertIn("padding: 30px 36px", style)
+        self.assertIn(".name-density-compact.place-name-ja", style)
+        self.assertIn(".name-density-compact.place-name-en", style)
         self.assertNotIn("<button", page)
         self.assertNotIn("bindtap=", page)
         self.assertNotIn("onKeyUp", ink)
@@ -547,6 +571,36 @@ class KatariAgentContractTests(unittest.TestCase):
             "grep -Fq 'pages/index/index.ink' \"$preview_html\"",
             preview["run"],
         )
+
+    def test_ux_evaluation_records_states_and_limits(self) -> None:
+        report = (
+            ROOT / "tests" / "evaluations" / "katari-ux.md"
+        ).read_text(encoding="utf-8")
+        for fragment in (
+            "480 × 352",
+            "A · Quiet Marker",
+            "AIX preview",
+            "matched",
+            "uncertain",
+            "no_story",
+            "no_match",
+            "invalid",
+            "_current",
+            "_blank",
+            "Japanese long label",
+            "English long label",
+            "bright background",
+            "dark background",
+            "cluttered background",
+            "clipping",
+            "hierarchy",
+            "status differentiation",
+            "information load",
+            "browser evidence only",
+            "physical Rokid Glasses",
+        ):
+            self.assertIn(fragment, report)
+        self.assertNotRegex(report, r"\b(?:TBD|TODO)\b")
 
 
 if __name__ == "__main__":

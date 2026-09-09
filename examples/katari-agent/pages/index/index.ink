@@ -78,7 +78,8 @@ function safeInvalidState() {
     knowledgeLabel: '',
     recoveryHint: '建物や看板が見える向きでもう一度聞いてください。',
     showStoryMeta: false,
-    showExpandedDetail: false
+    showExpandedDetail: false,
+    nameDensity: 'regular'
   };
 }
 
@@ -93,6 +94,12 @@ function stringsAreBounded(query) {
 
 function text(query, field) {
   return typeof query[field] === 'string' ? query[field].trim() : '';
+}
+
+function identityDensity(placeNameJa, placeNameEn) {
+  return unicodeLength(placeNameJa) > 24 || unicodeLength(placeNameEn) > 48
+    ? 'compact'
+    : 'regular';
 }
 
 function recoveryState(query) {
@@ -110,7 +117,7 @@ function recoveryState(query) {
   };
 
   if (query.status === 'uncertain') {
-    return {
+    const result = {
       status: 'uncertain',
       ...shared,
       placeNameJa: text(query, 'placeNameJa') || '場所を確認しています',
@@ -118,10 +125,14 @@ function recoveryState(query) {
       recoveryHint: text(query, 'recoveryHint') ||
         '看板と建物全体が一緒に見える向きで、もう一度見せてください。'
     };
+    return {
+      ...result,
+      nameDensity: identityDensity(result.placeNameJa, result.placeNameEn)
+    };
   }
 
   if (query.status === 'no_story') {
-    return {
+    const result = {
       status: 'no_story',
       ...shared,
       placeNameJa: text(query, 'placeNameJa') || '場所は確認できました',
@@ -129,15 +140,23 @@ function recoveryState(query) {
       recoveryHint: text(query, 'recoveryHint') ||
         '信頼できる短い物語を確認できないため、ここでは紹介を控えます。'
     };
+    return {
+      ...result,
+      nameDensity: identityDensity(result.placeNameJa, result.placeNameEn)
+    };
   }
 
-  return {
+  const result = {
     status: 'no_match',
     ...shared,
     placeNameJa: '場所を特定できません',
     placeNameEn: 'NO MATCH',
     recoveryHint: text(query, 'recoveryHint') ||
       'この景色は大阪20地点のカタログと一致しませんでした。'
+  };
+  return {
+    ...result,
+    nameDensity: identityDensity(result.placeNameJa, result.placeNameEn)
   };
 }
 
@@ -193,7 +212,11 @@ function normalizeInput(query) {
     knowledgeLabel: KNOWLEDGE_LABELS[knowledgeKind],
     recoveryHint: '',
     showStoryMeta: true,
-    showExpandedDetail: false
+    showExpandedDetail: false,
+    nameDensity: identityDensity(
+      text(query, 'placeNameJa'),
+      text(query, 'placeNameEn')
+    )
   };
 }
 
@@ -216,8 +239,8 @@ export default {
     <view class="divider"></view>
 
     <view class="identity">
-      <text class="place-name-ja">{{placeNameJa}}</text>
-      <text class="place-name-en">{{placeNameEn}}</text>
+      <text class="place-name-ja name-density-{{nameDensity}}">{{placeNameJa}}</text>
+      <text class="place-name-en name-density-{{nameDensity}}">{{placeNameEn}}</text>
       <text class="locality">{{localityLabel}}</text>
     </view>
 
@@ -332,6 +355,18 @@ export default {
   font-size: 14px;
   line-height: 18px;
   color: rgba(114, 255, 158, 0.78);
+}
+
+.name-density-compact.place-name-ja {
+  max-height: 72px;
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.name-density-compact.place-name-en {
+  max-height: 32px;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .locality {
