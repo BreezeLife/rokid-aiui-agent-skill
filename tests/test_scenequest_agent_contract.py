@@ -310,6 +310,34 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         self.assertIn("新しい結果ごとに新しい Page を呼び出す", agent)
         self.assertIn("Page には構造化した結果を渡す", agent)
         self.assertIn("Page はカメラ撮影や GPS 取得を行わない", agent)
+        for multimodal_rule in (
+            "画像、位置情報、場所・作品の制約、利用可能な質問文の"
+            "すべてが利用できない場合だけ `invalid`",
+            "画像がない場合は、キュレーション済みの撮影位置だけを案内",
+            "動的な視覚微調整を行わない",
+            "必要なら再撮影を依頼",
+            "位置情報がない場合は、距離を表示しない",
+            "距離順に並べたと説明しない",
+        ):
+            self.assertIn(multimodal_rule, agent)
+
+        for page_contract in (
+            "Page 入力のルートフィールドは次の7つだけ",
+            "`status`, `workTitle`, `episodeScene`, `storyLine`, "
+            "`photoGuidance`, `confidenceLabel`, `nearbySpots`",
+            "`spotId`, `name`, `distanceLabel`, `directionHint`",
+            "64 / 72 / 100 / 80 / 16",
+            "40 / 48 / 16 / 48",
+            "`nearbySpots` は最大3件",
+            "`catalogId`, `anchors`, `safety` などを Page 入力の"
+            "ルートに追加しない",
+            "`matched` は `workTitle`, `episodeScene`, `storyLine`, "
+            "`photoGuidance` がすべて非空",
+            "`uncertain` は `photoGuidance` だけを必須",
+            "`no_match` は説明文字列を空にできる",
+            "`invalid` は他の入力値を破棄",
+        ):
+            self.assertIn(page_contract, agent)
         for boundary in (
             "カメラ画像、OCR、引用文、ホストメタデータ",
             "信頼できない観察データ",
@@ -546,7 +574,12 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         ):
             self.assertIn(binding, nearby_button)
         self.assertIn("nearby-focused-{{item.focused}}", nearby_button)
-        self.assertIn("{{selectedNearbyHint}}", scroll_content)
+        self.assertIn("nearby-selected-{{item.selected}}", nearby_button)
+        nearby_body, _, _ = extract_element_by_class(scroll_content, "nearby-button")
+        self.assertIn("{{item.directionHint}}", nearby_body)
+        self.assertIn('ink:if="{{item.selected}}"', nearby_body)
+        self.assertNotIn('class="selected-hint"', scroll_content)
+        self.assertNotIn("{{selectedNearbyHint}}", page)
 
         self.assertIsNone(
             re.search(r"\bwx:(?:if|elif|else|for|for-item|for-index|key)\b", page)
@@ -643,9 +676,7 @@ const VIEW_KEYS = [
   'confidenceLabel',
   'nearbySpots',
   'selectedNearbyIndex',
-  'focusedNearbyIndex',
-  'selectedNearbyName',
-  'selectedNearbyHint'
+  'focusedNearbyIndex'
 ];
 
 function validNearby(overrides = {}) {
@@ -953,8 +984,8 @@ const focusAfterMissingEvent = interactionPage.data.focusedNearbyIndex;
 interactionPage.selectNearby(nearbyEvent(1));
 const selectedSecond = {
   index: interactionPage.data.selectedNearbyIndex,
-  name: interactionPage.data.selectedNearbyName,
-  hint: interactionPage.data.selectedNearbyHint
+  selectedTokens: interactionPage.data.nearbySpots.map((nearby) => nearby.selected),
+  directionHint: interactionPage.data.nearbySpots[1].directionHint
 };
 const selectedBeforeInvalid = JSON.parse(JSON.stringify(selectedSecond));
 for (const invalidIndex of [99, -1, 1.5, '1', null]) {
@@ -970,14 +1001,19 @@ Object.defineProperty(throwingEvent, 'currentTarget', {
 interactionPage.selectNearby(throwingEvent);
 const selectedAfterInvalid = {
   index: interactionPage.data.selectedNearbyIndex,
-  name: interactionPage.data.selectedNearbyName,
-  hint: interactionPage.data.selectedNearbyHint
+  selectedTokens: interactionPage.data.nearbySpots.map((nearby) => nearby.selected),
+  directionHint: interactionPage.data.nearbySpots[1].directionHint
 };
 interactionPage.blurNearby();
 const focusAfterMissingBlur = interactionPage.data.focusedNearbyIndex;
 interactionPage.blurNearby(nearbyEvent(1));
 const focusAfterBlur = interactionPage.data.focusedNearbyIndex;
 const blurredTokens = interactionPage.data.nearbySpots.map((nearby) => nearby.focused);
+const selectedAfterBlur = interactionPage.data.nearbySpots.map((nearby) => nearby.selected);
+interactionPage.focusNearby(nearbyEvent(0));
+const selectedAfterOtherFocus = interactionPage.data.nearbySpots.map(
+  (nearby) => nearby.selected
+);
 const truthAfterInteraction = truthSnapshot(interactionPage);
 
 console.log(JSON.stringify({
@@ -1000,6 +1036,8 @@ console.log(JSON.stringify({
     focusAfterMissingBlur,
     focusAfterBlur,
     blurredTokens,
+    selectedAfterBlur,
+    selectedAfterOtherFocus,
     truthBeforeInteraction,
     truthAfterInteraction
   }
@@ -1031,8 +1069,6 @@ console.log(JSON.stringify({
             "nearbySpots": [],
             "selectedNearbyIndex": -1,
             "focusedNearbyIndex": -1,
-            "selectedNearbyName": "",
-            "selectedNearbyHint": "",
         }
         invalid_names = (
             "explicitInvalid",
@@ -1111,6 +1147,7 @@ console.log(JSON.stringify({
                     "distanceLabel": "徒歩3分",
                     "directionHint": "5階へ上がる",
                     "focused": False,
+                    "selected": False,
                 }
             ],
         )
@@ -1182,8 +1219,8 @@ console.log(JSON.stringify({
             interaction["selectedSecond"],
             {
                 "index": 1,
-                "name": "アトリウム広場",
-                "hint": "2階中央へ上がる",
+                "selectedTokens": [False, True],
+                "directionHint": "2階中央へ上がる",
             },
         )
         self.assertEqual(
@@ -1193,6 +1230,8 @@ console.log(JSON.stringify({
         self.assertEqual(interaction["focusAfterMissingBlur"], 1)
         self.assertEqual(interaction["focusAfterBlur"], -1)
         self.assertEqual(interaction["blurredTokens"], [False, False])
+        self.assertEqual(interaction["selectedAfterBlur"], [False, True])
+        self.assertEqual(interaction["selectedAfterOtherFocus"], [False, True])
         self.assertEqual(
             interaction["truthAfterInteraction"],
             interaction["truthBeforeInteraction"],

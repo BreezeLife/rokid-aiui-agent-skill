@@ -108,9 +108,7 @@ function invalidResult() {
     confidenceLabel: '入力不足',
     nearbySpots: [],
     selectedNearbyIndex: -1,
-    focusedNearbyIndex: -1,
-    selectedNearbyName: '',
-    selectedNearbyHint: ''
+    focusedNearbyIndex: -1
   };
 }
 
@@ -164,7 +162,8 @@ function normalizeNearby(value) {
       name,
       distanceLabel,
       directionHint,
-      focused: false
+      focused: false,
+      selected: false
     });
   }
   return normalized;
@@ -229,9 +228,7 @@ function normalizeInput(query) {
       confidenceLabel: strings.confidenceLabel,
       nearbySpots,
       selectedNearbyIndex: -1,
-      focusedNearbyIndex: -1,
-      selectedNearbyName: '',
-      selectedNearbyHint: ''
+      focusedNearbyIndex: -1
     };
   } catch (error) {
     return invalidResult();
@@ -288,13 +285,19 @@ export default {
     if (index < 0) return;
     try {
       const nearby = this.data.nearbySpots[index];
-      const name = nearby.name;
-      const directionHint = nearby.directionHint;
-      if (typeof name !== 'string' || typeof directionHint !== 'string') return;
+      if (
+        typeof nearby.name !== 'string' ||
+        typeof nearby.directionHint !== 'string'
+      ) return;
+      const nearbySpots = this.data.nearbySpots.map(
+        (item, nearbyIndex) => ({
+          ...item,
+          selected: nearbyIndex === index
+        })
+      );
       this.setData({
         selectedNearbyIndex: index,
-        selectedNearbyName: name,
-        selectedNearbyHint: directionHint
+        nearbySpots
       });
     } catch (error) {
       return;
@@ -333,7 +336,7 @@ export default {
       <view class="nearby-list">
         <text class="section-label">NEARBY</text>
         <button
-          class="nearby-button nearby-focused-{{item.focused}}"
+          class="nearby-button nearby-focused-{{item.focused}} nearby-selected-{{item.selected}}"
           ink:for="{{nearbySpots}}"
           ink:key="spotId"
           data-index="{{index}}"
@@ -341,15 +344,13 @@ export default {
           bindfocus="focusNearby"
           bindblur="blurNearby"
         >
-          <text class="nearby-name">{{item.name}}</text>
-          <text class="nearby-distance">{{item.distanceLabel}}</text>
+          <view class="nearby-line">
+            <text class="nearby-name">{{item.name}}</text>
+            <text class="nearby-distance">{{item.distanceLabel}}</text>
+          </view>
+          <text class="nearby-direction" ink:if="{{item.selected}}">{{item.directionHint}}</text>
         </button>
         <text class="nearby-empty" ink:if="{{nearbySpots.length === 0}}">近隣候補はありません。</text>
-        <view class="selected-hint" ink:if="{{selectedNearbyIndex >= 0}}">
-          <text class="section-label">方向の手掛かり</text>
-          <text class="selected-name">{{selectedNearbyName}}</text>
-          <text class="selected-direction">{{selectedNearbyHint}}</text>
-        </view>
       </view>
     </scroll-view>
   </view>
@@ -380,7 +381,7 @@ export default {
 
 .topline,
 .state-row,
-.nearby-button {
+.nearby-line {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -430,7 +431,7 @@ export default {
 .result-scroll,
 .core-answer,
 .nearby-list,
-.selected-hint,
+.nearby-button,
 .photo-guide {
   display: flex;
   flex-direction: column;
@@ -456,7 +457,7 @@ export default {
 .episode-scene,
 .story-line,
 .photo-copy,
-.selected-direction,
+.nearby-direction,
 .nearby-empty {
   font-size: 11px;
   line-height: 15px;
@@ -472,7 +473,7 @@ export default {
 }
 
 .nearby-button {
-  justify-content: space-between;
+  align-items: stretch;
   width: 100%;
   margin-top: 6px;
   padding: 6px 8px;
@@ -486,6 +487,15 @@ export default {
 .nearby-focused-true {
   border: 2px solid #40ff5e;
   background-color: rgba(64, 255, 94, 0.12);
+}
+
+.nearby-selected-true {
+  background-color: rgba(64, 255, 94, 0.12);
+}
+
+.nearby-line {
+  justify-content: space-between;
+  width: 100%;
 }
 
 .nearby-name {
@@ -502,20 +512,11 @@ export default {
 
 .nearby-empty { margin-top: 6px; }
 
-.selected-hint {
-  margin-top: 10px;
-  padding-left: 8px;
-  border-left: 1px solid rgba(64, 255, 94, 0.46);
+.nearby-direction {
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(64, 255, 94, 0.24);
 }
-
-.selected-name {
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 16px;
-  color: #b8ffc3;
-}
-
-.selected-direction { margin-top: 2px; }
 
 .photo-guide {
   flex-shrink: 0;
