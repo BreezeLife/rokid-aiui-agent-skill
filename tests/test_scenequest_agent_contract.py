@@ -558,21 +558,30 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         )
 
         nearby_loops = re.findall(
-            r"<button\b[^>]*\bink:for=\"\{\{nearbySpots\}\}\"[^>]*>",
+            r'<view\b(?=[^>]*class="nearby-loop")'
+            r'(?=[^>]*ink:for="\{\{nearbySpots\}\}")'
+            r'(?=[^>]*ink:key="spotId")[^>]*>',
             page,
             flags=re.DOTALL,
         )
         self.assertEqual(len(nearby_loops), 1)
-        nearby_button = nearby_loops[0]
-        self.assertIn(nearby_button, scroll_content)
+        nearby_loop = nearby_loops[0]
+        self.assertIn(nearby_loop, scroll_content)
+        nearby_button_match = re.search(
+            r'<button\b[^>]*class="[^\"]*\bnearby-button\b[^\"]*"[^>]*>',
+            scroll_content,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(nearby_button_match)
+        nearby_button = nearby_button_match.group()
         for binding in (
             'bindtap="selectNearby"',
             'bindfocus="focusNearby"',
             'bindblur="blurNearby"',
             'data-index="{{index}}"',
-            'ink:key="spotId"',
         ):
             self.assertIn(binding, nearby_button)
+        self.assertIn('ink:key="spotId"', nearby_loop)
         self.assertIn("nearby-focused-{{item.focused}}", nearby_button)
         self.assertIn("nearby-selected-{{item.selected}}", nearby_button)
         nearby_body, _, _ = extract_element_by_class(scroll_content, "nearby-button")
@@ -655,6 +664,49 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             self.assertRegex(setup, rf"(?m)^\s{{2}}{handler}\([^)]*\)\s*\{{")
         self.assertNotRegex(setup, r"\bonKey(?:Down|Up)\s*\(")
         self.assertNotIn("preventDefault", setup)
+
+    def test_nearby_loop_establishes_scope_before_item_bindings(self) -> None:
+        ink = read_example("pages/index/index.ink")
+        page = extract_block(ink, r"<page\b[^>]*>(.*?)</page>", "page")
+
+        loop = re.search(
+            r'<view\b(?=[^>]*class="nearby-loop")'
+            r'(?=[^>]*ink:for="\{\{nearbySpots\}\}")'
+            r'(?=[^>]*ink:key="spotId")[^>]*>(?P<body>.*?)</view>',
+            page,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(
+            loop,
+            "ink:for must establish item/index scope before interactive bindings read it",
+        )
+        loop_tag = loop.group().split(">", 1)[0]
+        self.assertNotIn("{{item.", loop_tag)
+        self.assertNotIn("{{index}}", loop_tag)
+        self.assertIn('class="nearby-button ', loop.group("body"))
+        self.assertIn('data-index="{{index}}"', loop.group("body"))
+
+    def test_optical_copy_uses_opaque_color_and_emphasis(self) -> None:
+        ink = read_example("pages/index/index.ink")
+        style = extract_block(ink, r"<style>\s*(.*?)\s*</style>", "style")
+
+        self.assertNotRegex(
+            style,
+            r"(?m)^\s*color\s*:\s*rgba\(",
+            "transparent text loses legibility against bright optical backgrounds",
+        )
+        work_title = extract_block(
+            style, r"\.work-title\s*\{([^{}]*)\}", "work title style"
+        )
+        self.assertIn("font-size: 16px", work_title)
+        self.assertIn("font-weight: 600", work_title)
+        self.assertIn("color: #40ff5e", work_title)
+        fallback_copy = extract_block(
+            style, r"\.fallback-copy\s*\{([^{}]*)\}", "fallback copy style"
+        )
+        self.assertIn("font-size: 12px", fallback_copy)
+        self.assertIn("font-weight: 600", fallback_copy)
+        self.assertIn("color: #40ff5e", fallback_copy)
 
     def test_real_page_normalizes_bounded_result_state(self) -> None:
         node = shutil.which("node")

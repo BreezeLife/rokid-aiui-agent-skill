@@ -335,21 +335,25 @@ export default {
     <scroll-view class="result-scroll expanded-only" scroll-y="true">
       <view class="nearby-list">
         <text class="section-label">NEARBY</text>
-        <button
-          class="nearby-button nearby-focused-{{item.focused}} nearby-selected-{{item.selected}}"
+        <view
+          class="nearby-loop"
           ink:for="{{nearbySpots}}"
           ink:key="spotId"
-          data-index="{{index}}"
-          bindtap="selectNearby"
-          bindfocus="focusNearby"
-          bindblur="blurNearby"
         >
-          <view class="nearby-line">
-            <text class="nearby-name">{{item.name}}</text>
-            <text class="nearby-distance">{{item.distanceLabel}}</text>
-          </view>
-          <text class="nearby-direction" ink:if="{{item.selected}}">{{item.directionHint}}</text>
-        </button>
+          <button
+            class="nearby-button nearby-focused-{{item.focused}} nearby-selected-{{item.selected}}"
+            data-index="{{index}}"
+            bindtap="selectNearby"
+            bindfocus="focusNearby"
+            bindblur="blurNearby"
+          >
+            <view class="nearby-line">
+              <text class="nearby-name">{{item.name}}</text>
+              <text class="nearby-distance">{{item.distanceLabel}}</text>
+            </view>
+            <text class="nearby-direction" ink:if="{{item.selected}}">{{item.directionHint}}</text>
+          </button>
+        </view>
         <text class="nearby-empty" ink:if="{{nearbySpots.length === 0}}">近隣候補はありません。</text>
       </view>
     </scroll-view>
@@ -399,7 +403,7 @@ export default {
   font-size: 11px;
   line-height: 14px;
   letter-spacing: 1px;
-  color: rgba(64, 255, 94, 0.72);
+  color: #40ff5e;
 }
 
 .confidence {
@@ -419,18 +423,21 @@ export default {
   min-width: 48px;
   font-size: 12px;
   line-height: 16px;
+  font-weight: 600;
 }
 
 .fallback-copy {
   margin-top: 5px;
-  font-size: 11px;
-  line-height: 15px;
-  color: rgba(184, 255, 195, 0.82);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: #40ff5e;
 }
 
 .result-scroll,
 .core-answer,
 .nearby-list,
+.nearby-loop,
 .nearby-button,
 .photo-guide {
   display: flex;
@@ -449,9 +456,10 @@ export default {
 }
 
 .work-title {
-  font-size: 15px;
-  line-height: 19px;
-  color: #b8ffc3;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+  color: #40ff5e;
 }
 
 .episode-scene,
@@ -459,9 +467,10 @@ export default {
 .photo-copy,
 .nearby-direction,
 .nearby-empty {
-  font-size: 11px;
-  line-height: 15px;
-  color: rgba(184, 255, 195, 0.82);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: #40ff5e;
 }
 
 .episode-scene { margin-top: 2px; }
@@ -484,6 +493,8 @@ export default {
   background-color: rgba(64, 255, 94, 0.06);
 }
 
+.nearby-loop { width: 100%; }
+
 .nearby-focused-true {
   border: 2px solid #40ff5e;
   background-color: rgba(64, 255, 94, 0.12);
@@ -505,9 +516,10 @@ export default {
 
 .nearby-distance {
   margin-left: 8px;
-  font-size: 11px;
-  line-height: 15px;
-  color: rgba(184, 255, 195, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: #40ff5e;
 }
 
 .nearby-empty { margin-top: 6px; }
