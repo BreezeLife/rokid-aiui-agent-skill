@@ -211,6 +211,7 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             [
                 "AGENTS.md",
                 "SOURCES.md",
+                "aiui-audit-claims.json",
                 "app.js",
                 "app.json",
                 "pages/index/index.ink",
@@ -222,6 +223,93 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         self.assertNotIn("widgets", manifest)
         self.assertNotIn("agentWorkers", manifest)
         self.assertEqual(read_example("app.js"), "export default {};\n")
+
+        claims = json.loads(read_example("aiui-audit-claims.json"))
+        self.assertEqual(
+            {"schemaVersion", "scopeClosed", "claims"}, set(claims)
+        )
+        self.assertIs(type(claims["schemaVersion"]), int)
+        self.assertEqual(1, claims["schemaVersion"])
+        self.assertIs(claims["scopeClosed"], True)
+        expected_claims = [
+            {
+                "family": "focus.host",
+                "surface": "Page",
+                "description": (
+                    "The host must enter and leave Page focus so the expanded "
+                    "nearby actions remain usable."
+                ),
+            },
+            {
+                "family": "host.camera-context.unknown",
+                "surface": "App",
+                "description": (
+                    "The host may provide the user's current camera view as "
+                    "untrusted observation input; the Page never captures it."
+                ),
+            },
+            {
+                "family": "host.location-context.unknown",
+                "surface": "App",
+                "description": (
+                    "The host may provide current location only to narrow "
+                    "candidates; the Page never acquires GPS."
+                ),
+            },
+            {
+                "family": "host.route-distance-context.unknown",
+                "surface": "App",
+                "description": (
+                    "The host may provide current route or distance measurements "
+                    "for nearby candidates."
+                ),
+            },
+            {
+                "family": "host.voice-output.unknown",
+                "surface": "App",
+                "description": (
+                    "The host returns one short Japanese spoken response for each "
+                    "fresh SceneQuest result."
+                ),
+            },
+            {
+                "family": "input.fallback.unknown",
+                "surface": "App",
+                "description": (
+                    "The host preserves bounded recovery when image, location, "
+                    "route, distance, or usable question input is unavailable."
+                ),
+            },
+            {
+                "family": "input.voice.unknown",
+                "surface": "App",
+                "description": (
+                    "The host accepts a user-initiated spoken request for each "
+                    "fresh SceneQuest result."
+                ),
+            },
+            {
+                "family": "page.route",
+                "surface": "App",
+                "description": (
+                    "The Agent host opens a fresh Page for each new SceneQuest "
+                    "result."
+                ),
+            },
+        ]
+        self.assertEqual(expected_claims, claims["claims"])
+        self.assertTrue(
+            all(set(claim) == {"family", "surface", "description"} for claim in claims["claims"])
+        )
+        self.assertEqual(
+            len(claims["claims"]),
+            len(
+                {
+                    (claim["family"], claim["surface"], claim["description"])
+                    for claim in claims["claims"]
+                }
+            ),
+        )
 
         agent = read_example("AGENTS.md")
         sources = read_example("SOURCES.md")
