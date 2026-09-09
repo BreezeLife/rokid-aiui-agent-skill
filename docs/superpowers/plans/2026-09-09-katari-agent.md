@@ -635,6 +635,39 @@ git diff origin/main...HEAD -- examples/katari-agent tests/test_katari_agent_con
 
 Confirm no `.aix`, generated preview, temporary gallery, credential, downloaded source, or `.superpowers/` file is tracked. Report pre-existing or unrelated changes separately and do not clean them.
 
+### Task 9: Synchronize the verified branch to GitHub
+
+**Files:**
+- No source-file changes; this task publishes the already verified Git state.
+
+- [ ] **Step 1: Verify remote and authentication without changing GitHub**
+
+Run `git remote -v`, `gh auth status`, `git status --short`, and `git log -1 --format='%H %s'`. Confirm `origin` is the intended `BreezeLife/rokid-aiui-agent-skill` repository, the branch is `codex/katari-agent`, the KATARI commits are present, and no generated evidence artifact is staged.
+
+- [ ] **Step 2: Re-run the final unit and KATARI strict gates immediately before push**
+
+```bash
+python3 -m unittest discover -s tests -p "test_*.py" -v
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/katari-agent --target-version 0.17.0 --strict
+git diff --check
+```
+
+Expected: zero failures/errors, strict validation exit 0, and no whitespace diagnostics.
+
+- [ ] **Step 3: Push the feature branch**
+
+Run `git push -u origin codex/katari-agent`.
+
+Expected: the remote branch resolves to the exact local `HEAD`. Verify with `git ls-remote --heads origin codex/katari-agent` rather than relying only on push text.
+
+- [ ] **Step 4: Observe GitHub Actions for the pushed commit**
+
+Use `gh run list --branch codex/katari-agent --commit "$(git rev-parse HEAD)"` to resolve the run, then `gh run watch <run-id> --exit-status`. Record run ID, commit, conclusion, and both job conclusions. A queued or failing run is not synchronized release evidence.
+
+- [ ] **Step 5: Complete the branch through the required finishing workflow**
+
+Invoke `finishing-a-development-branch`, present its integration options, and follow the user's choice. If the chosen route updates public `main`, verify the remote `main` commit, the KATARI import directory through GitHub, and the `main` CI run before reporting public-main synchronization. Do not claim that a feature-branch push made the README's `Ref: main` coordinates live.
+
 ## Completion report requirements
 
 The final handoff includes:
@@ -645,5 +678,6 @@ The final handoff includes:
 - AIX version/capabilities, preview result, package size/hash, and exact listing;
 - UX findings for all five states and both targets;
 - links to capability and UX evidence records;
+- pushed GitHub branch, exact remote commit, and GitHub Actions run/conclusion;
 - explicit Studio, host context, speech, optics, and physical-device manual gates;
 - no claim that local browser or prompt-contract evidence proves those external gates.
