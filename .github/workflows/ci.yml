@@ -71,6 +71,7 @@ jobs:
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/scenequest-agent --target-version 0.17.0 --strict
 
       - name: Verify references
         run: python skills/rokid-aiui-agent/scripts/verify_references.py .
@@ -108,6 +109,12 @@ jobs:
           bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/next-step-agent
           bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/focus-timer-agent
 
+      - name: Pack and inspect the SceneQuest Agent
+        env:
+          AIX_BIN: ${{ github.workspace }}/node_modules/.bin/aix
+        run: |
+          bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/scenequest-agent
+
       - name: Generate the Next Step Agent static preview
         shell: bash
         env:
@@ -129,5 +136,17 @@ jobs:
           preview_html="$RUNNER_TEMP/focus-timer-agent-preview.html"
           "$AIX_BIN" --help | grep -Eq '(^|[[:space:]])preview([[:space:]<]|$)'
           "$AIX_BIN" preview examples/focus-timer-agent --html-out "$preview_html"
+          test -s "$preview_html"
+          grep -Fq 'pages/index/index.ink' "$preview_html"
+
+      - name: Generate the SceneQuest Agent static preview
+        shell: bash
+        env:
+          AIX_BIN: ${{ github.workspace }}/node_modules/.bin/aix
+        run: |
+          set -euo pipefail
+          preview_html="$RUNNER_TEMP/scenequest-agent-preview.html"
+          "$AIX_BIN" --help | grep -Eq '(^|[[:space:]])preview([[:space:]<]|$)'
+          "$AIX_BIN" preview examples/scenequest-agent --html-out "$preview_html"
           test -s "$preview_html"
           grep -Fq 'pages/index/index.ink' "$preview_html"

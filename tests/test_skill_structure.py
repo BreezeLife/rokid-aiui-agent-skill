@@ -134,6 +134,30 @@ class SkillStructureTests(unittest.TestCase):
         self.assertEqual("object", schema["data"]["type"])
         self.assertIn("properties", schema["data"])
 
+    def test_ink_authoring_uses_aiui_control_directive_namespace(self):
+        reference = (SKILL_ROOT / "references" / "ink-authoring.md").read_text(
+            encoding="utf-8"
+        )
+        for directive in ("ink:if", "ink:elif", "ink:else", "ink:for", "ink:key"):
+            self.assertIn(directive, reference)
+        self.assertIsNone(
+            re.search(
+                r"\bwx:(?:if|elif|else|for|for-item|for-index|key)\b",
+                reference,
+            )
+        )
+        pinned = "88e70bb0382525c1a93ef077c2401dcc31a273ce"
+        self.assertIn(
+            f"https://github.com/yodaos-project/AIUI/blob/{pinned}/"
+            "documentation/1-framework/wxml/conditional-rendering.en-US.md",
+            reference,
+        )
+        self.assertIn(
+            f"https://github.com/yodaos-project/AIUI/blob/{pinned}/"
+            "documentation/1-framework/wxml/list-rendering.en-US.md",
+            reference,
+        )
+
     def test_metadata_is_complete_and_strings_are_quoted(self):
         self.assertTrue(METADATA_PATH.is_file(), f"missing metadata: {METADATA_PATH}")
         metadata = METADATA_PATH.read_text(encoding="utf-8")

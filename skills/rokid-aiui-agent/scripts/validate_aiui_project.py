@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Sequence
 
 
-COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+CLOSED_MARKUP_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 MUSTACHE_RE = re.compile(r"{{.*?}}", re.DOTALL)
 SCRIPT_OPEN_RE = re.compile(r"<script\b([^>]*)>", re.IGNORECASE)
 SCRIPT_BLOCK_RE = re.compile(
@@ -21,6 +21,10 @@ SCRIPT_BLOCK_RE = re.compile(
 STYLE_OPEN_RE = re.compile(r"<style\b[^>]*>", re.IGNORECASE)
 STYLE_BLOCK_RE = re.compile(r"<style\b[^>]*>.*?</style\s*>", re.IGNORECASE | re.DOTALL)
 TARGET_VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
+WX_TEMPLATE_CONTROL_RE = re.compile(
+    r"wx:(?:if|elif|else|for|for-item|for-index|key)",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -113,7 +117,9 @@ class AIUIProjectValidator:
                 pass
         if app_ink.is_file():
             try:
-                source = COMMENT_RE.sub("", app_ink.read_text(encoding="utf-8"))
+                source = strip_closed_markup_comments(
+                    app_ink.read_text(encoding="utf-8")
+                )
             except (OSError, UnicodeError):
                 source = ""
             openings = len(SCRIPT_OPEN_RE.findall(source))
@@ -428,7 +434,7 @@ class AIUIProjectValidator:
             self.error("INK_READ_ERROR", display_path, "file is not readable UTF-8 text.")
             return
 
-        source = COMMENT_RE.sub("", source)
+        source = strip_closed_markup_comments(source)
         script_openings = SCRIPT_OPEN_RE.findall(source)
         def_count = sum(has_script_attribute(attrs, "def") for attrs in script_openings)
         setup_count = sum(has_script_attribute(attrs, "setup") for attrs in script_openings)
@@ -502,6 +508,7 @@ class AIUIProjectValidator:
 
         markup = SCRIPT_BLOCK_RE.sub("", source)
         markup = STYLE_BLOCK_RE.sub("", markup)
+        self._validate_template_control_directives(markup, display_path)
         markup_error = find_markup_nesting_error(markup)
         if markup_error is not None:
             self.error("INK_MARKUP_INVALID", display_path, markup_error)
@@ -585,20 +592,117 @@ class AIUIProjectValidator:
     def _validate_wxml(self, path: Path) -> None:
         display_path = relative_path(path, self.project_dir)
         try:
-            source = COMMENT_RE.sub("", path.read_text(encoding="utf-8"))
+            source = strip_closed_markup_comments(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError):
             self.error("WXML_READ_ERROR", display_path, "file is not readable UTF-8 text.")
             return
         if not source.strip():
             self.error("WXML_EMPTY", display_path, "declared WXML page must not be empty.")
             return
+        self._validate_template_control_directives(source, display_path)
         markup_error = find_markup_nesting_error(source)
         if markup_error is not None:
             self.error("WXML_MARKUP_INVALID", display_path, markup_error)
 
+    def _validate_template_control_directives(
+        self, source: str, display_path: str
+    ) -> None:
+        directives = find_wechat_template_control_directives(source)
+        if not directives:
+            return
+        replacements = ", ".join(
+            f"{directive} with {directive.replace('wx:', 'ink:')}"
+            for directive in directives
+        )
+        self.warning(
+            "WX_TEMPLATE_CONTROL_DIRECTIVE",
+            display_path,
+            "AIUI template control attributes use the ink:* namespace; replace "
+            f"{replacements}.",
+        )
+
 
 def has_script_attribute(attributes: str, name: str) -> bool:
     return re.search(rf"(?:^|\s){re.escape(name)}(?:\s*=\s*[^\s]+)?(?=\s|$)", attributes) is not None
+
+
+def strip_closed_markup_comments(source: str) -> str:
+    """Remove only explicitly closed XML/HTML comments.
+
+    Unterminated comments stay visible to later conservative markup and
+    template-directive checks, so malformed source cannot hide live-looking
+    attributes from validation.
+    """
+    return CLOSED_MARKUP_COMMENT_RE.sub("", source)
+
+
+def find_wechat_template_control_directives(source: str) -> List[str]:
+    masked = MUSTACHE_RE.sub("", source)
+    directives = set()
+    position = 0
+    while True:
+        start = masked.find("<", position)
+        if start < 0:
+            break
+        cursor = start + 1
+        if cursor >= len(masked) or not masked[cursor].isalpha():
+            position = cursor
+            continue
+
+        while cursor < len(masked) and (
+            masked[cursor].isalnum() or masked[cursor] in "_:.-"
+        ):
+            cursor += 1
+
+        while cursor < len(masked):
+            while cursor < len(masked) and masked[cursor].isspace():
+                cursor += 1
+            if cursor >= len(masked):
+                break
+            if masked[cursor] == ">":
+                cursor += 1
+                break
+            if masked[cursor] == "/" and masked[cursor : cursor + 2] == "/>":
+                cursor += 2
+                break
+
+            name_start = cursor
+            while cursor < len(masked) and (
+                not masked[cursor].isspace() and masked[cursor] not in "=/>"
+            ):
+                cursor += 1
+            if cursor == name_start:
+                cursor += 1
+                continue
+
+            attribute_name = masked[name_start:cursor]
+            if WX_TEMPLATE_CONTROL_RE.fullmatch(attribute_name):
+                directives.add(attribute_name.lower())
+
+            while cursor < len(masked) and masked[cursor].isspace():
+                cursor += 1
+            if cursor >= len(masked) or masked[cursor] != "=":
+                continue
+            cursor += 1
+            while cursor < len(masked) and masked[cursor].isspace():
+                cursor += 1
+            if cursor >= len(masked):
+                break
+            quote = masked[cursor] if masked[cursor] in "\"'" else None
+            if quote is not None:
+                cursor += 1
+                while cursor < len(masked) and masked[cursor] != quote:
+                    cursor += 1
+                if cursor < len(masked):
+                    cursor += 1
+            else:
+                while cursor < len(masked) and (
+                    not masked[cursor].isspace() and masked[cursor] != ">"
+                ):
+                    cursor += 1
+
+        position = max(cursor, start + 1)
+    return sorted(directives)
 
 
 def count_opening_tag(source: str, name: str) -> int:
