@@ -410,6 +410,38 @@ class KatariAgentContractTests(unittest.TestCase):
                 self.assertNotIn("99", json.dumps(data, ensure_ascii=False), name)
                 self.assertNotIn("𠮷" * 49, json.dumps(data, ensure_ascii=False), name)
 
+    def test_quiet_marker_has_target_aware_low_mass_ui(self) -> None:
+        ink = read_example("pages/index/index.ink")
+        page = extract_block(ink, r"<page\b[^>]*>(.*?)</page>", "page")
+        style = extract_block(ink, r"<style>\s*(.*?)\s*</style>", "style")
+        for fragment in (
+            "KATARI / LOCAL MEMORY",
+            "{{placeNameJa}}",
+            "{{placeNameEn}}",
+            "{{localityLabel}}",
+            "LOCAL STORY · {{storyDurationSeconds}} SEC",
+            "{{memoryHook}}",
+            "{{confidenceLabel}}",
+            "{{evidenceNote}}",
+            "{{knowledgeLabel}}",
+            "{{recoveryHint}}",
+            'ink:if="{{showStoryMeta}}"',
+            'ink:if="{{!showStoryMeta}}"',
+        ):
+            self.assertIn(fragment, page)
+        self.assertIn("@media (target: _current)", style)
+        self.assertIn("@media (target: _blank)", style)
+        self.assertIn(".expanded-only { display: none; }", style)
+        self.assertIn("background-color: #000000", style)
+        self.assertIn("color: #72ff9e", style)
+        self.assertIn("border-top: 1px solid", style)
+        self.assertIn("border-radius: 6px", style)
+        self.assertIn("padding: 30px 36px", style)
+        self.assertNotIn("<button", page)
+        self.assertNotIn("bindtap=", page)
+        self.assertNotIn("onKeyUp", ink)
+        self.assertNotIn("@keyframes", style)
+
 
 if __name__ == "__main__":
     unittest.main()
