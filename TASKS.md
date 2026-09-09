@@ -2,7 +2,7 @@
 
 ## In progress
 
-- [ ] Publish the reviewed SceneQuest commit series to GitHub `main`, then verify the remote `examples/scenequest-agent/` directory and the resulting GitHub Actions jobs. Local `origin/main` at `9e0455237129dd118a13f22c65aec973f7438036` does not yet contain SceneQuest; push only after the main task's final review.
+No active implementation task.
 
 ## Done
 
@@ -34,6 +34,7 @@
 - [x] Implemented and locally tested SceneQuest's bounded four-state contract, categorical confidence, one-retry uncertain flow, tolerant photo-guidance fallback, nearby selection, and prompt-injection/input-isolation boundaries.
 - [x] Added SceneQuest strict validation, published-AIX pack/list smoke, blocking static-preview CI coverage, repository documentation, and locally recorded UX/capability evidence.
 - [x] Reproduced and fixed Focus Timer touchpad single-click activation in the AIX simulator, including visible conditional action buttons and Page-level Enter/GlobalHook handling.
+- [x] Published SceneQuest through GitHub pull request #1 to public `main` at `1b08da9fb8e39ab3e2e6bc4c3b7b894fb41f7583`, verified the remote import directory, and observed both GitHub Actions jobs succeed.
 
 ## External manual gates
 
