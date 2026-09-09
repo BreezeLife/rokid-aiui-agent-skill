@@ -442,6 +442,47 @@ class KatariAgentContractTests(unittest.TestCase):
         self.assertNotIn("onKeyUp", ink)
         self.assertNotIn("@keyframes", style)
 
+    def test_capability_evaluation_records_fifteen_cases(self) -> None:
+        report = (
+            ROOT / "tests" / "evaluations" / "katari-capability.md"
+        ).read_text(encoding="utf-8")
+        cases = re.split(r"(?=^## Case: )", report, flags=re.MULTILINE)[1:]
+        self.assertEqual(len(cases), 15)
+        for case in cases:
+            for label in (
+                "- Input evidence:",
+                "- Expected state:",
+                "- Expected behavior:",
+                "- Observed:",
+                "- Result:",
+                "- Evidence class:",
+            ):
+                self.assertIn(label, case)
+            self.assertRegex(case, r"(?m)^- Result: (?:PASS|FAIL)$")
+            self.assertIn(
+                "- Evidence class: local prompt-contract evaluation", case
+            )
+        for state in (
+            "matched", "uncertain", "no_story", "no_match", "invalid"
+        ):
+            self.assertIn(f"- Expected state: {state}", report)
+        for fragment in (
+            "Japanese",
+            "English",
+            "fact",
+            "legend",
+            "tradition",
+            "GPS only",
+            "vision only",
+            "location/visual conflict",
+            "look-alike",
+            "retry exhaustion",
+            "one bounded story",
+            "route request",
+            "not an authenticated Studio host",
+        ):
+            self.assertIn(fragment, report)
+
 
 if __name__ == "__main__":
     unittest.main()

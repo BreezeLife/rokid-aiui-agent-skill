@@ -344,13 +344,13 @@ All 20 ordered candidates passed the central-story gate on 2026-09-09. No reserv
   1. Osaka Tenmangu says an older Daishogun shrine already stood on the site before Tenmangu was founded.
   2. Its official origin account says seven pines shone at night in 949 and prompted an imperial order to establish the shrine.
   3. The shrine still performs a year-end rite described as paying symbolic rent to Daishogun for the ground.
-- Story claim: Even a major shrine remembers that it arrived second: each year it symbolically pays rent to the older shrine already on the ground.
-- Knowledge kind: tradition
+- Story claim: Shrine legend says seven pine trees shone at night and the sign led to Osaka Tenmangu's foundation.
+- Knowledge kind: legend
 - Sources:
   - https://osakatemmangu.or.jp/about
 - Source classes: Osaka Tenmangu official origin and ritual history
 - Verified: 2026-09-09
-- Uncertainty: The glowing-pine origin is a shrine tradition; the runtime story focuses on the shrine's documented continuing interpretation of the rent rite.
+- Uncertainty: The glowing-pine origin is a shrine legend, not an independently witnessed historical event, and must always be introduced as such.
 
 ## Spot: osaka-central-public-hall
 

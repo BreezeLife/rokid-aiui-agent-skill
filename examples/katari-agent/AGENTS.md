@@ -319,11 +319,11 @@ Do not provide route planning, restaurant recommendations, live news, general Wi
   1. An older Daishogun shrine preceded Tenmangu on this ground.
   2. The shrine preserves a tradition about seven shining pines.
   3. A year-end rite is described as symbolic rent paid to the older shrine.
-- Story JA: 大阪天満宮は、この土地に最初にいた神社ではありません。先にあった大将軍社への敬意を忘れず、年末には土地代を納める形の神事を今も続けています。大きな神社が、古い隣人に毎年「家賃」を払う記憶です。
-- Story EN: Osaka Tenmangu remembers that another shrine stood here first. Its year-end ritual is described as paying symbolic rent to the older Daishogun shrine for the ground. Even a major sanctuary keeps a yearly memory of being the later neighbour.
-- Memory hook JA: 大きな神社が、古い神社へ払う家賃。
-- Memory hook EN: A great shrine still pays symbolic rent.
-- Knowledge kind: tradition
+- Story JA: 大阪天満宮の伝承では、ある夜、七本の松が金色に光り、その知らせが都まで届いたことが創建のきっかけになりました。史実の記録というより、神聖な場所が光で選ばれたと伝える、この神社の起源物語です。
+- Story EN: According to Osaka Tenmangu's legend, seven pine trees shone with golden light at night. News of the sign reached the imperial court and led to the shrine's foundation. It is an origin story, not presented here as a witnessed historical record.
+- Memory hook JA: 七本の松の光が、神社の始まりを告げた。
+- Memory hook EN: Seven shining pines announce the shrine's beginning.
+- Knowledge kind: legend
 - Source IDs: osaka-tenmangu in SOURCES.md
 - Duration: 26 seconds
 
