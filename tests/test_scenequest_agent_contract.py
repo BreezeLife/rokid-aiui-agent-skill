@@ -17,6 +17,7 @@ EXAMPLE = ROOT / "examples" / "scenequest-agent"
 INK = EXAMPLE / "pages" / "index" / "index.ink"
 VALIDATOR = ROOT / "skills" / "rokid-aiui-agent" / "scripts" / "validate_aiui_project.py"
 SOURCE_SPOT = re.compile(r"^## Spot: ([a-z0-9-]+)$", re.MULTILINE)
+AGENT_SPOT = re.compile(r"^### Catalog Spot: ([a-z0-9-]+)$", re.MULTILINE)
 
 
 def read_example(relative: str) -> str:
@@ -27,6 +28,74 @@ def read_example(relative: str) -> str:
 
 
 class SceneQuestAgentContractTests(unittest.TestCase):
+    def test_import_root_and_agent_policy(self) -> None:
+        project_files = sorted(
+            path.relative_to(EXAMPLE).as_posix()
+            for path in EXAMPLE.rglob("*")
+            if path.is_file()
+        )
+        self.assertEqual(
+            project_files,
+            [
+                "AGENTS.md",
+                "SOURCES.md",
+                "app.js",
+                "app.json",
+                "pages/index/index.ink",
+            ],
+        )
+
+        manifest = json.loads(read_example("app.json"))
+        self.assertEqual(manifest["pages"], ["pages/index/index"])
+        self.assertNotIn("widgets", manifest)
+        self.assertNotIn("agentWorkers", manifest)
+        self.assertEqual(read_example("app.js"), "export default {};\n")
+
+        agent = read_example("AGENTS.md")
+        sources = read_example("SOURCES.md")
+        self.assertEqual(AGENT_SPOT.findall(agent), SOURCE_SPOT.findall(sources))
+        for heading in (
+            "## Meta Information",
+            "## System Prompts",
+            "## Capabilities",
+            "## Configuration",
+            "## Dependencies",
+        ):
+            self.assertIn(heading, agent)
+        for policy in (
+            "# Agent: SceneQuest",
+            "セイチ｜SEICHI",
+            "日本語",
+            "matched",
+            "uncertain",
+            "no_match",
+            "invalid",
+            "最大1回",
+            "_current",
+            "_blank",
+            "アニメ画像を同梱しない",
+            "バックグラウンド位置監視を行わない",
+            "全国対応を主張しない",
+            "ここはどのアニメに出てくる？",
+            "聖地巡礼",
+            "近くのアニメスポット",
+        ):
+            self.assertIn(policy, agent)
+
+        self.assertIn("位置情報は候補の絞り込みだけに使い、一致の証明にしない", agent)
+        self.assertIn("特徴的な視覚アンカーを原則2つ以上", agent)
+        self.assertIn("作品名・キャラクター名は候補を絞る制約", agent)
+        self.assertIn("部分一致または矛盾する証拠", agent)
+        self.assertIn("具体的な追加の見え方を1つだけ依頼", agent)
+        self.assertIn("再試行の失敗または矛盾の継続", agent)
+        self.assertIn("スポット、話数・章・場面単位、距離、出典を捏造しない", agent)
+        self.assertIn("カタログにないことは、カタログ外の作品との無関係を証明しない", agent)
+        self.assertIn("正確な移動距離", agent)
+        self.assertIn("短い日本語の音声回答", agent)
+        self.assertIn("新しい結果ごとに新しい Page を呼び出す", agent)
+        self.assertIn("Page には構造化した結果を渡す", agent)
+        self.assertIn("Page はカメラ撮影や GPS 取得を行わない", agent)
+
     def test_source_registry_has_twelve_complete_spots(self) -> None:
         sources = read_example("SOURCES.md")
         ids = SOURCE_SPOT.findall(sources)
