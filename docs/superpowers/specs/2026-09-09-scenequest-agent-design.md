@@ -1,7 +1,7 @@
 # SceneQuest ROKID AIUI Agent Design
 
 **Date:** 2026-09-09  
-**Status:** Awaiting written-spec review  
+**Status:** Approved for implementation planning
 **Target:** AIUI 0.17 stable compatibility  
 **Product name:** SceneQuest / セイチ｜SEICHI
 
