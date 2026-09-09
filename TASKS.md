@@ -2,7 +2,7 @@
 
 ## In progress
 
-- [ ] Complete RED/GREEN behavioral evaluation, full local verification, publication, and remote CI confirmation.
+- [ ] Push `codex/katari-agent`, verify the remote branch/import directory, and confirm a GitHub Actions run for the exact feature commit.
 
 ## Done
 
@@ -33,6 +33,9 @@
 - [x] Reproduced and fixed Focus Timer touchpad single-click activation in the AIX simulator, including visible conditional action buttons and Page-level Enter/GlobalHook handling.
 - [x] Added mandatory AIUI-standard UX and per-capability evidence matrices, six non-substitutable evidence layers, stable result semantics, and source-backed optical acceptance thresholds to the packaged Skill.
 - [x] Ran the focused RED/GREEN behavior campaign: the pre-enhancement Skill scored 8/12 with one matrix-artifact failure; the enhanced Skill scored 12/12 with no critical failure.
+- [x] Built the source-gated `examples/katari-agent/` stable AIUI 0.17 Page project with 20 Osaka spots, paired short Japanese/English stories, five evidence states, and A · Quiet Marker.
+- [x] Completed KATARI local capability and UX evidence: 15/15 prompt-contract cases passed, 30/30 browser state/target/background scenarios passed after the long-Japanese-label correction, and the real AIX preview reached `Preview ready.`.
+- [x] Completed the KATARI local release gate: 80/80 unit tests, all six strict import-root validators, reference/Python/YAML/whitespace checks, and AIX 0.8.2 pack/list passed.
 
 ## External manual gates
 
@@ -41,3 +44,7 @@
 - [ ] Import `examples/focus-timer-agent/` through an authenticated AIUI Studio account and verify both `_current` and `_blank` on physical Rokid Glasses.
 - [ ] Verify World Awareness nod recognition and the start/pause/continue/restart mapping on physical Rokid Glasses.
 - [ ] Verify that spoken timer setup and changes cause a new Page invocation in authenticated AIUI Studio and on physical Rokid Glasses.
+- [ ] Import `examples/katari-agent/` through an authenticated AIUI Studio account and verify `_current` / `_blank` transitions with the same result payload.
+- [ ] Verify real KATARI host image, GPS, place, voice, locale, permission/unavailable/conflict handling, and the one-view retry budget.
+- [ ] Verify Japanese/English speech pacing, interruption, and Page coordination for KATARI's authored 15–30 second stories.
+- [ ] Inspect every KATARI state and maximum label on physical Rokid Glasses in bright, dark, and cluttered real scenes.
