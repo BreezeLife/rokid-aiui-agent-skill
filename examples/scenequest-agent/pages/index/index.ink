@@ -301,20 +301,22 @@ export default {
       <text class="state-label" wx:elif="{{state === 'uncertain'}}">要確認</text>
       <text class="state-label" wx:elif="{{state === 'no_match'}}">登録なし</text>
       <text class="state-label" wx:else>入力不足</text>
-      <text class="compact-title">{{workTitle}}</text>
     </view>
 
-    <text class="fallback-copy" wx:if="{{state === 'no_match'}}">登録カタログに一致する候補はありません。ほかの作品への登場は否定できません。</text>
-    <text class="fallback-copy" wx:if="{{state === 'invalid'}}">場所を確認できません。作品名または場所を変えて、もう一度聞いてください。</text>
+    <view class="core-answer">
+      <text class="work-title">{{workTitle}}</text>
+      <text class="episode-scene">{{episodeScene}}</text>
+      <text class="story-line">{{storyLine}}</text>
+      <text class="fallback-copy" wx:if="{{state === 'no_match'}}">登録カタログに一致する候補はありません。ほかの作品への登場は否定できません。</text>
+      <text class="fallback-copy" wx:if="{{state === 'invalid'}}">場所を確認できません。作品名または場所を変えて、もう一度聞いてください。</text>
+      <view class="photo-guide">
+        <text class="section-label">PHOTO GUIDE</text>
+        <text class="photo-copy" wx:if="{{photoGuidance.length > 0}}">{{photoGuidance}}</text>
+        <text class="photo-copy" wx:else>安全な場所で見え方を確認してください。</text>
+      </view>
+    </view>
 
     <scroll-view class="result-scroll expanded-only" scroll-y="true">
-      <view class="result-copy">
-        <text class="section-label">WORK</text>
-        <text class="work-title">{{workTitle}}</text>
-        <text class="episode-scene">{{episodeScene}}</text>
-        <text class="story-line">{{storyLine}}</text>
-      </view>
-
       <view class="nearby-list">
         <text class="section-label">NEARBY</text>
         <button
@@ -337,12 +339,6 @@ export default {
         </view>
       </view>
     </scroll-view>
-
-    <view class="photo-guide">
-      <text class="section-label">PHOTO GUIDE</text>
-      <text class="photo-copy" wx:if="{{photoGuidance}}">{{photoGuidance}}</text>
-      <text class="photo-copy" wx:else>安全な場所で見え方を確認してください。</text>
-    </view>
   </view>
 </page>
 
@@ -411,23 +407,15 @@ export default {
   line-height: 16px;
 }
 
-.compact-title {
-  margin-left: 10px;
-  font-size: 16px;
-  line-height: 20px;
-  color: #b8ffc3;
-}
-
 .fallback-copy {
-  flex-shrink: 0;
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 17px;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 15px;
   color: rgba(184, 255, 195, 0.82);
 }
 
 .result-scroll,
-.result-copy,
+.core-answer,
 .nearby-list,
 .selected-hint,
 .photo-guide {
@@ -438,13 +426,17 @@ export default {
 .result-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  margin-top: 10px;
+  margin-top: 8px;
+}
+
+.core-answer {
+  flex-shrink: 0;
+  margin-top: 5px;
 }
 
 .work-title {
-  margin-top: 5px;
-  font-size: 17px;
-  line-height: 22px;
+  font-size: 15px;
+  line-height: 19px;
   color: #b8ffc3;
 }
 
@@ -453,13 +445,13 @@ export default {
 .photo-copy,
 .selected-direction,
 .nearby-empty {
-  font-size: 12px;
-  line-height: 17px;
+  font-size: 11px;
+  line-height: 15px;
   color: rgba(184, 255, 195, 0.82);
 }
 
-.episode-scene { margin-top: 4px; }
-.story-line { margin-top: 6px; }
+.episode-scene { margin-top: 2px; }
+.story-line { margin-top: 3px; }
 
 .nearby-list {
   margin-top: 14px;
@@ -514,24 +506,19 @@ export default {
 
 .photo-guide {
   flex-shrink: 0;
-  margin-top: 9px;
-  padding-top: 7px;
+  margin-top: 6px;
+  padding-top: 5px;
   border-top: 1px solid rgba(64, 255, 94, 0.24);
 }
 
-.photo-copy { margin-top: 3px; }
+.photo-copy { margin-top: 2px; }
 
 @media (target: _current) {
   .expanded-only { display: none; }
   .result-group { padding: 10px; }
-  .compact-title {
-    max-height: 40px;
-    overflow: hidden;
-  }
 }
 
 @media (target: _blank) {
   .expanded-only { display: flex; }
-  .compact-title { display: none; }
 }
 </style>

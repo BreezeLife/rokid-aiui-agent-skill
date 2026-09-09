@@ -372,9 +372,30 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         scroll_tag = scroll_tags[0]
         self.assertRegex(scroll_tag, r'\bclass="[^"]*\bexpanded-only\b[^"]*"')
         self.assertRegex(scroll_tag, r'\bscroll-y="true"')
+        self.assertEqual(len(re.findall(r"\bexpanded-only\b", page)), 1)
         scroll_start = page.index(scroll_tag)
         scroll_end = page.index("</scroll-view>")
         scroll_content = page[scroll_start:scroll_end]
+
+        core_match = re.search(
+            r'<view\b[^>]*class="[^"]*\bcore-answer\b[^"]*"[^>]*>'
+            r"(.*?)</view>",
+            page,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(core_match, "missing _current-visible core answer")
+        core_start, core_end = core_match.span()
+        self.assertTrue(core_end < scroll_start or core_start > scroll_end)
+        core = core_match.group(1)
+        for field in (
+            "{{workTitle}}",
+            "{{episodeScene}}",
+            "{{storyLine}}",
+            "{{photoGuidance}}",
+        ):
+            self.assertEqual(core.count(field), 1, f"missing core field {field}")
+            self.assertEqual(page.count(field), 1, f"duplicated field {field}")
+        self.assertIn("PHOTO GUIDE", core)
 
         nearby_loops = re.findall(
             r"<button\b[^>]*\bwx:for=\"\{\{nearbySpots\}\}\"[^>]*>",
@@ -398,7 +419,11 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             r'<view\b[^>]*class="[^"]*\bphoto-guide\b[^"]*"', page
         )
         self.assertIsNotNone(photo_guide)
-        self.assertGreater(photo_guide.start(), scroll_end)
+        self.assertTrue(
+            photo_guide.end() < scroll_start or photo_guide.start() > scroll_end
+        )
+        self.assertGreaterEqual(photo_guide.start(), core_start)
+        self.assertLess(photo_guide.start(), core_end)
         self.assertIn("{{photoGuidance}}", page[photo_guide.start() :])
         empty_nearby = re.search(
             r'<text\b[^>]*class="[^"]*\bnearby-empty\b[^"]*"', page
@@ -409,13 +434,7 @@ class SceneQuestAgentContractTests(unittest.TestCase):
 
         for label in ("一致", "要確認", "登録なし", "入力不足", "SEICHI", "PHOTO GUIDE"):
             self.assertIn(label, page)
-        for field in (
-            "{{confidenceLabel}}",
-            "{{workTitle}}",
-            "{{episodeScene}}",
-            "{{storyLine}}",
-        ):
-            self.assertIn(field, page)
+        self.assertIn("{{confidenceLabel}}", page)
         for truthful_fallback in (
             "登録カタログに一致する候補はありません",
             "ほかの作品への登場は否定できません",
@@ -436,6 +455,11 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             blank,
             r"(?s)\.expanded-only\s*\{[^{}]*\bdisplay\s*:\s*flex\s*;?[^{}]*\}",
         )
+        core_style = extract_block(
+            style, r"\.core-answer\s*\{([^{}]*)\}", "core answer style"
+        )
+        self.assertIn("flex-shrink: 0", core_style)
+        self.assertNotIn("max-height", style)
         self.assertIn("background-color: #000000", style)
         self.assertIn("border: 1px solid", style)
         self.assertEqual(len(re.findall(r"\bborder\s*:\s*2px\s+solid", style)), 1)
