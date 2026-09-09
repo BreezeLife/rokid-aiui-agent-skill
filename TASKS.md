@@ -43,7 +43,7 @@ No active implementation task.
 - [ ] Import `examples/focus-timer-agent/` through an authenticated AIUI Studio account and verify both `_current` and `_blank` on physical Rokid Glasses.
 - [ ] Verify World Awareness nod recognition and the start/pause/continue/restart mapping on physical Rokid Glasses.
 - [ ] Verify that spoken timer setup and changes cause a new Page invocation in authenticated AIUI Studio and on physical Rokid Glasses.
-- [ ] NOT TESTED: Import `examples/scenequest-agent/` through an authenticated AIUI Studio account and run Studio Web simulation.
+- [x] Imported `examples/scenequest-agent/` through authenticated Craft by selecting the exact AIUI project root and ran the Web simulation in both 448×150 card and 480×352 interactive modes; Craft reported no project issues and logged a successful `pages/index/index` render.
 - [ ] NOT TESTED: Verify SceneQuest Agent-host delivery of camera imagery and GPS/current-location context.
 - [ ] NOT TESTED: Verify SceneQuest permission grant, denial, revocation, and unavailable-capability behavior for camera and location.
 - [ ] NOT TESTED: Verify Japanese voice response and fresh Page invocation coordination for SceneQuest.
