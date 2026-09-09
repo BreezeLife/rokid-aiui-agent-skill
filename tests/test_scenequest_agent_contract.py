@@ -155,10 +155,12 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             preview_step.get("env", {}).get("AIX_BIN"),
             "${{ github.workspace }}/node_modules/.bin/aix",
         )
+        self.assertFalse(preview_step.get("continue-on-error", False))
         preview_run = preview_step["run"]
         for command in (
             "set -euo pipefail",
-            '"$AIX_BIN" --help',
+            '"$AIX_BIN" --help | grep -Eq '
+            "'(^|[[:space:]])preview([[:space:]<]|$)'",
             '"$AIX_BIN" preview examples/scenequest-agent '
             '--html-out "$preview_html"',
             'test -s "$preview_html"',
