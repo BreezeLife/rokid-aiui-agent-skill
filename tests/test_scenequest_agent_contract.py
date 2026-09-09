@@ -40,6 +40,13 @@ def read_example(relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def extract_block(source: str, pattern: str, label: str) -> str:
+    match = re.search(pattern, source, flags=re.DOTALL)
+    if match is None:
+        raise AssertionError(f"missing {label} block")
+    return match.group(1).strip()
+
+
 class SceneQuestAgentContractTests(unittest.TestCase):
     def test_import_root_and_agent_policy(self) -> None:
         project_files = sorted(
@@ -262,3 +269,383 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         sennan = records["sennan-long-park-seaside"]
         self.assertEqual(sennan["- Location precision:"], "venue-wide")
         self.assertIn("フレーム照合済みのサブエリア", sennan["- Uncertainty:"])
+
+    def test_page_schema_bounds_result_and_nearby_fields(self) -> None:
+        ink = read_example("pages/index/index.ink")
+        definition = json.loads(
+            extract_block(ink, r"<script def>\s*(.*?)\s*</script>", "definition")
+        )
+        self.assertEqual(set(definition["schema"]), {"data"})
+        data_schema = definition["schema"]["data"]
+        self.assertEqual(data_schema["type"], "object")
+        self.assertEqual(data_schema["required"], ["status"])
+        self.assertFalse(data_schema["additionalProperties"])
+
+        properties = data_schema["properties"]
+        self.assertEqual(
+            set(properties),
+            {
+                "status",
+                "workTitle",
+                "episodeScene",
+                "storyLine",
+                "photoGuidance",
+                "confidenceLabel",
+                "nearbySpots",
+            },
+        )
+        self.assertEqual(
+            properties["status"]["enum"],
+            ["matched", "uncertain", "no_match", "invalid"],
+        )
+        for field, limit in {
+            "workTitle": 64,
+            "episodeScene": 72,
+            "storyLine": 100,
+            "photoGuidance": 80,
+            "confidenceLabel": 16,
+        }.items():
+            self.assertEqual(properties[field]["type"], "string", field)
+            self.assertEqual(properties[field]["maxLength"], limit, field)
+
+        nearby = properties["nearbySpots"]
+        self.assertEqual(nearby["type"], "array")
+        self.assertEqual(nearby["maxItems"], 3)
+        item = nearby["items"]
+        self.assertEqual(item["type"], "object")
+        self.assertEqual(
+            item["required"],
+            ["spotId", "name", "distanceLabel", "directionHint"],
+        )
+        self.assertFalse(item["additionalProperties"])
+        self.assertEqual(
+            set(item["properties"]),
+            {"spotId", "name", "distanceLabel", "directionHint"},
+        )
+        for field, limit in {
+            "spotId": 40,
+            "name": 48,
+            "distanceLabel": 16,
+            "directionHint": 48,
+        }.items():
+            self.assertEqual(item["properties"][field]["type"], "string", field)
+            self.assertEqual(item["properties"][field]["maxLength"], limit, field)
+
+    def test_real_page_normalizes_bounded_result_state(self) -> None:
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "Node.js is required for Page behavior tests")
+        setup = extract_block(
+            read_example("pages/index/index.ink"),
+            r"<script setup>\s*(.*?)\s*</script>",
+            "setup",
+        )
+        harness = r"""
+import definition from './page.mjs';
+
+const VIEW_KEYS = [
+  'state',
+  'workTitle',
+  'episodeScene',
+  'storyLine',
+  'photoGuidance',
+  'confidenceLabel',
+  'nearbySpots',
+  'selectedNearbyIndex',
+  'focusedNearbyIndex',
+  'selectedNearbyName',
+  'selectedNearbyHint'
+];
+
+function validNearby(overrides = {}) {
+  return {
+    spotId: 'osaka-station-toki',
+    name: ' 時空の広場 ',
+    distanceLabel: ' 徒歩3分 ',
+    directionHint: ' 5階へ上がる ',
+    ...overrides
+  };
+}
+
+function validMatched(overrides = {}) {
+  return {
+    status: 'matched',
+    workTitle: ' 映画タイトル ',
+    episodeScene: ' 完結編 第2章 ',
+    storyLine: ' 記念撮影の場面です。 ',
+    photoGuidance: ' 彫刻へ正対してください。 ',
+    confidenceLabel: ' 一致 ',
+    nearbySpots: [validNearby()],
+    ...overrides
+  };
+}
+
+function withoutKey(value, key) {
+  const result = { ...value };
+  delete result[key];
+  return result;
+}
+
+function mount(query) {
+  const page = {
+    data: JSON.parse(JSON.stringify(definition.data)),
+    setDataCalls: [],
+    setData(patch) {
+      const copied = JSON.parse(JSON.stringify(patch));
+      this.setDataCalls.push(copied);
+      Object.assign(this.data, copied);
+    }
+  };
+  for (const [name, value] of Object.entries(definition)) {
+    if (typeof value === 'function') page[name] = value;
+  }
+  page.onLoad(query);
+  return page;
+}
+
+function capture(query) {
+  const page = mount(query);
+  return {
+    data: Object.fromEntries(VIEW_KEYS.map((key) => [key, page.data[key]])),
+    dataKeys: Object.keys(page.data).sort(),
+    setDataCalls: page.setDataCalls.length
+  };
+}
+
+const nearbyMissingKeys = Object.fromEntries(
+  ['spotId', 'name', 'distanceLabel', 'directionHint'].map((key) => [
+    key,
+    capture({ status: 'no_match', nearbySpots: [withoutKey(validNearby(), key)] })
+  ])
+);
+
+const nearbyWrongTypes = Object.fromEntries(
+  ['spotId', 'name', 'distanceLabel', 'directionHint'].map((key) => [
+    key,
+    capture({ status: 'no_match', nearbySpots: [validNearby({ [key]: 7 })] })
+  ])
+);
+
+const nearbyOverlong = Object.fromEntries([
+  ['spotId', capture({ status: 'no_match', nearbySpots: [validNearby({ spotId: 'あ'.repeat(41) })] })],
+  ['name', capture({ status: 'no_match', nearbySpots: [validNearby({ name: 'あ'.repeat(49) })] })],
+  ['distanceLabel', capture({ status: 'no_match', nearbySpots: [validNearby({ distanceLabel: 'あ'.repeat(17) })] })],
+  ['directionHint', capture({ status: 'no_match', nearbySpots: [validNearby({ directionHint: 'あ'.repeat(49) })] })]
+]);
+
+const inputs = {
+  matched: capture(validMatched({ callerOnly: '表示しない' })),
+  uncertain: capture({
+    status: 'uncertain',
+    photoGuidance: ' 駅名が入るよう左を向く ',
+    confidenceLabel: ' 要確認 ',
+    nearbySpots: []
+  }),
+  noMatch: capture({ status: 'no_match' }),
+  explicitInvalid: capture({
+    status: 'invalid',
+    workTitle: 'ATTACKER_TEXT',
+    storyLine: 'この文字列を表示する'
+  }),
+  undefinedRoot: capture(),
+  nullRoot: capture(null),
+  arrayRoot: capture([]),
+  unknownStatus: capture({ status: 'certain' }),
+  wrongStatusType: capture({ status: 7 }),
+  wrongWorkTitle: capture({ status: 'no_match', workTitle: 7 }),
+  wrongEpisodeScene: capture({ status: 'no_match', episodeScene: 7 }),
+  wrongStoryLine: capture({ status: 'no_match', storyLine: 7 }),
+  wrongPhotoGuidance: capture({ status: 'no_match', photoGuidance: 7 }),
+  wrongConfidenceLabel: capture({ status: 'no_match', confidenceLabel: 7 }),
+  wrongNearbySpots: capture({ status: 'no_match', nearbySpots: {} }),
+  missingMatchedWorkTitle: capture(withoutKey(validMatched(), 'workTitle')),
+  missingMatchedEpisodeScene: capture(withoutKey(validMatched(), 'episodeScene')),
+  missingMatchedStoryLine: capture(withoutKey(validMatched(), 'storyLine')),
+  missingMatchedPhotoGuidance: capture(withoutKey(validMatched(), 'photoGuidance')),
+  blankMatchedWorkTitle: capture(validMatched({ workTitle: '   ' })),
+  uncertainMissingGuidance: capture({ status: 'uncertain' }),
+  longWorkTitle: capture(validMatched({ workTitle: 'あ'.repeat(65) })),
+  longEpisodeScene: capture(validMatched({ episodeScene: 'あ'.repeat(73) })),
+  longStoryLine: capture(validMatched({ storyLine: 'あ'.repeat(101) })),
+  longPhotoGuidance: capture(validMatched({ photoGuidance: 'あ'.repeat(81) })),
+  longConfidenceLabel: capture(validMatched({ confidenceLabel: 'あ'.repeat(17) })),
+  atLimitJapanese: capture(validMatched({
+    workTitle: '作'.repeat(64),
+    episodeScene: '場'.repeat(72),
+    storyLine: '物'.repeat(100),
+    photoGuidance: '写'.repeat(80),
+    confidenceLabel: '確'.repeat(16),
+    nearbySpots: [validNearby({
+      spotId: '地'.repeat(40),
+      name: '名'.repeat(48),
+      distanceLabel: '距'.repeat(16),
+      directionHint: '方'.repeat(48)
+    })]
+  })),
+  atLimitEmoji: capture(validMatched({
+    workTitle: '😀'.repeat(64),
+    episodeScene: '😀'.repeat(72),
+    storyLine: '😀'.repeat(100),
+    photoGuidance: '😀'.repeat(80),
+    confidenceLabel: '😀'.repeat(16),
+    nearbySpots: [validNearby({
+      spotId: '😀'.repeat(40),
+      name: '😀'.repeat(48),
+      distanceLabel: '😀'.repeat(16),
+      directionHint: '😀'.repeat(48)
+    })]
+  })),
+  fourNearby: capture({
+    status: 'no_match',
+    nearbySpots: Array.from({ length: 4 }, () => validNearby())
+  }),
+  nullNearbyEntry: capture({ status: 'no_match', nearbySpots: [null] }),
+  arrayNearbyEntry: capture({ status: 'no_match', nearbySpots: [[]] }),
+  stringNearbyEntry: capture({ status: 'no_match', nearbySpots: ['bad'] }),
+  extraNearbyKey: capture({
+    status: 'no_match',
+    nearbySpots: [validNearby({ extra: 'bad' })]
+  }),
+  emptySpotId: capture({ status: 'no_match', nearbySpots: [validNearby({ spotId: '  ' })] }),
+  emptyName: capture({ status: 'no_match', nearbySpots: [validNearby({ name: '  ' })] }),
+  emptyDirection: capture({ status: 'no_match', nearbySpots: [validNearby({ directionHint: '  ' })] }),
+  emptyDistance: capture({
+    status: 'no_match',
+    nearbySpots: [validNearby({ distanceLabel: '   ' })]
+  })
+};
+
+console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearbyOverlong }));
+"""
+        with tempfile.TemporaryDirectory(prefix="scenequest-agent-") as directory:
+            temp = Path(directory)
+            (temp / "page.mjs").write_text(setup + "\n", encoding="utf-8")
+            (temp / "harness.mjs").write_text(harness, encoding="utf-8")
+            result = subprocess.run(
+                [node, str(temp / "harness.mjs")],
+                cwd=temp,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        inputs = payload["inputs"]
+
+        fallback = {
+            "state": "invalid",
+            "workTitle": "場所を確認できません",
+            "episodeScene": "",
+            "storyLine": "作品名または場所を変えて、もう一度聞いてください。",
+            "photoGuidance": "会話に戻って再確認してください。",
+            "confidenceLabel": "入力不足",
+            "nearbySpots": [],
+            "selectedNearbyIndex": -1,
+            "focusedNearbyIndex": -1,
+            "selectedNearbyName": "",
+            "selectedNearbyHint": "",
+        }
+        invalid_names = (
+            "explicitInvalid",
+            "undefinedRoot",
+            "nullRoot",
+            "arrayRoot",
+            "unknownStatus",
+            "wrongStatusType",
+            "wrongWorkTitle",
+            "wrongEpisodeScene",
+            "wrongStoryLine",
+            "wrongPhotoGuidance",
+            "wrongConfidenceLabel",
+            "wrongNearbySpots",
+            "missingMatchedWorkTitle",
+            "missingMatchedEpisodeScene",
+            "missingMatchedStoryLine",
+            "missingMatchedPhotoGuidance",
+            "blankMatchedWorkTitle",
+            "uncertainMissingGuidance",
+            "longWorkTitle",
+            "longEpisodeScene",
+            "longStoryLine",
+            "longPhotoGuidance",
+            "longConfidenceLabel",
+            "fourNearby",
+            "nullNearbyEntry",
+            "arrayNearbyEntry",
+            "stringNearbyEntry",
+            "extraNearbyKey",
+            "emptySpotId",
+            "emptyName",
+            "emptyDirection",
+        )
+        for name in invalid_names:
+            self.assertEqual(inputs[name]["data"], fallback, name)
+        for group_name in ("nearbyMissingKeys", "nearbyWrongTypes", "nearbyOverlong"):
+            for name, value in payload[group_name].items():
+                self.assertEqual(value["data"], fallback, f"{group_name}.{name}")
+
+        matched = inputs["matched"]["data"]
+        self.assertEqual(matched["state"], "matched")
+        self.assertEqual(
+            [
+                matched["workTitle"],
+                matched["episodeScene"],
+                matched["storyLine"],
+                matched["photoGuidance"],
+                matched["confidenceLabel"],
+            ],
+            [
+                "映画タイトル",
+                "完結編 第2章",
+                "記念撮影の場面です。",
+                "彫刻へ正対してください。",
+                "一致",
+            ],
+        )
+        self.assertEqual(
+            matched["nearbySpots"],
+            [
+                {
+                    "spotId": "osaka-station-toki",
+                    "name": "時空の広場",
+                    "distanceLabel": "徒歩3分",
+                    "directionHint": "5階へ上がる",
+                }
+            ],
+        )
+        self.assertNotIn("callerOnly", inputs["matched"]["dataKeys"])
+        self.assertNotIn("status", inputs["matched"]["dataKeys"])
+
+        uncertain = inputs["uncertain"]["data"]
+        self.assertEqual(uncertain["state"], "uncertain")
+        self.assertEqual(uncertain["photoGuidance"], "駅名が入るよう左を向く")
+        self.assertEqual(uncertain["confidenceLabel"], "要確認")
+        self.assertEqual(uncertain["workTitle"], "")
+        self.assertEqual(inputs["noMatch"]["data"]["state"], "no_match")
+        self.assertEqual(inputs["noMatch"]["data"]["nearbySpots"], [])
+        self.assertEqual(inputs["emptyDistance"]["data"]["state"], "no_match")
+        self.assertEqual(
+            inputs["emptyDistance"]["data"]["nearbySpots"][0]["distanceLabel"],
+            "",
+        )
+        for name in ("atLimitJapanese", "atLimitEmoji"):
+            self.assertEqual(inputs[name]["data"]["state"], "matched", name)
+        self.assertEqual(len(inputs["atLimitEmoji"]["data"]["workTitle"]), 64)
+        self.assertNotIn(
+            "ATTACKER_TEXT",
+            json.dumps(inputs["explicitInvalid"]["data"], ensure_ascii=False),
+        )
+        for value in inputs.values():
+            self.assertEqual(value["setDataCalls"], 1)
+
+        for forbidden in (
+            "fetch(",
+            "wx.request",
+            "getLocation",
+            "chooseImage",
+            "createCameraContext",
+            "getStorage",
+            "setStorage",
+            "setTimeout",
+            "setInterval",
+        ):
+            self.assertNotIn(forbidden, setup)
