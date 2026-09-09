@@ -179,6 +179,21 @@ export default {
 
   onHeadGesture(event) {
     if (!this._isVisible || !event || event.gesture !== 'nod') return;
+    this._runPrimaryAction();
+  },
+
+  onKeyUp(event) {
+    if (
+      !event ||
+      (event.code !== 'Enter' && event.code !== 'GlobalHook')
+    ) {
+      return;
+    }
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    this._runPrimaryAction();
+  },
+
+  _runPrimaryAction() {
     if (this.data.state === 'idle') {
       this.startTimer();
     } else if (this.data.state === 'running') {
@@ -345,11 +360,12 @@ export default {
       <text class="nod-hint">{{nodHint}}</text>
     </view>
     <view class="actions">
-      <button class="action action-start action-focused-{{focusedAction}}" bindtap="startTimer" bindfocus="focusStartAction" bindblur="onActionBlur">開始</button>
-      <button class="action action-pause action-focused-{{focusedAction}}" bindtap="pauseTimer" bindfocus="focusPauseAction" bindblur="onActionBlur">一時停止</button>
-      <button class="action action-continue action-focused-{{focusedAction}}" bindtap="continueTimer" bindfocus="focusContinueAction" bindblur="onActionBlur">再開</button>
-      <button class="action action-restart action-focused-{{focusedAction}}" bindtap="restartTimer" bindfocus="focusRestartAction" bindblur="onActionBlur">最初から</button>
-      <button class="action action-reset action-focused-{{focusedAction}}" bindtap="resetTimer" bindfocus="focusResetAction" bindblur="onActionBlur">リセット</button>
+      <button ink:if="{{state === 'idle'}}" class="action action-start action-focused-{{focusedAction}}" bindtap="startTimer" bindfocus="focusStartAction" bindblur="onActionBlur">開始</button>
+      <button ink:if="{{state === 'running'}}" class="action action-pause action-focused-{{focusedAction}}" bindtap="pauseTimer" bindfocus="focusPauseAction" bindblur="onActionBlur">一時停止</button>
+      <button ink:if="{{state === 'paused'}}" class="action action-continue action-focused-{{focusedAction}}" bindtap="continueTimer" bindfocus="focusContinueAction" bindblur="onActionBlur">再開</button>
+      <button ink:if="{{state === 'finished'}}" class="action action-restart action-focused-{{focusedAction}}" bindtap="restartTimer" bindfocus="focusRestartAction" bindblur="onActionBlur">最初から</button>
+      <button ink:if="{{state === 'running' || state === 'paused'}}" class="action secondary-action action-restart action-focused-{{focusedAction}}" bindtap="restartTimer" bindfocus="focusRestartAction" bindblur="onActionBlur">最初から</button>
+      <button ink:if="{{state !== 'error'}}" class="action secondary-action action-reset action-focused-{{focusedAction}}" bindtap="resetTimer" bindfocus="focusResetAction" bindblur="onActionBlur">リセット</button>
     </view>
   </view>
 </page>
@@ -477,7 +493,7 @@ export default {
 }
 
 .action {
-  display: none;
+  display: flex;
   min-width: 86px;
   margin-right: 8px;
   padding: 7px 10px;
@@ -497,25 +513,15 @@ export default {
   background-color: rgba(64, 255, 94, 0.12);
 }
 
-.state-idle .action-start,
-.state-running .action-pause,
-.state-paused .action-continue,
-.state-finished .action-restart { display: flex; }
-
 @media (target: _current) {
   .page-shell { padding: 8px; }
   .surface { padding: 12px; }
   .expanded-only { display: none; }
+  .secondary-action { display: none; }
   .time-value { font-size: 42px; line-height: 46px; }
 }
 
 @media (target: _blank) {
   .expanded-only { display: flex; }
-  .state-idle .action-reset,
-  .state-running .action-restart,
-  .state-running .action-reset,
-  .state-paused .action-restart,
-  .state-paused .action-reset,
-  .state-finished .action-reset { display: flex; }
 }
 </style>

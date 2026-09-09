@@ -33,6 +33,7 @@
 - [x] Built `examples/scenequest-agent/` as a stable-AIUI-0.17, Page-only Japanese Agent with exactly 12 source-traceable Osaka spots and no bundled anime screenshots.
 - [x] Implemented and locally tested SceneQuest's bounded four-state contract, categorical confidence, one-retry uncertain flow, tolerant photo-guidance fallback, nearby selection, and prompt-injection/input-isolation boundaries.
 - [x] Added SceneQuest strict validation, published-AIX pack/list smoke, blocking static-preview CI coverage, repository documentation, and locally recorded UX/capability evidence.
+- [x] Reproduced and fixed Focus Timer touchpad single-click activation in the AIX simulator, including visible conditional action buttons and Page-level Enter/GlobalHook handling.
 
 ## External manual gates
 

@@ -27,6 +27,7 @@
 - 2026-09-09: SceneQuest uses one Page for `_current` and `_blank`, four categorical result states (`matched`, `uncertain`, `no_match`, `invalid`), and at most one concrete retry for uncertain evidence. It does not bundle anime frames, run background geofencing, or claim nationwide coverage; dynamic visual photo guidance is allowed only when current evidence supports it, otherwise it falls back to the curated position.
 - 2026-09-09: SceneQuest uses `invalid` only when image, location, a place/work constraint, and usable question text are all unavailable. Without an image it may use only curated photo positions or request another image, never dynamic visual adjustment; without location it omits distance and any claim of distance ordering.
 - 2026-09-09: SceneQuest keeps voice/internal evidence separate from its strict seven-field Page input. Nearby selection is Page-local derived state: selecting one row marks only that row and reveals its direction hint inline, while focus and blur preserve the selection.
+- 2026-09-09: Focus Timer treats Page-level `onKeyUp` codes `Enter` and `GlobalHook` as a direct touchpad single-click primary action and prevents the host default to avoid duplicate activation. State-specific buttons are mounted with stable `ink:if` branches instead of depending on dynamic descendant CSS to enter the focus tree.
 
 ## Source priority
 
