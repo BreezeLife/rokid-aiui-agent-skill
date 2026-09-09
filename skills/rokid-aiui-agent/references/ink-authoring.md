@@ -53,7 +53,7 @@ export default {
   <view class="panel">
     <text>{{title}}</text>
     <button bindtap="confirm">Confirm</button>
-    <text wx:if="{{confirmed}}">Done</text>
+    <text ink:if="{{confirmed}}">Done</text>
   </view>
 </page>
 
@@ -67,7 +67,7 @@ Use JSON-serializable initial `data`; update rendered state with `this.setData()
 ## Template and events
 
 - Use `{{...}}` data binding.
-- Use `wx:if` / `wx:elif` / `wx:else` for conditional rendering and `wx:for` for lists; follow the [0.17 WXML reference](https://github.com/yodaos-project/AIUI/tree/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/1-framework/wxml).
+- AIUI template control attributes use the `ink:*` namespace, not similarly named Mini Program directives. Use `ink:if` / `ink:elif` / `ink:else` for [0.17 conditional rendering](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/1-framework/wxml/conditional-rendering.en-US.md), and `ink:for` with `ink:key` for [0.17 list rendering](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/1-framework/wxml/list-rendering.en-US.md).
 - Bind component events with the documented event names such as `bindtap`; keep handler names resolvable on the default-exported object.
 - Do not assume HTML DOM behavior, React syntax, browser CSS, or arbitrary Web APIs. Check the exact AIUI component/API page first; see [runtime-capabilities.md](runtime-capabilities.md).
 

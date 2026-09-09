@@ -159,7 +159,13 @@ function normalizeNearby(value) {
     ) {
       return null;
     }
-    normalized.push({ spotId, name, distanceLabel, directionHint });
+    normalized.push({
+      spotId,
+      name,
+      distanceLabel,
+      directionHint,
+      focused: false
+    });
   }
   return normalized;
 }
@@ -260,13 +266,21 @@ export default {
   focusNearby(event) {
     const index = this.eventIndex(event);
     if (index < 0) return;
-    this.setData({ focusedNearbyIndex: index });
+    const nearbySpots = this.data.nearbySpots.map((nearby, nearbyIndex) => ({
+      ...nearby,
+      focused: nearbyIndex === index
+    }));
+    this.setData({ focusedNearbyIndex: index, nearbySpots });
   },
 
   blurNearby(event) {
     const index = this.eventIndex(event);
     if (index < 0) return;
-    this.setData({ focusedNearbyIndex: -1 });
+    const nearbySpots = this.data.nearbySpots.map((nearby) => ({
+      ...nearby,
+      focused: false
+    }));
+    this.setData({ focusedNearbyIndex: -1, nearbySpots });
   },
 
   selectNearby(event) {
@@ -297,22 +311,21 @@ export default {
     </view>
 
     <view class="state-row">
-      <text class="state-label" wx:if="{{state === 'matched'}}">一致</text>
-      <text class="state-label" wx:elif="{{state === 'uncertain'}}">要確認</text>
-      <text class="state-label" wx:elif="{{state === 'no_match'}}">登録なし</text>
-      <text class="state-label" wx:else>入力不足</text>
+      <text class="state-label" ink:if="{{state === 'matched'}}">一致</text>
+      <text class="state-label" ink:elif="{{state === 'uncertain'}}">要確認</text>
+      <text class="state-label" ink:elif="{{state === 'no_match'}}">登録なし</text>
+      <text class="state-label" ink:else>入力不足</text>
     </view>
 
     <view class="core-answer">
       <text class="work-title">{{workTitle}}</text>
-      <text class="episode-scene">{{episodeScene}}</text>
-      <text class="story-line">{{storyLine}}</text>
-      <text class="fallback-copy" wx:if="{{state === 'no_match'}}">登録カタログに一致する候補はありません。ほかの作品への登場は否定できません。</text>
-      <text class="fallback-copy" wx:if="{{state === 'invalid'}}">場所を確認できません。作品名または場所を変えて、もう一度聞いてください。</text>
+      <text class="episode-scene" ink:if="{{state !== 'invalid'}}">{{episodeScene}}</text>
+      <text class="story-line" ink:if="{{state !== 'invalid'}}">{{storyLine}}</text>
+      <text class="fallback-copy" ink:if="{{state === 'no_match'}}">登録カタログに一致する候補はありません。ほかの作品への登場は否定できません。</text>
       <view class="photo-guide">
         <text class="section-label">PHOTO GUIDE</text>
-        <text class="photo-copy" wx:if="{{photoGuidance.length > 0}}">{{photoGuidance}}</text>
-        <text class="photo-copy" wx:else>安全な場所で見え方を確認してください。</text>
+        <text class="photo-copy" ink:if="{{photoGuidance.length > 0}}">{{photoGuidance}}</text>
+        <text class="photo-copy" ink:else>安全な場所で見え方を確認してください。</text>
       </view>
     </view>
 
@@ -320,9 +333,9 @@ export default {
       <view class="nearby-list">
         <text class="section-label">NEARBY</text>
         <button
-          class="nearby-button nearby-focused-{{focusedNearbyIndex === index}}"
-          wx:for="{{nearbySpots}}"
-          wx:key="spotId"
+          class="nearby-button nearby-focused-{{item.focused}}"
+          ink:for="{{nearbySpots}}"
+          ink:key="spotId"
           data-index="{{index}}"
           bindtap="selectNearby"
           bindfocus="focusNearby"
@@ -331,8 +344,8 @@ export default {
           <text class="nearby-name">{{item.name}}</text>
           <text class="nearby-distance">{{item.distanceLabel}}</text>
         </button>
-        <text class="nearby-empty" wx:if="{{nearbySpots.length === 0}}">近隣候補はありません。</text>
-        <view class="selected-hint" wx:if="{{selectedNearbyIndex >= 0}}">
+        <text class="nearby-empty" ink:if="{{nearbySpots.length === 0}}">近隣候補はありません。</text>
+        <view class="selected-hint" ink:if="{{selectedNearbyIndex >= 0}}">
           <text class="section-label">方向の手掛かり</text>
           <text class="selected-name">{{selectedNearbyName}}</text>
           <text class="selected-direction">{{selectedNearbyHint}}</text>

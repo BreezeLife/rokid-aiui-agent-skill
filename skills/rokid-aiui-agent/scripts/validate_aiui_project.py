@@ -21,6 +21,10 @@ SCRIPT_BLOCK_RE = re.compile(
 STYLE_OPEN_RE = re.compile(r"<style\b[^>]*>", re.IGNORECASE)
 STYLE_BLOCK_RE = re.compile(r"<style\b[^>]*>.*?</style\s*>", re.IGNORECASE | re.DOTALL)
 TARGET_VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
+WX_TEMPLATE_CONTROL_RE = re.compile(
+    r"(?<![\w:.-])wx:(?:if|elif|else|for|for-item|for-index|key)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -502,6 +506,7 @@ class AIUIProjectValidator:
 
         markup = SCRIPT_BLOCK_RE.sub("", source)
         markup = STYLE_BLOCK_RE.sub("", markup)
+        self._validate_template_control_directives(markup, display_path)
         markup_error = find_markup_nesting_error(markup)
         if markup_error is not None:
             self.error("INK_MARKUP_INVALID", display_path, markup_error)
@@ -592,13 +597,42 @@ class AIUIProjectValidator:
         if not source.strip():
             self.error("WXML_EMPTY", display_path, "declared WXML page must not be empty.")
             return
+        self._validate_template_control_directives(source, display_path)
         markup_error = find_markup_nesting_error(source)
         if markup_error is not None:
             self.error("WXML_MARKUP_INVALID", display_path, markup_error)
 
+    def _validate_template_control_directives(
+        self, source: str, display_path: str
+    ) -> None:
+        directives = find_wechat_template_control_directives(source)
+        if not directives:
+            return
+        replacements = ", ".join(
+            f"{directive} with {directive.replace('wx:', 'ink:')}"
+            for directive in directives
+        )
+        self.warning(
+            "WX_TEMPLATE_CONTROL_DIRECTIVE",
+            display_path,
+            "AIUI template control attributes use the ink:* namespace; replace "
+            f"{replacements}.",
+        )
+
 
 def has_script_attribute(attributes: str, name: str) -> bool:
     return re.search(rf"(?:^|\s){re.escape(name)}(?:\s*=\s*[^\s]+)?(?=\s|$)", attributes) is not None
+
+
+def find_wechat_template_control_directives(source: str) -> List[str]:
+    masked = MUSTACHE_RE.sub("", source)
+    directives = set()
+    for match in re.finditer(r"<(?![!/?])[A-Za-z][^>]*>", masked, re.DOTALL):
+        directives.update(
+            directive.lower()
+            for directive in WX_TEMPLATE_CONTROL_RE.findall(match.group())
+        )
+    return sorted(directives)
 
 
 def count_opening_tag(source: str, name: str) -> int:

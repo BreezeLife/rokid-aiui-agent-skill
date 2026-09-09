@@ -362,6 +362,70 @@ class ValidatorGeneratedProjectTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("WXML_MARKUP_INVALID", diagnostic_codes(result))
 
+    def test_wechat_control_directives_warn_and_fail_strict(self) -> None:
+        controls = (
+            '<text wx:if="{{show}}">A</text>'
+            '<text wx:elif="{{other}}">B</text>'
+            '<text wx:else>C</text>'
+            '<view wx:for="{{items}}" wx:key="id">{{item.name}}</view>'
+        )
+        cases = (
+            ("pages/index/index.ink", f"<page>{controls}</page>"),
+            ("pages/index/index.wxml", f"<view>{controls}</view>"),
+        )
+        for relative, content in cases:
+            with self.subTest(relative=relative), self.make_project() as directory:
+                project = Path(directory)
+                self.write_support_files(project)
+                page = project / relative
+                page.parent.mkdir(parents=True, exist_ok=True)
+                page.write_text(content, encoding="utf-8")
+                (project / "app.json").write_text(
+                    json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+                )
+
+                normal = run_validator(project, "--json")
+                strict = run_validator(project, "--strict", "--json")
+
+                self.assertEqual(normal.returncode, 0, normal.stdout + normal.stderr)
+                self.assertEqual(strict.returncode, 1, strict.stdout + strict.stderr)
+                payload = json.loads(normal.stdout)
+                self.assertEqual(payload["warningCount"], 1)
+                diagnostic = payload["diagnostics"][0]
+                self.assertEqual(diagnostic["severity"], "WARNING")
+                self.assertEqual(diagnostic["code"], "WX_TEMPLATE_CONTROL_DIRECTIVE")
+                self.assertEqual(diagnostic["path"], relative)
+                for directive in ("wx:if", "wx:elif", "wx:else", "wx:for", "wx:key"):
+                    self.assertIn(directive, diagnostic["message"])
+                    self.assertIn(directive.replace("wx:", "ink:"), diagnostic["message"])
+
+    def test_aiui_control_directives_are_accepted_in_ink_and_wxml(self) -> None:
+        controls = (
+            '<text ink:if="{{show}}">A</text>'
+            '<text ink:elif="{{other}}">B</text>'
+            '<text ink:else>C</text>'
+            '<view ink:for="{{items}}" ink:key="id">{{item.name}}</view>'
+        )
+        cases = (
+            ("pages/index/index.ink", f"<page>{controls}</page>"),
+            ("pages/index/index.wxml", f"<view>{controls}</view>"),
+        )
+        for relative, content in cases:
+            with self.subTest(relative=relative), self.make_project() as directory:
+                project = Path(directory)
+                self.write_support_files(project)
+                page = project / relative
+                page.parent.mkdir(parents=True, exist_ok=True)
+                page.write_text(content, encoding="utf-8")
+                (project / "app.json").write_text(
+                    json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+                )
+
+                result = run_validator(project, "--strict", "--json")
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(diagnostic_codes(result), [])
+
     def test_widget_requires_matching_family_in_script_def(self) -> None:
         with self.make_project() as directory:
             project = Path(directory)

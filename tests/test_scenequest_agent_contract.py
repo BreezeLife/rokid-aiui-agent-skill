@@ -69,6 +69,44 @@ def extract_media_region(style: str, target: str) -> str:
     raise AssertionError(f"unclosed @media region for {target}")
 
 
+def extract_element_by_class(
+    source: str, class_name: str
+) -> tuple[str, int, int]:
+    masked = re.sub(r"{{.*?}}", lambda match: " " * len(match.group()), source)
+    tag_pattern = re.compile(
+        r"<(?P<closing>/)?(?P<name>[A-Za-z][\w:.-]*)\b(?P<attrs>[^>]*)>",
+        flags=re.DOTALL,
+    )
+    class_pattern = re.compile(
+        rf"\bclass\s*=\s*([\"'])[^\"']*\b{re.escape(class_name)}\b[^\"']*\1"
+    )
+    opening = next(
+        (
+            match
+            for match in tag_pattern.finditer(masked)
+            if not match.group("closing")
+            and not match.group().rstrip().endswith("/>")
+            and class_pattern.search(match.group("attrs"))
+        ),
+        None,
+    )
+    if opening is None:
+        raise AssertionError(f"missing element with class {class_name}")
+
+    tag_name = opening.group("name")
+    depth = 1
+    for match in tag_pattern.finditer(masked, opening.end()):
+        if match.group("name") != tag_name:
+            continue
+        if match.group("closing"):
+            depth -= 1
+            if depth == 0:
+                return source[opening.end() : match.start()], opening.start(), match.end()
+        elif not match.group().rstrip().endswith("/>"):
+            depth += 1
+    raise AssertionError(f"unclosed element with class {class_name}")
+
+
 class SceneQuestAgentContractTests(unittest.TestCase):
     def test_import_root_and_agent_policy(self) -> None:
         project_files = sorted(
@@ -377,16 +415,8 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         scroll_end = page.index("</scroll-view>")
         scroll_content = page[scroll_start:scroll_end]
 
-        core_match = re.search(
-            r'<view\b[^>]*class="[^"]*\bcore-answer\b[^"]*"[^>]*>'
-            r"(.*?)</view>",
-            page,
-            flags=re.DOTALL,
-        )
-        self.assertIsNotNone(core_match, "missing _current-visible core answer")
-        core_start, core_end = core_match.span()
+        core, core_start, core_end = extract_element_by_class(page, "core-answer")
         self.assertTrue(core_end < scroll_start or core_start > scroll_end)
-        core = core_match.group(1)
         for field in (
             "{{workTitle}}",
             "{{episodeScene}}",
@@ -396,9 +426,19 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             self.assertEqual(core.count(field), 1, f"missing core field {field}")
             self.assertEqual(page.count(field), 1, f"duplicated field {field}")
         self.assertIn("PHOTO GUIDE", core)
+        for class_name in ("episode-scene", "story-line"):
+            field_tag = re.search(
+                rf'<text\b[^>]*class="[^"]*\b{class_name}\b[^"]*"[^>]*>', core
+            )
+            self.assertIsNotNone(field_tag, class_name)
+            self.assertIn('ink:if="{{state !== \'invalid\'}}"', field_tag.group())
+        self.assertNotIn(
+            "場所を確認できません。作品名または場所を変えて、もう一度聞いてください。",
+            page,
+        )
 
         nearby_loops = re.findall(
-            r"<button\b[^>]*\bwx:for=\"\{\{nearbySpots\}\}\"[^>]*>",
+            r"<button\b[^>]*\bink:for=\"\{\{nearbySpots\}\}\"[^>]*>",
             page,
             flags=re.DOTALL,
         )
@@ -410,10 +450,22 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             'bindfocus="focusNearby"',
             'bindblur="blurNearby"',
             'data-index="{{index}}"',
+            'ink:key="spotId"',
         ):
             self.assertIn(binding, nearby_button)
-        self.assertIn("nearby-focused-{{focusedNearbyIndex === index}}", nearby_button)
+        self.assertIn("nearby-focused-{{item.focused}}", nearby_button)
         self.assertIn("{{selectedNearbyHint}}", scroll_content)
+
+        self.assertIsNone(
+            re.search(r"\bwx:(?:if|elif|else|for|for-item|for-index|key)\b", page)
+        )
+        for class_value in re.findall(r'\bclass="([^"]*)"', page):
+            for binding in re.findall(r"{{(.*?)}}", class_value):
+                self.assertRegex(
+                    binding.strip(),
+                    r"^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$",
+                    f"class binding must be a simple path: {class_value}",
+                )
 
         photo_guide = re.search(
             r'<view\b[^>]*class="[^"]*\bphoto-guide\b[^"]*"', page
@@ -438,7 +490,6 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         for truthful_fallback in (
             "登録カタログに一致する候補はありません",
             "ほかの作品への登場は否定できません",
-            "場所を確認できません",
         ):
             self.assertIn(truthful_fallback, page)
         for prohibited_claim in ("案内を開始", "ルートを開始", "ナビを開始"):
@@ -776,7 +827,12 @@ function truthSnapshot(page) {
     storyLine: page.data.storyLine,
     photoGuidance: page.data.photoGuidance,
     confidenceLabel: page.data.confidenceLabel,
-    nearbySpots: page.data.nearbySpots
+    nearbySpots: page.data.nearbySpots.map((nearby) => ({
+      spotId: nearby.spotId,
+      name: nearby.name,
+      distanceLabel: nearby.distanceLabel,
+      directionHint: nearby.directionHint
+    }))
   }));
 }
 
@@ -792,8 +848,14 @@ const interactionPage = mount(validMatched({
   ]
 }));
 const truthBeforeInteraction = truthSnapshot(interactionPage);
+const nearbyBeforeFocus = interactionPage.data.nearbySpots;
 interactionPage.focusNearby(nearbyEvent(1));
 const focusedIndex = interactionPage.data.focusedNearbyIndex;
+const focusedTokens = interactionPage.data.nearbySpots.map((nearby) => nearby.focused);
+const focusArrayIsCloned = interactionPage.data.nearbySpots !== nearbyBeforeFocus;
+const focusRowsAreCloned = interactionPage.data.nearbySpots.every(
+  (nearby, index) => nearby !== nearbyBeforeFocus[index]
+);
 interactionPage.focusNearby();
 const focusAfterMissingEvent = interactionPage.data.focusedNearbyIndex;
 interactionPage.selectNearby(nearbyEvent(1));
@@ -823,6 +885,7 @@ interactionPage.blurNearby();
 const focusAfterMissingBlur = interactionPage.data.focusedNearbyIndex;
 interactionPage.blurNearby(nearbyEvent(1));
 const focusAfterBlur = interactionPage.data.focusedNearbyIndex;
+const blurredTokens = interactionPage.data.nearbySpots.map((nearby) => nearby.focused);
 const truthAfterInteraction = truthSnapshot(interactionPage);
 
 console.log(JSON.stringify({
@@ -835,12 +898,16 @@ console.log(JSON.stringify({
   isolation,
   interaction: {
     focusedIndex,
+    focusedTokens,
+    focusArrayIsCloned,
+    focusRowsAreCloned,
     focusAfterMissingEvent,
     selectedSecond,
     selectedBeforeInvalid,
     selectedAfterInvalid,
     focusAfterMissingBlur,
     focusAfterBlur,
+    blurredTokens,
     truthBeforeInteraction,
     truthAfterInteraction
   }
@@ -951,6 +1018,7 @@ console.log(JSON.stringify({
                     "name": "時空の広場",
                     "distanceLabel": "徒歩3分",
                     "directionHint": "5階へ上がる",
+                    "focused": False,
                 }
             ],
         )
@@ -1013,6 +1081,10 @@ console.log(JSON.stringify({
 
         interaction = payload["interaction"]
         self.assertEqual(interaction["focusedIndex"], 1)
+        self.assertEqual(interaction["focusedTokens"], [False, True])
+        self.assertEqual(sum(interaction["focusedTokens"]), 1)
+        self.assertTrue(interaction["focusArrayIsCloned"])
+        self.assertTrue(interaction["focusRowsAreCloned"])
         self.assertEqual(interaction["focusAfterMissingEvent"], 1)
         self.assertEqual(
             interaction["selectedSecond"],
@@ -1028,6 +1100,7 @@ console.log(JSON.stringify({
         )
         self.assertEqual(interaction["focusAfterMissingBlur"], 1)
         self.assertEqual(interaction["focusAfterBlur"], -1)
+        self.assertEqual(interaction["blurredTokens"], [False, False])
         self.assertEqual(
             interaction["truthAfterInteraction"],
             interaction["truthBeforeInteraction"],
