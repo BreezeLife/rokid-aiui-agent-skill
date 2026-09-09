@@ -237,17 +237,301 @@ export default {
 
   onLoad(query) {
     this.setData(normalizeInput(query));
+  },
+
+  eventIndex(event) {
+    try {
+      if (event === null || typeof event !== 'object') return -1;
+      const currentTarget = event.currentTarget;
+      if (currentTarget === null || typeof currentTarget !== 'object') return -1;
+      const dataset = currentTarget.dataset;
+      if (dataset === null || typeof dataset !== 'object') return -1;
+      const index = dataset.index;
+      if (!Number.isInteger(index)) return -1;
+      const nearbySpots = this.data.nearbySpots;
+      if (!Array.isArray(nearbySpots)) return -1;
+      if (index < 0 || index >= nearbySpots.length) return -1;
+      return index;
+    } catch (error) {
+      return -1;
+    }
+  },
+
+  focusNearby(event) {
+    const index = this.eventIndex(event);
+    if (index < 0) return;
+    this.setData({ focusedNearbyIndex: index });
+  },
+
+  blurNearby(event) {
+    const index = this.eventIndex(event);
+    if (index < 0) return;
+    this.setData({ focusedNearbyIndex: -1 });
+  },
+
+  selectNearby(event) {
+    const index = this.eventIndex(event);
+    if (index < 0) return;
+    try {
+      const nearby = this.data.nearbySpots[index];
+      const name = nearby.name;
+      const directionHint = nearby.directionHint;
+      if (typeof name !== 'string' || typeof directionHint !== 'string') return;
+      this.setData({
+        selectedNearbyIndex: index,
+        selectedNearbyName: name,
+        selectedNearbyHint: directionHint
+      });
+    } catch (error) {
+      return;
+    }
   }
 };
 </script>
 
-<page class="page">
-  <text>セイチ</text>
+<page class="page-shell state-{{state}}">
+  <view class="result-group">
+    <view class="topline">
+      <text class="wordmark">SEICHI</text>
+      <text class="confidence">{{confidenceLabel}}</text>
+    </view>
+
+    <view class="state-row">
+      <text class="state-label" wx:if="{{state === 'matched'}}">一致</text>
+      <text class="state-label" wx:elif="{{state === 'uncertain'}}">要確認</text>
+      <text class="state-label" wx:elif="{{state === 'no_match'}}">登録なし</text>
+      <text class="state-label" wx:else>入力不足</text>
+      <text class="compact-title">{{workTitle}}</text>
+    </view>
+
+    <text class="fallback-copy" wx:if="{{state === 'no_match'}}">登録カタログに一致する候補はありません。ほかの作品への登場は否定できません。</text>
+    <text class="fallback-copy" wx:if="{{state === 'invalid'}}">場所を確認できません。作品名または場所を変えて、もう一度聞いてください。</text>
+
+    <scroll-view class="result-scroll expanded-only" scroll-y="true">
+      <view class="result-copy">
+        <text class="section-label">WORK</text>
+        <text class="work-title">{{workTitle}}</text>
+        <text class="episode-scene">{{episodeScene}}</text>
+        <text class="story-line">{{storyLine}}</text>
+      </view>
+
+      <view class="nearby-list">
+        <text class="section-label">NEARBY</text>
+        <button
+          class="nearby-button nearby-focused-{{focusedNearbyIndex === index}}"
+          wx:for="{{nearbySpots}}"
+          wx:key="spotId"
+          data-index="{{index}}"
+          bindtap="selectNearby"
+          bindfocus="focusNearby"
+          bindblur="blurNearby"
+        >
+          <text class="nearby-name">{{item.name}}</text>
+          <text class="nearby-distance">{{item.distanceLabel}}</text>
+        </button>
+        <text class="nearby-empty" wx:if="{{nearbySpots.length === 0}}">近隣候補はありません。</text>
+        <view class="selected-hint" wx:if="{{selectedNearbyIndex >= 0}}">
+          <text class="section-label">方向の手掛かり</text>
+          <text class="selected-name">{{selectedNearbyName}}</text>
+          <text class="selected-direction">{{selectedNearbyHint}}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="photo-guide">
+      <text class="section-label">PHOTO GUIDE</text>
+      <text class="photo-copy" wx:if="{{photoGuidance}}">{{photoGuidance}}</text>
+      <text class="photo-copy" wx:else>安全な場所で見え方を確認してください。</text>
+    </view>
+  </view>
 </page>
 
 <style>
-page {
+.page-shell {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
   color: #40ff5e;
   background-color: #000000;
+}
+
+.result-group {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid rgba(64, 255, 94, 0.32);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.topline,
+.state-row,
+.nearby-button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.topline {
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(64, 255, 94, 0.24);
+}
+
+.wordmark,
+.section-label {
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 1px;
+  color: rgba(64, 255, 94, 0.72);
+}
+
+.confidence {
+  padding: 2px 6px;
+  border: 1px solid rgba(64, 255, 94, 0.32);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.state-row {
+  flex-shrink: 0;
+  margin-top: 9px;
+}
+
+.state-label {
+  min-width: 48px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.compact-title {
+  margin-left: 10px;
+  font-size: 16px;
+  line-height: 20px;
+  color: #b8ffc3;
+}
+
+.fallback-copy {
+  flex-shrink: 0;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 17px;
+  color: rgba(184, 255, 195, 0.82);
+}
+
+.result-scroll,
+.result-copy,
+.nearby-list,
+.selected-hint,
+.photo-guide {
+  display: flex;
+  flex-direction: column;
+}
+
+.result-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 10px;
+}
+
+.work-title {
+  margin-top: 5px;
+  font-size: 17px;
+  line-height: 22px;
+  color: #b8ffc3;
+}
+
+.episode-scene,
+.story-line,
+.photo-copy,
+.selected-direction,
+.nearby-empty {
+  font-size: 12px;
+  line-height: 17px;
+  color: rgba(184, 255, 195, 0.82);
+}
+
+.episode-scene { margin-top: 4px; }
+.story-line { margin-top: 6px; }
+
+.nearby-list {
+  margin-top: 14px;
+  padding-bottom: 6px;
+}
+
+.nearby-button {
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(64, 255, 94, 0.46);
+  border-radius: 4px;
+  color: #40ff5e;
+  background-color: rgba(64, 255, 94, 0.06);
+}
+
+.nearby-focused-true {
+  border: 2px solid #40ff5e;
+  background-color: rgba(64, 255, 94, 0.12);
+}
+
+.nearby-name {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.nearby-distance {
+  margin-left: 8px;
+  font-size: 11px;
+  line-height: 15px;
+  color: rgba(184, 255, 195, 0.72);
+}
+
+.nearby-empty { margin-top: 6px; }
+
+.selected-hint {
+  margin-top: 10px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(64, 255, 94, 0.46);
+}
+
+.selected-name {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: #b8ffc3;
+}
+
+.selected-direction { margin-top: 2px; }
+
+.photo-guide {
+  flex-shrink: 0;
+  margin-top: 9px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(64, 255, 94, 0.24);
+}
+
+.photo-copy { margin-top: 3px; }
+
+@media (target: _current) {
+  .expanded-only { display: none; }
+  .result-group { padding: 10px; }
+  .compact-title {
+    max-height: 40px;
+    overflow: hidden;
+  }
+}
+
+@media (target: _blank) {
+  .expanded-only { display: flex; }
+  .compact-title { display: none; }
 }
 </style>

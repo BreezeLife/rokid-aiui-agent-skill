@@ -47,6 +47,28 @@ def extract_block(source: str, pattern: str, label: str) -> str:
     return match.group(1).strip()
 
 
+def extract_media_region(style: str, target: str) -> str:
+    header = re.compile(
+        rf"@media\s*\(\s*target\s*:\s*{re.escape(target)}\s*\)\s*\{{"
+    )
+    matches = list(header.finditer(style))
+    if len(matches) != 1:
+        raise AssertionError(
+            f"expected exactly one @media region for {target}, found {len(matches)}"
+        )
+
+    opening_brace = matches[0].end() - 1
+    depth = 0
+    for index in range(opening_brace, len(style)):
+        if style[index] == "{":
+            depth += 1
+        elif style[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return style[opening_brace + 1 : index]
+    raise AssertionError(f"unclosed @media region for {target}")
+
+
 class SceneQuestAgentContractTests(unittest.TestCase):
     def test_import_root_and_agent_policy(self) -> None:
         project_files = sorted(
@@ -330,6 +352,109 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         }.items():
             self.assertEqual(item["properties"][field]["type"], "string", field)
             self.assertEqual(item["properties"][field]["maxLength"], limit, field)
+
+    def test_page_renders_target_aware_result_experience(self) -> None:
+        ink = read_example("pages/index/index.ink")
+        setup = extract_block(
+            ink, r"<script setup>\s*(.*?)\s*</script>", "setup"
+        )
+        page = extract_block(ink, r"<page\b[^>]*>(.*?)</page>", "page")
+        style = extract_block(ink, r"<style>\s*(.*?)\s*</style>", "style")
+
+        self.assertEqual(ink.count("<script setup>"), 1)
+        self.assertEqual(len(re.findall(r"\bexport\s+default\b", setup)), 1)
+        self.assertEqual(len(re.findall(r"<page\b", ink)), 1)
+        self.assertNotIn("<widget", ink)
+
+        scroll_tags = re.findall(r"<scroll-view\b[^>]*>", page, flags=re.DOTALL)
+        self.assertEqual(len(scroll_tags), 1)
+        self.assertEqual(page.count("</scroll-view>"), 1)
+        scroll_tag = scroll_tags[0]
+        self.assertRegex(scroll_tag, r'\bclass="[^"]*\bexpanded-only\b[^"]*"')
+        self.assertRegex(scroll_tag, r'\bscroll-y="true"')
+        scroll_start = page.index(scroll_tag)
+        scroll_end = page.index("</scroll-view>")
+        scroll_content = page[scroll_start:scroll_end]
+
+        nearby_loops = re.findall(
+            r"<button\b[^>]*\bwx:for=\"\{\{nearbySpots\}\}\"[^>]*>",
+            page,
+            flags=re.DOTALL,
+        )
+        self.assertEqual(len(nearby_loops), 1)
+        nearby_button = nearby_loops[0]
+        self.assertIn(nearby_button, scroll_content)
+        for binding in (
+            'bindtap="selectNearby"',
+            'bindfocus="focusNearby"',
+            'bindblur="blurNearby"',
+            'data-index="{{index}}"',
+        ):
+            self.assertIn(binding, nearby_button)
+        self.assertIn("nearby-focused-{{focusedNearbyIndex === index}}", nearby_button)
+        self.assertIn("{{selectedNearbyHint}}", scroll_content)
+
+        photo_guide = re.search(
+            r'<view\b[^>]*class="[^"]*\bphoto-guide\b[^"]*"', page
+        )
+        self.assertIsNotNone(photo_guide)
+        self.assertGreater(photo_guide.start(), scroll_end)
+        self.assertIn("{{photoGuidance}}", page[photo_guide.start() :])
+        empty_nearby = re.search(
+            r'<text\b[^>]*class="[^"]*\bnearby-empty\b[^"]*"', page
+        )
+        self.assertIsNotNone(empty_nearby)
+        self.assertGreater(empty_nearby.start(), scroll_start)
+        self.assertLess(empty_nearby.start(), scroll_end)
+
+        for label in ("一致", "要確認", "登録なし", "入力不足", "SEICHI", "PHOTO GUIDE"):
+            self.assertIn(label, page)
+        for field in (
+            "{{confidenceLabel}}",
+            "{{workTitle}}",
+            "{{episodeScene}}",
+            "{{storyLine}}",
+        ):
+            self.assertIn(field, page)
+        for truthful_fallback in (
+            "登録カタログに一致する候補はありません",
+            "ほかの作品への登場は否定できません",
+            "場所を確認できません",
+        ):
+            self.assertIn(truthful_fallback, page)
+        for prohibited_claim in ("案内を開始", "ルートを開始", "ナビを開始"):
+            self.assertNotIn(prohibited_claim, page)
+
+        current = extract_media_region(style, "_current")
+        blank = extract_media_region(style, "_blank")
+        self.assertEqual(style.count("{"), style.count("}"))
+        self.assertRegex(
+            current,
+            r"(?s)\.expanded-only\s*\{[^{}]*\bdisplay\s*:\s*none\s*;?[^{}]*\}",
+        )
+        self.assertRegex(
+            blank,
+            r"(?s)\.expanded-only\s*\{[^{}]*\bdisplay\s*:\s*flex\s*;?[^{}]*\}",
+        )
+        self.assertIn("background-color: #000000", style)
+        self.assertIn("border: 1px solid", style)
+        self.assertEqual(len(re.findall(r"\bborder\s*:\s*2px\s+solid", style)), 1)
+        focused_rule = extract_block(
+            style,
+            r"\.nearby-focused-true\s*\{([^{}]*)\}",
+            "focused nearby style",
+        )
+        self.assertIn("border: 2px solid", focused_rule)
+        self.assertIn("border-radius: 4px", style)
+        self.assertIn("border-radius: 6px", style)
+        self.assertRegex(style, r"(?s)\.result-group\s*\{[^{}]*border-radius:\s*6px")
+        self.assertRegex(style, r"(?s)\.nearby-button\s*\{[^{}]*border-radius:\s*4px")
+        self.assertNotRegex(style, r"@keyframes|\banimation(?:-[a-z-]+)?\s*:")
+
+        for handler in ("eventIndex", "focusNearby", "blurNearby", "selectNearby"):
+            self.assertRegex(setup, rf"(?m)^\s{{2}}{handler}\([^)]*\)\s*\{{")
+        self.assertNotRegex(setup, r"\bonKey(?:Down|Up)\s*\(")
+        self.assertNotIn("preventDefault", setup)
 
     def test_real_page_normalizes_bounded_result_state(self) -> None:
         node = shutil.which("node")
@@ -615,6 +740,67 @@ callerNearbyArray.push(validNearby({ spotId: 'after-mount' }));
 isolation.pageNameAfterCallerMutation = isolatedPage.data.nearbySpots[0].name;
 isolation.pageLengthAfterCallerMutation = isolatedPage.data.nearbySpots.length;
 
+function nearbyEvent(index) {
+  return { currentTarget: { dataset: { index } } };
+}
+
+function truthSnapshot(page) {
+  return JSON.parse(JSON.stringify({
+    state: page.data.state,
+    workTitle: page.data.workTitle,
+    episodeScene: page.data.episodeScene,
+    storyLine: page.data.storyLine,
+    photoGuidance: page.data.photoGuidance,
+    confidenceLabel: page.data.confidenceLabel,
+    nearbySpots: page.data.nearbySpots
+  }));
+}
+
+const interactionPage = mount(validMatched({
+  nearbySpots: [
+    validNearby(),
+    validNearby({
+      spotId: ' osaka-station-atrium ',
+      name: ' アトリウム広場 ',
+      distanceLabel: ' 徒歩5分 ',
+      directionHint: ' 2階中央へ上がる '
+    })
+  ]
+}));
+const truthBeforeInteraction = truthSnapshot(interactionPage);
+interactionPage.focusNearby(nearbyEvent(1));
+const focusedIndex = interactionPage.data.focusedNearbyIndex;
+interactionPage.focusNearby();
+const focusAfterMissingEvent = interactionPage.data.focusedNearbyIndex;
+interactionPage.selectNearby(nearbyEvent(1));
+const selectedSecond = {
+  index: interactionPage.data.selectedNearbyIndex,
+  name: interactionPage.data.selectedNearbyName,
+  hint: interactionPage.data.selectedNearbyHint
+};
+const selectedBeforeInvalid = JSON.parse(JSON.stringify(selectedSecond));
+for (const invalidIndex of [99, -1, 1.5, '1', null]) {
+  interactionPage.selectNearby(nearbyEvent(invalidIndex));
+}
+interactionPage.selectNearby();
+const throwingEvent = {};
+Object.defineProperty(throwingEvent, 'currentTarget', {
+  get() {
+    throw new Error('blocked currentTarget getter');
+  }
+});
+interactionPage.selectNearby(throwingEvent);
+const selectedAfterInvalid = {
+  index: interactionPage.data.selectedNearbyIndex,
+  name: interactionPage.data.selectedNearbyName,
+  hint: interactionPage.data.selectedNearbyHint
+};
+interactionPage.blurNearby();
+const focusAfterMissingBlur = interactionPage.data.focusedNearbyIndex;
+interactionPage.blurNearby(nearbyEvent(1));
+const focusAfterBlur = interactionPage.data.focusedNearbyIndex;
+const truthAfterInteraction = truthSnapshot(interactionPage);
+
 console.log(JSON.stringify({
   inputs,
   nearbyMissingKeys,
@@ -622,7 +808,18 @@ console.log(JSON.stringify({
   nearbyOverlong,
   readCounts,
   countedState: countedPage.data.state,
-  isolation
+  isolation,
+  interaction: {
+    focusedIndex,
+    focusAfterMissingEvent,
+    selectedSecond,
+    selectedBeforeInvalid,
+    selectedAfterInvalid,
+    focusAfterMissingBlur,
+    focusAfterBlur,
+    truthBeforeInteraction,
+    truthAfterInteraction
+  }
 }));
 """
         with tempfile.TemporaryDirectory(prefix="scenequest-agent-") as directory:
@@ -788,6 +985,28 @@ console.log(JSON.stringify({
                 "pageNameAfterCallerMutation": "時空の広場",
                 "pageLengthAfterCallerMutation": 1,
             },
+        )
+
+        interaction = payload["interaction"]
+        self.assertEqual(interaction["focusedIndex"], 1)
+        self.assertEqual(interaction["focusAfterMissingEvent"], 1)
+        self.assertEqual(
+            interaction["selectedSecond"],
+            {
+                "index": 1,
+                "name": "アトリウム広場",
+                "hint": "2階中央へ上がる",
+            },
+        )
+        self.assertEqual(
+            interaction["selectedAfterInvalid"],
+            interaction["selectedBeforeInvalid"],
+        )
+        self.assertEqual(interaction["focusAfterMissingBlur"], 1)
+        self.assertEqual(interaction["focusAfterBlur"], -1)
+        self.assertEqual(
+            interaction["truthAfterInteraction"],
+            interaction["truthBeforeInteraction"],
         )
 
         setup_without_comments = re.sub(
