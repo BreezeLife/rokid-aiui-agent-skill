@@ -87,6 +87,22 @@ Directory: examples/focus-timer-agent
 
 页面文案与 Agent 提示词为日文；字段名和状态名保留英文技术契约。账号登录后的 Studio 导入与 Rokid Glasses 真机操作仍需人工验收。
 
+### SceneQuest / セイチ｜SEICHI
+
+[examples/scenequest-agent](examples/scenequest-agent/) 是日文优先的动漫圣地识别 MVP，也是完整、可编辑的稳定版 AIUI `0.17.0` Page-only 项目。首版严格限定为 12 个大阪精选圣地；Agent 只在有来源记录的目录中结合地点与视觉特征判断，并将结果收敛为 `matched`、`uncertain`、`no_match`、`invalid` 四种状态。它不声称覆盖全日本，也不会把目录未命中解释为某地点从未出现在其他作品中。
+
+摄像头画面与 GPS / 当前地点由 Agent host 提供，Page 不直接采集摄像头或 GPS；缺少某类宿主上下文时，Agent 必须降级为仍有证据支持的回答或安全恢复状态。项目只携带来源记录、场景说明、可观察构图特征和拍摄建议，不随项目分发动漫截图，也不实现后台地理围栏或自动弹出。
+
+AIUI Studio GitHub 导入坐标：
+
+```text
+Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
+Ref: main
+Directory: examples/scenequest-agent
+```
+
+本地测试、严格验证、AIX 打包/清单与静态 preview 只能证明源码结构和本地工具链行为；尚未验证 AIUI Studio 导入和 Rokid Glasses 真机行为。宿主摄像头/GPS 传递及权限授权、拒绝与撤销，日文语音与 Page 协同，`_current` / `_blank` 切换、焦点、光学可读性和运动场景中的视觉指引均保留为人工门槛。
+
 ## 开发闭环
 
 1. 确定 AIUI Studio 将导入的准确目录，读取其中的项目指引、`app.json`、入口、页面和现有脚本。
@@ -107,6 +123,7 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/scenequest-agent --target-version 0.17.0 --strict
 python3 skills/rokid-aiui-agent/scripts/verify_references.py .
 npm ci --ignore-scripts --no-audit --no-fund
 AIX_BIN="$PWD/node_modules/.bin/aix"
@@ -115,6 +132,7 @@ bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/next-step-agent
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/focus-timer-agent
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/scenequest-agent
 preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/next-step-preview.XXXXXX")"
 preview_html="$preview_dir/next-step-agent.html"
 "$AIX_BIN" preview examples/next-step-agent --html-out "$preview_html"
@@ -125,6 +143,11 @@ focus_preview_html="$focus_preview_dir/focus-timer-agent.html"
 "$AIX_BIN" preview examples/focus-timer-agent --html-out "$focus_preview_html"
 test -s "$focus_preview_html"
 grep -Fq 'pages/index/index.ink' "$focus_preview_html"
+scenequest_preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/scenequest-preview.XXXXXX")"
+scenequest_preview_html="$scenequest_preview_dir/scenequest-agent.html"
+"$AIX_BIN" preview examples/scenequest-agent --html-out "$scenequest_preview_html"
+test -s "$scenequest_preview_html"
+grep -Fq 'pages/index/index.ink' "$scenequest_preview_html"
 ```
 
 上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署。
@@ -136,6 +159,7 @@ grep -Fq 'pages/index/index.ink' "$focus_preview_html"
 - `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`：零依赖结构检查器，默认以 `0.17.0` 为目标，支持 `--target-version` / `--strict` / `--json`。
 - `skills/rokid-aiui-agent/scripts/smoke_aix.sh`：真实 AIX pack + list 冒烟流程。
 - `skills/rokid-aiui-agent/assets/studio-importable-minimal/`：按 AIUI Studio 本地/GitHub 指定目录结构准备的最小 `0.17.0` 兼容工程。
+- `examples/scenequest-agent/`：日文优先、12 个大阪精选圣地、四状态的稳定版 `0.17.0` Page-only SceneQuest 示例。
 - `tests/`：单元测试、正反 fixtures 和前后行为评估。
 - `PROJECT.md` / `MEMORY.md` / `TASKS.md` / `WORKLOG.md`：跨设备项目连续性。
 

@@ -108,6 +108,96 @@ def extract_element_by_class(
 
 
 class SceneQuestAgentContractTests(unittest.TestCase):
+    def test_repository_ci_delivers_scenequest(self) -> None:
+        workflow = yaml.safe_load(
+            (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        jobs = workflow["jobs"]
+
+        validate_steps = jobs["validate"]["steps"]
+        strict_step = next(
+            step
+            for step in validate_steps
+            if step.get("name") == "Validate importable AIUI projects strictly"
+        )
+        self.assertIn(
+            "python skills/rokid-aiui-agent/scripts/validate_aiui_project.py "
+            "examples/scenequest-agent --target-version 0.17.0 --strict",
+            strict_step["run"],
+        )
+
+        aix_steps = jobs["aix-smoke"]["steps"]
+        smoke_command = (
+            "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
+            "examples/scenequest-agent"
+        )
+        smoke_steps = [
+            step for step in aix_steps if smoke_command in step.get("run", "")
+        ]
+        self.assertEqual(len(smoke_steps), 1)
+        self.assertEqual(
+            smoke_steps[0].get("env", {}).get("AIX_BIN"),
+            "${{ github.workspace }}/node_modules/.bin/aix",
+        )
+
+        preview_steps = [
+            step
+            for step in aix_steps
+            if step.get("name")
+            == "Generate the SceneQuest Agent static preview"
+        ]
+        self.assertEqual(len(preview_steps), 1)
+        preview_step = preview_steps[0]
+        self.assertEqual(preview_step.get("shell"), "bash")
+        self.assertEqual(
+            preview_step.get("env", {}).get("AIX_BIN"),
+            "${{ github.workspace }}/node_modules/.bin/aix",
+        )
+        preview_run = preview_step["run"]
+        for command in (
+            "set -euo pipefail",
+            '"$AIX_BIN" --help',
+            '"$AIX_BIN" preview examples/scenequest-agent '
+            '--html-out "$preview_html"',
+            'test -s "$preview_html"',
+            "grep -Fq 'pages/index/index.ink' \"$preview_html\"",
+        ):
+            self.assertIn(command, preview_run)
+
+    def test_repository_docs_handoff_scenequest(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        project = (ROOT / "PROJECT.md").read_text(encoding="utf-8")
+
+        for fragment in (
+            "SceneQuest / セイチ｜SEICHI",
+            "examples/scenequest-agent",
+            "12 个大阪精选圣地",
+            "`matched`、`uncertain`、`no_match`、`invalid`",
+            "摄像头画面与 GPS / 当前地点由 Agent host 提供",
+            "Page 不直接采集摄像头或 GPS",
+            "不随项目分发动漫截图",
+            "尚未验证 AIUI Studio 导入和 Rokid Glasses 真机行为",
+            "Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill",
+            "Ref: main",
+            "Directory: examples/scenequest-agent",
+            "python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py "
+            "examples/scenequest-agent --target-version 0.17.0 --strict",
+            "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
+            "examples/scenequest-agent",
+            '"$AIX_BIN" preview examples/scenequest-agent '
+            '--html-out "$scenequest_preview_html"',
+        ):
+            self.assertIn(fragment, readme)
+
+        self.assertIn(
+            "`examples/scenequest-agent/`: Japanese SceneQuest / "
+            "セイチ｜SEICHI stable-0.17 Page-only pilgrimage example with "
+            "12 curated Osaka spots and four bounded result states.",
+            project,
+        )
+
     def test_import_root_and_agent_policy(self) -> None:
         project_files = sorted(
             path.relative_to(EXAMPLE).as_posix()
