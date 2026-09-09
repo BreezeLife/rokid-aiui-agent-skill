@@ -2,7 +2,7 @@
 
 ## In progress
 
-- No active implementation tasks.
+- [ ] Publish the reviewed SceneQuest commit series to GitHub `main`, then verify the remote `examples/scenequest-agent/` directory and the resulting GitHub Actions jobs. Local `origin/main` at `9e0455237129dd118a13f22c65aec973f7438036` does not yet contain SceneQuest; push only after the main task's final review.
 
 ## Done
 
