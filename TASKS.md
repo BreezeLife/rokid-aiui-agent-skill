@@ -2,7 +2,7 @@
 
 ## In progress
 
-- [ ] Push `codex/katari-agent`, verify the remote branch/import directory, and confirm a GitHub Actions run for the exact feature commit.
+- None.
 
 ## Done
 
@@ -36,6 +36,7 @@
 - [x] Built the source-gated `examples/katari-agent/` stable AIUI 0.17 Page project with 20 Osaka spots, paired short Japanese/English stories, five evidence states, and A · Quiet Marker.
 - [x] Completed KATARI local capability and UX evidence: 15/15 prompt-contract cases passed, 30/30 browser state/target/background scenarios passed after the long-Japanese-label correction, and the real AIX preview reached `Preview ready.`.
 - [x] Completed the KATARI local release gate: 80/80 unit tests, all six strict import-root validators, reference/Python/YAML/whitespace checks, and AIX 0.8.2 pack/list passed.
+- [x] Pushed `codex/katari-agent`, verified the remote KATARI import files, and confirmed both GitHub Actions jobs on the feature branch.
 
 ## External manual gates
 
