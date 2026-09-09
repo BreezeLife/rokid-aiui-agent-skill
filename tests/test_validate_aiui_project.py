@@ -451,6 +451,58 @@ class ValidatorGeneratedProjectTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertEqual(diagnostic_codes(result), [])
 
+    def test_wechat_control_directives_inside_closed_comments_are_ignored(self) -> None:
+        commented = (
+            '<!-- retired: <text wx:if="{{show}}">A</text> '
+            '<view wx:for="{{items}}" wx:key="id">B</view> -->'
+        )
+        cases = (
+            ("pages/index/index.ink", f"<page>{commented}<text>live</text></page>"),
+            ("pages/index/index.wxml", f"<view>{commented}<text>live</text></view>"),
+        )
+        for relative, content in cases:
+            with self.subTest(relative=relative), self.make_project() as directory:
+                project = Path(directory)
+                self.write_support_files(project)
+                page = project / relative
+                page.parent.mkdir(parents=True, exist_ok=True)
+                page.write_text(content, encoding="utf-8")
+                (project / "app.json").write_text(
+                    json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+                )
+
+                result = run_validator(project, "--strict", "--json")
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(diagnostic_codes(result), [])
+
+    def test_unclosed_comment_does_not_hide_following_wechat_directive(self) -> None:
+        content = (
+            '<!-- unfinished retired markup\n'
+            '<text wx:if="{{show}}">still conservatively scanned</text>'
+        )
+        cases = (
+            ("pages/index/index.ink", f"<page>{content}</page>"),
+            ("pages/index/index.wxml", f"<view>{content}</view>"),
+        )
+        for relative, source in cases:
+            with self.subTest(relative=relative), self.make_project() as directory:
+                project = Path(directory)
+                self.write_support_files(project)
+                page = project / relative
+                page.parent.mkdir(parents=True, exist_ok=True)
+                page.write_text(source, encoding="utf-8")
+                (project / "app.json").write_text(
+                    json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+                )
+
+                normal = run_validator(project, "--json")
+                strict = run_validator(project, "--strict", "--json")
+
+                self.assertIn("WX_TEMPLATE_CONTROL_DIRECTIVE", diagnostic_codes(normal))
+                self.assertEqual(strict.returncode, 1, strict.stdout + strict.stderr)
+                self.assertIn("WX_TEMPLATE_CONTROL_DIRECTIVE", diagnostic_codes(strict))
+
     def test_widget_requires_matching_family_in_script_def(self) -> None:
         with self.make_project() as directory:
             project = Path(directory)

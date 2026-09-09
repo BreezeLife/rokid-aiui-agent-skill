@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Sequence
 
 
-COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+CLOSED_MARKUP_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 MUSTACHE_RE = re.compile(r"{{.*?}}", re.DOTALL)
 SCRIPT_OPEN_RE = re.compile(r"<script\b([^>]*)>", re.IGNORECASE)
 SCRIPT_BLOCK_RE = re.compile(
@@ -117,7 +117,9 @@ class AIUIProjectValidator:
                 pass
         if app_ink.is_file():
             try:
-                source = COMMENT_RE.sub("", app_ink.read_text(encoding="utf-8"))
+                source = strip_closed_markup_comments(
+                    app_ink.read_text(encoding="utf-8")
+                )
             except (OSError, UnicodeError):
                 source = ""
             openings = len(SCRIPT_OPEN_RE.findall(source))
@@ -432,7 +434,7 @@ class AIUIProjectValidator:
             self.error("INK_READ_ERROR", display_path, "file is not readable UTF-8 text.")
             return
 
-        source = COMMENT_RE.sub("", source)
+        source = strip_closed_markup_comments(source)
         script_openings = SCRIPT_OPEN_RE.findall(source)
         def_count = sum(has_script_attribute(attrs, "def") for attrs in script_openings)
         setup_count = sum(has_script_attribute(attrs, "setup") for attrs in script_openings)
@@ -590,7 +592,7 @@ class AIUIProjectValidator:
     def _validate_wxml(self, path: Path) -> None:
         display_path = relative_path(path, self.project_dir)
         try:
-            source = COMMENT_RE.sub("", path.read_text(encoding="utf-8"))
+            source = strip_closed_markup_comments(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError):
             self.error("WXML_READ_ERROR", display_path, "file is not readable UTF-8 text.")
             return
@@ -622,6 +624,16 @@ class AIUIProjectValidator:
 
 def has_script_attribute(attributes: str, name: str) -> bool:
     return re.search(rf"(?:^|\s){re.escape(name)}(?:\s*=\s*[^\s]+)?(?=\s|$)", attributes) is not None
+
+
+def strip_closed_markup_comments(source: str) -> str:
+    """Remove only explicitly closed XML/HTML comments.
+
+    Unterminated comments stay visible to later conservative markup and
+    template-directive checks, so malformed source cannot hide live-looking
+    attributes from validation.
+    """
+    return CLOSED_MARKUP_COMMENT_RE.sub("", source)
 
 
 def find_wechat_template_control_directives(source: str) -> List[str]:
