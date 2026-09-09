@@ -88,9 +88,16 @@ class SceneQuestAgentContractTests(unittest.TestCase):
 
         source_catalog = parse_runtime_catalog(sources, SOURCE_SPOT)
         self.assertEqual(parse_runtime_catalog(agent, AGENT_SPOT), source_catalog)
+        first_coordinates = source_catalog[0][1]["- Coordinates:"]
+        mutated_coordinates = re.sub(
+            r"^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?",
+            "0, 0",
+            first_coordinates,
+            count=1,
+        )
         mutated_agent = agent.replace(
-            "34.70254, 135.49573; candidate search area 25 m",
-            "0, 0; candidate search area 25 m",
+            f"- Coordinates: {first_coordinates}",
+            f"- Coordinates: {mutated_coordinates}",
             1,
         )
         self.assertNotEqual(
@@ -130,7 +137,9 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         self.assertIn("部分一致または矛盾する証拠", agent)
         self.assertIn("追加確認として、具体的な見え方を1つだけ依頼", agent)
         self.assertIn("追加確認は最大1回", agent)
-        self.assertIn("再試行の失敗または矛盾の継続", agent)
+        self.assertIn(
+            "追加確認後も一致しない、または矛盾が解消しない場合", agent
+        )
         self.assertIn("スポット、話数・章・場面単位、距離、出典を捏造しない", agent)
         self.assertIn(
             "このカタログに候補がないことを、その場所が別の作品に一度も"
