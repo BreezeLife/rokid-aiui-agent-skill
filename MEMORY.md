@@ -23,6 +23,7 @@
 - 2026-09-09: Focus Timer uses AIUI 0.17 Page World Awareness for head gestures, not eye tracking. A visible Page maps `nod` to its primary state action: idle/start, running/pause, paused/continue, and finished/restart; error is a no-op and button focus/tap remains available.
 - 2026-09-09: Voice-driven Focus Timer reconfiguration must happen through a new Page invocation with converted integer `durationSeconds`; AIUI 0.17 `onLoad(query)` runs only once per Page instance, so later conversation must not claim to mutate an already-rendered timer card in place.
 - 2026-09-09: Focus Timer defaults an omitted `durationSeconds` to 600 seconds (10 minutes), including empty, null, or undefined Page input. An explicitly supplied invalid duration remains an error rather than silently falling back.
+- 2026-09-09: Focus Timer treats Page-level `onKeyUp` codes `Enter` and `GlobalHook` as a direct touchpad single-click primary action and prevents the host default to avoid duplicate activation. State-specific buttons are mounted with stable `ink:if` branches instead of depending on dynamic descendant CSS to enter the focus tree.
 
 ## Source priority
 

@@ -188,10 +188,11 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertNotIn(">FOCUS<", ink)
 
         buttons = re.findall(r"<button\b[^>]*>", page, flags=re.DOTALL)
-        self.assertEqual(len(buttons), 5)
+        self.assertEqual(len(buttons), 6)
         handlers = []
         focus_handlers = []
         for button in buttons:
+            self.assertIn("ink:if=", button)
             tap = re.findall(r'\bbindtap="([A-Za-z_$][\w$]*)"', button)
             self.assertEqual(len(tap), 1, button)
             handlers.extend(tap)
@@ -202,7 +203,14 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             self.assertIn("action-focused-{{focusedAction}}", button)
         self.assertCountEqual(
             handlers,
-            ["startTimer", "pauseTimer", "continueTimer", "restartTimer", "resetTimer"],
+            [
+                "startTimer",
+                "pauseTimer",
+                "continueTimer",
+                "restartTimer",
+                "restartTimer",
+                "resetTimer",
+            ],
         )
         self.assertEqual(
             focus_handlers,
@@ -210,6 +218,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
                 "focusStartAction",
                 "focusPauseAction",
                 "focusContinueAction",
+                "focusRestartAction",
                 "focusRestartAction",
                 "focusResetAction",
             ],
@@ -230,6 +239,12 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertIn("typeof this.enableWorldAwareness === 'function'", setup)
         self.assertRegex(setup, r"(?m)^\s{2}onHeadGesture\(event\)\s*\{")
         self.assertIn("event.gesture !== 'nod'", setup)
+        self.assertRegex(setup, r"(?m)^\s{2}onKeyUp\(event\)\s*\{")
+        self.assertIn("event.code !== 'Enter'", setup)
+        self.assertIn("event.code !== 'GlobalHook'", setup)
+        self.assertIn("event.preventDefault()", setup)
+        self.assertRegex(style, r"\.action\s*\{[^}]*display:\s*flex")
+        self.assertIn(".secondary-action { display: none; }", current)
         self.assertIn("うなずく", ink)
         self.assertIn("タッチパッド", ink)
         self.assertNotIn(".state-error .action-reset", style)
@@ -458,6 +473,53 @@ const headGestures = {
   }),
 };
 
+const keyEvents = {
+  primarySequence: isolated({ durationSeconds: 5 }, (page) => {
+    const enterStart = {
+      code: 'Enter',
+      prevented: false,
+      preventDefault() { this.prevented = true; },
+    };
+    page.onKeyUp(enterStart);
+    const started = snapshot(page);
+    advance(1250);
+    const templePause = {
+      code: 'GlobalHook',
+      prevented: false,
+      preventDefault() { this.prevented = true; },
+    };
+    page.onKeyUp(templePause);
+    const paused = snapshot(page);
+    const enterContinue = {
+      code: 'Enter',
+      prevented: false,
+      preventDefault() { this.prevented = true; },
+    };
+    page.onKeyUp(enterContinue);
+    const continued = snapshot(page);
+    return {
+      prevented: [enterStart.prevented, templePause.prevented, enterContinue.prevented],
+      started,
+      paused,
+      continued,
+    };
+  }),
+  ignored: isolated({ durationSeconds: 5 }, (page) => {
+    const event = {
+      code: 'ArrowDown',
+      prevented: false,
+      preventDefault() { this.prevented = true; },
+    };
+    page.onKeyUp(event);
+    page.onKeyUp(null);
+    return { prevented: event.prevented, page: snapshot(page) };
+  }),
+  errorEnter: isolated({ durationSeconds: 0 }, (page) => {
+    page.onKeyUp({ code: 'Enter', preventDefault() {} });
+    return snapshot(page);
+  }),
+};
+
 const reconfigured = (() => {
   intervals.clear();
   nowMs = 100000;
@@ -493,6 +555,7 @@ console.log(JSON.stringify({
   nearFinish,
   stateActions,
   headGestures,
+  keyEvents,
   reconfigured,
   noWorldAwareness,
 }));
@@ -640,6 +703,19 @@ console.log(JSON.stringify({
         self.assertEqual(head_gestures["finishedNod"]["intervals"], 1)
         self.assertEqual(head_gestures["errorNod"]["state"], "error")
         self.assertEqual(head_gestures["errorNod"]["intervals"], 0)
+
+        key_events = payload["keyEvents"]
+        self.assertEqual(key_events["primarySequence"]["prevented"], [True, True, True])
+        self.assertEqual(key_events["primarySequence"]["started"]["state"], "running")
+        self.assertEqual(key_events["primarySequence"]["started"]["intervals"], 1)
+        self.assertEqual(key_events["primarySequence"]["paused"]["state"], "paused")
+        self.assertEqual(key_events["primarySequence"]["paused"]["remainingMs"], 3750)
+        self.assertEqual(key_events["primarySequence"]["paused"]["intervals"], 0)
+        self.assertEqual(key_events["primarySequence"]["continued"]["state"], "running")
+        self.assertEqual(key_events["primarySequence"]["continued"]["intervals"], 1)
+        self.assertFalse(key_events["ignored"]["prevented"])
+        self.assertEqual(key_events["ignored"]["page"]["state"], "idle")
+        self.assertEqual(key_events["errorEnter"]["state"], "error")
 
         self.assertEqual(payload["reconfigured"]["previous"]["state"], "running")
         self.assertEqual(payload["reconfigured"]["previous"]["displayTime"], "00:04")
