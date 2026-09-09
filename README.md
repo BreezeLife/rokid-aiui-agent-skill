@@ -71,9 +71,9 @@ Directory: examples/next-step-agent
 
 ### Japanese Focus Timer Agent
 
-[examples/focus-timer-agent](examples/focus-timer-agent/) 是面向 Rokid Glasses 的日文专注计时器，同样保持稳定版 AIUI `0.17.0`、Page-only 和零权限边界。Agent 从对话中提取 1～3600 的整数 `durationSeconds` 与可选 `label`；页面提供 `idle`、`running`、`paused`、`finished`、`error`，以及开始、暂停、继续、重新开始和重置。页面启用 World Awareness，显示期间将点头 `nod` 映射为当前主要操作；不使用眼球追踪，并保留按钮焦点与点击交互。
+[examples/focus-timer-agent](examples/focus-timer-agent/) 是面向 Rokid Glasses 的日文专注计时器，同样保持稳定版 AIUI `0.17.0`、Page-only 和零权限边界。Agent 从对话中提取 1～3600 的整数 `durationSeconds` 与可选 `label`；页面提供 `idle`、`running`、`paused`、`finished`、`error`，以及开始、暂停、继续、重新开始和重置。页面启用 World Awareness，显示期间将点头 `nod` 映射为当前主要操作；不使用眼球追踪，触摸板聚焦主按钮后单击也执行相同操作，并提供 `bindfocus` / `bindblur` 反馈。
 
-语音设置或修改时间时，Agent 必须把分钟、小时换算为整数秒并重新调用 Page，例如“专注 25 分钟”传入 `{ "durationSeconds": 1500 }`。AIUI 0.17 的 `onLoad(query)` 对每个 Page 实例只执行一次，因此新的时间会显示在新 Page 中，不会原地改写对话里旧的计时卡片。
+未指定时间时默认使用 10 分钟（`600` 秒）。语音设置或修改时间时，Agent 必须把分钟、小时换算为整数秒并重新调用 Page，例如“专注 25 分钟”传入 `{ "durationSeconds": 1500 }`。AIUI 0.17 的 `onLoad(query)` 对每个 Page 实例只执行一次，因此新的时间会显示在新 Page 中，不会原地改写对话里旧的计时卡片。
 
 运行期间以绝对截止时间和 `Date.now()` 计算真实剩余时间，刷新定时器不逐秒修改业务时间。页面隐藏时停止刷新，重新显示时校准，卸载时清理定时器。它不承诺后台持续运行、系统闹钟、通知或持久化恢复。
 

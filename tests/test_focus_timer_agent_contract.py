@@ -123,6 +123,8 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             "眼球追跡は使用しません",
             "25 分",
             "1500",
+            "600",
+            "10 分",
             "新しい Page",
             "バックグラウンド",
             "通知",
@@ -146,7 +148,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertEqual(set(schema), {"data"})
         data_schema = schema["data"]
         self.assertEqual(data_schema["type"], "object")
-        self.assertEqual(data_schema["required"], ["durationSeconds"])
+        self.assertNotIn("required", data_schema)
         duration = data_schema["properties"]["durationSeconds"]
         self.assertEqual(
             duration,
@@ -154,6 +156,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 3600,
+                "default": 600,
                 "description": "集中する時間を換算した整数秒。例：25 分は 1500。",
             },
         )
@@ -228,6 +231,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         self.assertRegex(setup, r"(?m)^\s{2}onHeadGesture\(event\)\s*\{")
         self.assertIn("event.gesture !== 'nod'", setup)
         self.assertIn("うなずく", ink)
+        self.assertIn("タッチパッド", ink)
         self.assertNotIn(".state-error .action-reset", style)
         self.assertRegex(style, r"\.nod-hint\s*\{[^}]*font-size:\s*12px")
         for forbidden in ("fetch(", "wx.request", "getStorage", "setStorage"):
@@ -315,6 +319,10 @@ const inputs = {
   stringDuration: isolated({ durationSeconds: '60' }, snapshot),
   missing: isolated({}, snapshot),
   nullRoot: isolated(null, snapshot),
+  undefinedRoot: isolated(undefined, snapshot),
+  onlyLabel: isolated({ label: '  休憩  ' }, snapshot),
+  arrayRoot: isolated([], snapshot),
+  stringRoot: isolated('10分', snapshot),
   badLabel: isolated({ durationSeconds: 60, label: 7 }, snapshot),
   longLabel: isolated({ durationSeconds: 60, label: 'あ'.repeat(49) }, snapshot),
   emojiLimit: isolated({ durationSeconds: 60, label: '😀'.repeat(48) }, snapshot),
@@ -514,12 +522,20 @@ console.log(JSON.stringify({
             "over",
             "fraction",
             "stringDuration",
-            "missing",
-            "nullRoot",
             "badLabel",
             "longLabel",
+            "arrayRoot",
+            "stringRoot",
         ):
             self.assertEqual(payload["inputs"][name]["state"], "error", name)
+        for name in ("missing", "nullRoot", "undefinedRoot"):
+            self.assertEqual(payload["inputs"][name]["state"], "idle", name)
+            self.assertEqual(payload["inputs"][name]["durationSeconds"], 600, name)
+            self.assertEqual(payload["inputs"][name]["displayTime"], "10:00", name)
+        self.assertEqual(payload["inputs"]["onlyLabel"]["state"], "idle")
+        self.assertEqual(payload["inputs"]["onlyLabel"]["durationSeconds"], 600)
+        self.assertEqual(payload["inputs"]["onlyLabel"]["displayTime"], "10:00")
+        self.assertEqual(payload["inputs"]["onlyLabel"]["label"], "休憩")
         self.assertEqual(payload["inputs"]["emojiLimit"]["state"], "idle")
 
         flow = payload["flow"]

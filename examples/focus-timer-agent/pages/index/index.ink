@@ -10,6 +10,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 3600,
+          "default": 600,
           "description": "集中する時間を換算した整数秒。例：25 分は 1500。"
         },
         "label": {
@@ -17,8 +18,7 @@
           "maxLength": 48,
           "description": "任意の作業名。"
         }
-      },
-      "required": ["durationSeconds"]
+      }
     }
   }
 }
@@ -26,6 +26,7 @@
 
 <script setup>
 const MAX_DURATION_SECONDS = 3600;
+const DEFAULT_DURATION_SECONDS = 600;
 const MAX_LABEL_LENGTH = 48;
 const REFRESH_INTERVAL_MS = 250;
 const DEFAULT_LABEL = 'フォーカスタイマー';
@@ -34,22 +35,22 @@ const STATE_CONTENT = {
   idle: {
     statusLabel: '準備完了',
     statusDetail: '開始すると、この画面で集中時間を計測します。',
-    nodHint: 'うなずく：開始'
+    nodHint: 'うなずく / タッチパッド：開始'
   },
   running: {
     statusLabel: '集中中',
     statusDetail: '残り時間は実際の終了時刻から計算しています。',
-    nodHint: 'うなずく：一時停止'
+    nodHint: 'うなずく / タッチパッド：一時停止'
   },
   paused: {
     statusLabel: '一時停止',
     statusDetail: '再開するまで残り時間は変わりません。',
-    nodHint: 'うなずく：再開'
+    nodHint: 'うなずく / タッチパッド：再開'
   },
   finished: {
     statusLabel: '完了',
     statusDetail: '集中セッションが終了しました。',
-    nodHint: 'うなずく：最初から'
+    nodHint: 'うなずく / タッチパッド：最初から'
   },
   error: {
     statusLabel: '入力エラー',
@@ -89,10 +90,12 @@ function buildTimerPatch(state, totalMs, remainingMs, deadlineMs) {
 }
 
 function normalizeInput(query) {
-  if (!query || typeof query !== 'object' || Array.isArray(query)) {
+  const input = query === undefined || query === null ? {} : query;
+  if (typeof input !== 'object' || Array.isArray(input)) {
     return { valid: false, durationSeconds: 0, label: DEFAULT_LABEL };
   }
-  const durationSeconds = query.durationSeconds;
+  const durationSeconds = input.durationSeconds === undefined ?
+    DEFAULT_DURATION_SECONDS : input.durationSeconds;
   if (
     typeof durationSeconds !== 'number' ||
     !Number.isInteger(durationSeconds) ||
@@ -101,10 +104,10 @@ function normalizeInput(query) {
   ) {
     return { valid: false, durationSeconds: 0, label: DEFAULT_LABEL };
   }
-  if (query.label !== undefined && typeof query.label !== 'string') {
+  if (input.label !== undefined && typeof input.label !== 'string') {
     return { valid: false, durationSeconds: 0, label: DEFAULT_LABEL };
   }
-  const rawLabel = typeof query.label === 'string' ? query.label : '';
+  const rawLabel = typeof input.label === 'string' ? input.label : '';
   if (unicodeLength(rawLabel) > MAX_LABEL_LENGTH) {
     return { valid: false, durationSeconds: 0, label: DEFAULT_LABEL };
   }
