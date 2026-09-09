@@ -23,6 +23,8 @@
 - 2026-09-09: Focus Timer uses AIUI 0.17 Page World Awareness for head gestures, not eye tracking. A visible Page maps `nod` to its primary state action: idle/start, running/pause, paused/continue, and finished/restart; error is a no-op and button focus/tap remains available.
 - 2026-09-09: Voice-driven Focus Timer reconfiguration must happen through a new Page invocation with converted integer `durationSeconds`; AIUI 0.17 `onLoad(query)` runs only once per Page instance, so later conversation must not claim to mutate an already-rendered timer card in place.
 - 2026-09-09: Focus Timer defaults an omitted `durationSeconds` to 600 seconds (10 minutes), including empty, null, or undefined Page input. An explicitly supplied invalid duration remains an error rather than silently falling back.
+- 2026-09-09: SceneQuest / セイチ｜SEICHI is a curated Osaka MVP with exactly 12 source-traceable spots. Camera imagery, GPS/current-location context, the spoken question, and optional work/character constraints belong to the Agent host; the stable-AIUI-0.17 Page only validates and renders a bounded result and does not capture camera or GPS directly.
+- 2026-09-09: SceneQuest uses one Page for `_current` and `_blank`, four categorical result states (`matched`, `uncertain`, `no_match`, `invalid`), and at most one concrete retry for uncertain evidence. It does not bundle anime frames, run background geofencing, or claim nationwide coverage; dynamic visual photo guidance is allowed only when current evidence supports it, otherwise it falls back to the curated position.
 
 ## Source priority
 

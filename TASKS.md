@@ -30,6 +30,9 @@
 - [x] Audited the Focus Timer against pinned AIUI 0.17 examples, hardened the World Awareness fallback, removed the error-state dead action, and visually inspected the generated AIX preview.
 - [x] Published the complete Focus Timer history and audit fix to public `main`, verified the remote import directory, and observed a successful GitHub Actions run for the feature commit.
 - [x] Added a tested 10-minute Focus Timer default for invocations without an explicit duration, while preserving errors for explicitly invalid values.
+- [x] Built `examples/scenequest-agent/` as a stable-AIUI-0.17, Page-only Japanese Agent with exactly 12 source-traceable Osaka spots and no bundled anime screenshots.
+- [x] Implemented and locally tested SceneQuest's bounded four-state contract, categorical confidence, one-retry uncertain flow, tolerant photo-guidance fallback, nearby selection, and prompt-injection/input-isolation boundaries.
+- [x] Added SceneQuest strict validation, published-AIX pack/list smoke, blocking static-preview CI coverage, repository documentation, and locally recorded UX/capability evidence.
 
 ## External manual gates
 
@@ -38,3 +41,12 @@
 - [ ] Import `examples/focus-timer-agent/` through an authenticated AIUI Studio account and verify both `_current` and `_blank` on physical Rokid Glasses.
 - [ ] Verify World Awareness nod recognition and the start/pause/continue/restart mapping on physical Rokid Glasses.
 - [ ] Verify that spoken timer setup and changes cause a new Page invocation in authenticated AIUI Studio and on physical Rokid Glasses.
+- [ ] NOT TESTED: Import `examples/scenequest-agent/` through an authenticated AIUI Studio account and run Studio Web simulation.
+- [ ] NOT TESTED: Verify SceneQuest Agent-host delivery of camera imagery and GPS/current-location context.
+- [ ] NOT TESTED: Verify SceneQuest permission grant, denial, revocation, and unavailable-capability behavior for camera and location.
+- [ ] NOT TESTED: Verify Japanese voice response and fresh Page invocation coordination for SceneQuest.
+- [ ] NOT TESTED: Verify real `_current` / `_blank` targets, target transitions, host focus, element focus, and nearby scrolling.
+- [ ] NOT TESTED: Verify SceneQuest hardware input and selection behavior on target Rokid Glasses.
+- [ ] NOT TESTED: Verify physical-glasses readability over bright, dark, and cluttered real backgrounds, including optical clipping and contrast.
+- [ ] NOT TESTED: Verify dynamic visual photo guidance under occlusion, viewpoint variation, and user motion.
+- [ ] NOT TESTED: Measure SceneQuest cold-start latency, sustained performance, and thermal behavior on target hardware.
