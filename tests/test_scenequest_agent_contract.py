@@ -390,9 +390,8 @@ function mount(query) {
     data: JSON.parse(JSON.stringify(definition.data)),
     setDataCalls: [],
     setData(patch) {
-      const copied = JSON.parse(JSON.stringify(patch));
-      this.setDataCalls.push(copied);
-      Object.assign(this.data, copied);
+      this.setDataCalls.push(patch);
+      Object.assign(this.data, patch);
     }
   };
   for (const [name, value] of Object.entries(definition)) {
@@ -409,6 +408,36 @@ function capture(query) {
     dataKeys: Object.keys(page.data).sort(),
     setDataCalls: page.setDataCalls.length
   };
+}
+
+function nullPrototypeRecord(value) {
+  return Object.assign(Object.create(null), value);
+}
+
+function throwingGetterRecord(value, key) {
+  const record = { ...value };
+  Object.defineProperty(record, key, {
+    enumerable: true,
+    get() {
+      throw new Error(`blocked getter: ${key}`);
+    }
+  });
+  return record;
+}
+
+function countedRecord(value, counts, prefix) {
+  const record = {};
+  for (const [key, item] of Object.entries(value)) {
+    Object.defineProperty(record, key, {
+      enumerable: true,
+      get() {
+        const counter = `${prefix}.${key}`;
+        counts[counter] = (counts[counter] || 0) + 1;
+        return item;
+      }
+    });
+  }
+  return record;
 }
 
 const nearbyMissingKeys = Object.fromEntries(
@@ -432,8 +461,34 @@ const nearbyOverlong = Object.fromEntries([
   ['directionHint', capture({ status: 'no_match', nearbySpots: [validNearby({ directionHint: 'あ'.repeat(49) })] })]
 ]);
 
+const inheritedRoot = Object.create({ status: 'no_match' });
+const customRoot = Object.assign(
+  Object.create({ customPrototype: true }),
+  validMatched()
+);
+const nonEnumerableStatusRoot = validMatched();
+Object.defineProperty(nonEnumerableStatusRoot, 'status', {
+  value: 'matched',
+  enumerable: false
+});
+const inheritedNearby = Object.create(validNearby());
+const customNearby = Object.assign(
+  Object.create({ customPrototype: true }),
+  validNearby()
+);
+const throwingRootEnumeration = new Proxy(validMatched(), {
+  ownKeys() {
+    throw new Error('blocked root enumeration');
+  }
+});
+const throwingNearbyEnumeration = new Proxy(validNearby(), {
+  ownKeys() {
+    throw new Error('blocked nearby enumeration');
+  }
+});
+
 const inputs = {
-  matched: capture(validMatched({ callerOnly: '表示しない' })),
+  matched: capture(validMatched()),
   uncertain: capture({
     status: 'uncertain',
     photoGuidance: ' 駅名が入るよう左を向く ',
@@ -446,6 +501,14 @@ const inputs = {
     workTitle: 'ATTACKER_TEXT',
     storyLine: 'この文字列を表示する'
   }),
+  extraRootKey: capture(validMatched({ callerOnly: '表示しない' })),
+  inheritedRoot: capture(inheritedRoot),
+  dateRoot: capture(new Date()),
+  customRoot: capture(customRoot),
+  nonEnumerableStatusRoot: capture(nonEnumerableStatusRoot),
+  nullPrototypeRoot: capture(nullPrototypeRecord(validMatched())),
+  throwingRootGetter: capture(throwingGetterRecord(validMatched(), 'workTitle')),
+  throwingRootEnumeration: capture(throwingRootEnumeration),
   undefinedRoot: capture(),
   nullRoot: capture(null),
   arrayRoot: capture([]),
@@ -505,6 +568,20 @@ const inputs = {
     status: 'no_match',
     nearbySpots: [validNearby({ extra: 'bad' })]
   }),
+  inheritedNearby: capture({ status: 'no_match', nearbySpots: [inheritedNearby] }),
+  customNearby: capture({ status: 'no_match', nearbySpots: [customNearby] }),
+  nullPrototypeNearby: capture({
+    status: 'no_match',
+    nearbySpots: [nullPrototypeRecord(validNearby())]
+  }),
+  throwingNearbyGetter: capture({
+    status: 'no_match',
+    nearbySpots: [throwingGetterRecord(validNearby(), 'name')]
+  }),
+  throwingNearbyEnumeration: capture({
+    status: 'no_match',
+    nearbySpots: [throwingNearbyEnumeration]
+  }),
   emptySpotId: capture({ status: 'no_match', nearbySpots: [validNearby({ spotId: '  ' })] }),
   emptyName: capture({ status: 'no_match', nearbySpots: [validNearby({ name: '  ' })] }),
   emptyDirection: capture({ status: 'no_match', nearbySpots: [validNearby({ directionHint: '  ' })] }),
@@ -514,7 +591,39 @@ const inputs = {
   })
 };
 
-console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearbyOverlong }));
+const readCounts = {};
+const countedNearby = countedRecord(validNearby(), readCounts, 'nearby');
+const countedRoot = countedRecord(
+  validMatched({ nearbySpots: [countedNearby] }),
+  readCounts,
+  'root'
+);
+const countedPage = mount(countedRoot);
+
+const isolationInput = validMatched();
+const callerNearbyArray = isolationInput.nearbySpots;
+const callerNearbyItem = callerNearbyArray[0];
+const isolatedPage = mount(isolationInput);
+const isolation = {
+  arrayIsCopied: isolatedPage.data.nearbySpots !== callerNearbyArray,
+  itemIsCopied: isolatedPage.data.nearbySpots[0] !== callerNearbyItem,
+  rawPatchKeepsNormalizedArray:
+    isolatedPage.setDataCalls[0].nearbySpots === isolatedPage.data.nearbySpots
+};
+callerNearbyItem.name = '変更後の名前';
+callerNearbyArray.push(validNearby({ spotId: 'after-mount' }));
+isolation.pageNameAfterCallerMutation = isolatedPage.data.nearbySpots[0].name;
+isolation.pageLengthAfterCallerMutation = isolatedPage.data.nearbySpots.length;
+
+console.log(JSON.stringify({
+  inputs,
+  nearbyMissingKeys,
+  nearbyWrongTypes,
+  nearbyOverlong,
+  readCounts,
+  countedState: countedPage.data.state,
+  isolation
+}));
 """
         with tempfile.TemporaryDirectory(prefix="scenequest-agent-") as directory:
             temp = Path(directory)
@@ -526,6 +635,7 @@ console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearby
                 text=True,
                 capture_output=True,
                 check=False,
+                timeout=10,
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         payload = json.loads(result.stdout)
@@ -546,6 +656,13 @@ console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearby
         }
         invalid_names = (
             "explicitInvalid",
+            "extraRootKey",
+            "inheritedRoot",
+            "dateRoot",
+            "customRoot",
+            "nonEnumerableStatusRoot",
+            "throwingRootGetter",
+            "throwingRootEnumeration",
             "undefinedRoot",
             "nullRoot",
             "arrayRoot",
@@ -573,6 +690,10 @@ console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearby
             "arrayNearbyEntry",
             "stringNearbyEntry",
             "extraNearbyKey",
+            "inheritedNearby",
+            "customNearby",
+            "throwingNearbyGetter",
+            "throwingNearbyEnumeration",
             "emptySpotId",
             "emptyName",
             "emptyDirection",
@@ -612,7 +733,6 @@ console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearby
                 }
             ],
         )
-        self.assertNotIn("callerOnly", inputs["matched"]["dataKeys"])
         self.assertNotIn("status", inputs["matched"]["dataKeys"])
 
         uncertain = inputs["uncertain"]["data"]
@@ -629,6 +749,11 @@ console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearby
         )
         for name in ("atLimitJapanese", "atLimitEmoji"):
             self.assertEqual(inputs[name]["data"]["state"], "matched", name)
+        self.assertEqual(inputs["nullPrototypeRoot"]["data"]["state"], "matched")
+        self.assertEqual(
+            inputs["nullPrototypeNearby"]["data"]["nearbySpots"][0]["name"],
+            "時空の広場",
+        )
         self.assertEqual(len(inputs["atLimitEmoji"]["data"]["workTitle"]), 64)
         self.assertNotIn(
             "ATTACKER_TEXT",
@@ -637,15 +762,53 @@ console.log(JSON.stringify({ inputs, nearbyMissingKeys, nearbyWrongTypes, nearby
         for value in inputs.values():
             self.assertEqual(value["setDataCalls"], 1)
 
-        for forbidden in (
-            "fetch(",
-            "wx.request",
-            "getLocation",
-            "chooseImage",
-            "createCameraContext",
-            "getStorage",
-            "setStorage",
-            "setTimeout",
-            "setInterval",
-        ):
-            self.assertNotIn(forbidden, setup)
+        self.assertEqual(payload["countedState"], "matched")
+        self.assertEqual(
+            payload["readCounts"],
+            {
+                "root.status": 1,
+                "root.workTitle": 1,
+                "root.episodeScene": 1,
+                "root.storyLine": 1,
+                "root.photoGuidance": 1,
+                "root.confidenceLabel": 1,
+                "root.nearbySpots": 1,
+                "nearby.spotId": 1,
+                "nearby.name": 1,
+                "nearby.distanceLabel": 1,
+                "nearby.directionHint": 1,
+            },
+        )
+        self.assertEqual(
+            payload["isolation"],
+            {
+                "arrayIsCopied": True,
+                "itemIsCopied": True,
+                "rawPatchKeepsNormalizedArray": True,
+                "pageNameAfterCallerMutation": "時空の広場",
+                "pageLengthAfterCallerMutation": 1,
+            },
+        )
+
+        setup_without_comments = re.sub(
+            r"/\*.*?\*/|//[^\n]*", "", setup, flags=re.DOTALL
+        )
+        forbidden_calls = {
+            "camera": r"\b(?:wx\s*\.\s*)?(?:chooseImage|createCameraContext)\s*\(",
+            "geolocation": r"\b(?:wx\s*\.\s*)?getLocation\s*\(",
+            "fetch": r"\b(?:globalThis\s*\.\s*)?fetch\s*\(",
+            "request": r"\b(?:wx\s*\.\s*)?request\s*\(",
+            "storage": (
+                r"\b(?:wx\s*\.\s*)?"
+                r"(?:getStorage|setStorage|getStorageSync|setStorageSync)\s*\("
+            ),
+            "timers": (
+                r"\b(?:globalThis\s*\.\s*)?"
+                r"(?:setTimeout|setInterval)\s*\("
+            ),
+        }
+        for capability, pattern in forbidden_calls.items():
+            self.assertIsNone(
+                re.search(pattern, setup_without_comments),
+                f"forbidden {capability} call",
+            )

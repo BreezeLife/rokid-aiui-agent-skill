@@ -87,6 +87,7 @@ const RESULT_STRING_FIELDS = [
   'confidenceLabel'
 ];
 const NEARBY_FIELDS = ['spotId', 'name', 'distanceLabel', 'directionHint'];
+const ROOT_FIELDS = ['status', ...RESULT_STRING_FIELDS, 'nearbySpots'];
 
 function unicodeLength(value) {
   return Array.from(value).length;
@@ -113,15 +114,21 @@ function invalidResult() {
   };
 }
 
+function isRecord(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function normalizeNearby(value) {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > 3) return null;
 
   const normalized = [];
   for (const item of value) {
-    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
-      return null;
-    }
+    if (!isRecord(item)) return null;
     const keys = Object.keys(item);
     if (
       keys.length !== NEARBY_FIELDS.length ||
@@ -130,14 +137,18 @@ function normalizeNearby(value) {
       return null;
     }
 
-    const spotId = boundedString(item.spotId, LIMITS.spotId);
-    const name = boundedString(item.name, LIMITS.nearbyName);
+    const rawSpotId = item.spotId;
+    const rawName = item.name;
+    const rawDistanceLabel = item.distanceLabel;
+    const rawDirectionHint = item.directionHint;
+    const spotId = boundedString(rawSpotId, LIMITS.spotId);
+    const name = boundedString(rawName, LIMITS.nearbyName);
     const distanceLabel = boundedString(
-      item.distanceLabel,
+      rawDistanceLabel,
       LIMITS.distanceLabel
     );
     const directionHint = boundedString(
-      item.directionHint,
+      rawDirectionHint,
       LIMITS.directionHint
     );
     if (
@@ -154,50 +165,71 @@ function normalizeNearby(value) {
 }
 
 function normalizeInput(query) {
-  if (query === null || typeof query !== 'object' || Array.isArray(query)) {
-    return invalidResult();
-  }
-  if (!STATUSES.includes(query.status) || query.status === 'invalid') {
-    return invalidResult();
-  }
+  try {
+    if (!isRecord(query)) return invalidResult();
+    const keys = Object.keys(query);
+    if (
+      !keys.includes('status') ||
+      !keys.every((field) => ROOT_FIELDS.includes(field))
+    ) {
+      return invalidResult();
+    }
 
-  const strings = {};
-  for (const field of RESULT_STRING_FIELDS) {
-    const value = query[field] === undefined
-      ? ''
-      : boundedString(query[field], LIMITS[field]);
-    if (value === null) return invalidResult();
-    strings[field] = value;
-  }
-  const nearbySpots = normalizeNearby(query.nearbySpots);
-  if (nearbySpots === null) return invalidResult();
+    const status = query.status;
+    if (!STATUSES.includes(status) || status === 'invalid') {
+      return invalidResult();
+    }
 
-  if (
-    query.status === 'matched' &&
-    (!strings.workTitle ||
-      !strings.episodeScene ||
-      !strings.storyLine ||
-      !strings.photoGuidance)
-  ) {
+    const strings = {};
+    for (const field of RESULT_STRING_FIELDS) {
+      if (!keys.includes(field)) {
+        strings[field] = '';
+        continue;
+      }
+      const rawValue = query[field];
+      const value = boundedString(rawValue, LIMITS[field]);
+      if (value === null) return invalidResult();
+      strings[field] = value;
+    }
+
+    let nearbySpots = [];
+    if (keys.includes('nearbySpots')) {
+      const rawNearbySpots = query.nearbySpots;
+      nearbySpots = normalizeNearby(rawNearbySpots);
+      if (nearbySpots === null || rawNearbySpots === undefined) {
+        return invalidResult();
+      }
+    }
+
+    if (
+      status === 'matched' &&
+      (!strings.workTitle ||
+        !strings.episodeScene ||
+        !strings.storyLine ||
+        !strings.photoGuidance)
+    ) {
+      return invalidResult();
+    }
+    if (status === 'uncertain' && !strings.photoGuidance) {
+      return invalidResult();
+    }
+
+    return {
+      state: status,
+      workTitle: strings.workTitle,
+      episodeScene: strings.episodeScene,
+      storyLine: strings.storyLine,
+      photoGuidance: strings.photoGuidance,
+      confidenceLabel: strings.confidenceLabel,
+      nearbySpots,
+      selectedNearbyIndex: -1,
+      focusedNearbyIndex: -1,
+      selectedNearbyName: '',
+      selectedNearbyHint: ''
+    };
+  } catch (error) {
     return invalidResult();
   }
-  if (query.status === 'uncertain' && !strings.photoGuidance) {
-    return invalidResult();
-  }
-
-  return {
-    state: query.status,
-    workTitle: strings.workTitle,
-    episodeScene: strings.episodeScene,
-    storyLine: strings.storyLine,
-    photoGuidance: strings.photoGuidance,
-    confidenceLabel: strings.confidenceLabel,
-    nearbySpots,
-    selectedNearbyIndex: -1,
-    focusedNearbyIndex: -1,
-    selectedNearbyName: '',
-    selectedNearbyHint: ''
-  };
 }
 
 export default {
