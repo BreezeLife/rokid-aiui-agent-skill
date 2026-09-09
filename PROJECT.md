@@ -35,6 +35,7 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 7. Make generated work testable with deterministic checks and a real AIX pack/list smoke flow when available.
 8. For implementation tasks, deliver an editable AIUI project directory. A local folder or a clearly identified GitHub repository subdirectory must be directly selectable for AIUI Studio import.
 9. Default to the official `0.17.0` stable compatibility baseline when no target version is discoverable; gate `0.18` additions behind an explicit target or capability evidence.
+10. Every AIUI project creation, implementation, change, or review must produce project-specific UX and per-capability evidence matrices. Evidence layers are non-substitutable, and missing Studio or physical-device proof remains blocked.
 
 ## Non-goals
 
@@ -50,5 +51,6 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 - The local validator has positive and negative fixture coverage.
 - A repository example is a complete `0.17.0`-compatible source directory that passes strict validation and real AIX pack/list.
 - Independent forward tests can create or review representative AIUI projects using the correct authoring mode, input model, design constraints, and AIX commands.
+- Forward tests require consistent `PASS` / `FAIL` / `BLOCKED` / `N/A` evidence semantics and block release claims when an applicable UX or capability gate lacks its required evidence.
 - A fixture packages and lists successfully with a supported published AIX CLI.
 - The public GitHub installation URL resolves and the repository CI is green.

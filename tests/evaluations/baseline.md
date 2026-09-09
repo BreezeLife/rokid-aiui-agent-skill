@@ -8,7 +8,8 @@ Three fresh subagents answered the scenarios without web access, workspace inspe
 | Full-screen multimodal input | 5/10 | 0 | Correctly noticed `keyup` host defaults, overlay back behavior, bounds, and head-gesture events, but still called `preventDefault()` throughout `onKeyDown`; did not name `_blank`, feature-detect world awareness, or provide layered static/AIX/preview testing. |
 | Released AIX workflow | 0/10 | 2 | Repeated every requested imaginary subcommand, skipped help probing and artifact inspection, and claimed direct USB deployment without a platform flow or device evidence. |
 | AIUI Studio import delivery | 1/10 | 2 | Invented `manifest.json`, scheduler/context APIs, permissions, and ZIP-renaming as AIX; omitted the required AIUI project root and exact GitHub revision/subdirectory. |
-| **Total** | **8/40** | **6** | The baseline is unsafe for release work even where isolated interaction logic is plausible. |
+| Mandatory UX/capability audit | 8/12 | 1 | The pre-enhancement Skill blocked release and found the risks, but did not require separate project UX and per-capability matrices or consistent evidence states. |
+| **Total** | **16/52** | **7** | The baseline is unsafe for release work even where isolated interaction logic is plausible. |
 
 ## Scoring notes
 
@@ -31,3 +32,5 @@ Awarded only invariant 7 because it did not add Widget or Agent Worker declarati
 ## Required improvement
 
 The finished Skill must raise every scenario to at least 9/10, produce no critical failure, and make uncertainty explicit where host/runtime or physical-device evidence is unavailable.
+
+The first four baselines used no AIUI-specific Skill. Scenario 05 instead tests the existing pre-enhancement Skill so the RED result isolates the missing mandatory matrix contract.

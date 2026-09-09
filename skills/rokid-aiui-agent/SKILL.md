@@ -1,6 +1,6 @@
 ---
 name: rokid-aiui-agent
-description: Use for ROKID AIUI agent work to create, modify, review, debug, preview, package, or publish complete AIUI Studio-importable projects involving .ink, WXML, WXSS, Pages, Widgets, Agent Workers, hardware input, monochrome design, or AIX.
+description: Use for ROKID AIUI agent work to create, modify, review, debug, preview, package, or publish complete AIUI Studio-importable projects involving .ink, WXML, WXSS, Pages, Widgets, Agent Workers, hardware input, monochrome design, UX audits, capability testing, or AIX.
 license: Apache-2.0
 ---
 
@@ -27,6 +27,7 @@ Add `0.18`-only features such as Widgets or Agent Workers only when the target c
 - Author or review `.ink`, WXML, WXSS, scripts, and data flow with `references/ink-authoring.md`.
 - Choose surface, focus, hardware input, and monochrome visual treatment with `references/interaction-and-design.md`.
 - Check components, APIs, media, voice, storage, and runtime support with `references/runtime-capabilities.md`.
+- Plan and record mandatory project-specific UX and capability evidence with `references/ux-and-capability-testing.md`.
 - Discover installed AIX commands and preview/package capabilities with `references/aix-workflow.md`.
 - Diagnose failures and apply release evidence gates with `references/debugging-and-release.md`.
 
@@ -34,10 +35,10 @@ Selected-version official docs take precedence, followed by matching runtime/sou
 
 ## Implement and validate
 
-Preserve product intent, structure, and authoring mode. Correct unsupported details explicitly and make the smallest maintainable change.
+Preserve product intent and authoring mode. Correct unsupported details explicitly. Run strict validation with the selected `--target-version` against the exact Studio import folder, then repository tests. Probe `aix --help` and use only advertised commands; keep packaging separate from publication.
 
-Run strict validation with the selected `--target-version` against the exact Studio import folder, then run repository tests. Before giving AIX instructions, run `aix --help` (or the project's equivalent invocation) and use only capabilities advertised by the installed release; do not assume create, dev, build, deploy, upload, or publish commands. Keep local packaging separate from platform publication.
+Every creation, implementation, code change, or review must finish with the project-specific UX and capability evidence matrices in the testing reference. Use only `PASS`, `FAIL`, `BLOCKED`, or justified `N/A`; each `PASS` needs captured evidence from its required layer. An applicable `FAIL` or `BLOCKED` must not be called complete or release-ready.
 
-Never claim that validation, packaging, preview, Studio import, platform upload, or device testing passed unless it was actually executed in the current environment and its evidence was captured. Otherwise provide the command and mark the gate unverified.
+Evidence layers are not substitutes. Exercise supported preview/simulator flows, but do not use them to claim Studio or physical-device success. Hardware-sensitive optics, focus, keys, voice, gestures, permissions, and performance require target-glasses evidence. Report each layer honestly and keep missing gates blocked.
 
-Exercise the flow in the supported simulator/preview path and record the result. Hardware-sensitive interaction, optics, focus, keys, gestures, and release readiness also require physical-glasses evidence. Report both simulator and device evidence, or label the missing gate and avoid claiming completion.
+Never claim that validation, packaging, preview, Studio, or device gates passed unless they were actually executed in the current environment and captured.

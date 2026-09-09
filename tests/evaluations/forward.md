@@ -1,6 +1,6 @@
 # Post-Skill Forward Evaluation
 
-Four fresh subagents loaded the completed Skill and only the references routed for their scenario. Raw responses are preserved under `tests/evaluations/forward/`.
+Five fresh subagents loaded the applicable Skill version and only the references routed for their scenario. Raw responses are preserved under `tests/evaluations/forward/`.
 
 | Scenario | Baseline | Forward | Critical failures | Result |
 |---|---:|---:|---:|---|
@@ -8,7 +8,8 @@ Four fresh subagents loaded the completed Skill and only the references routed f
 | Full-screen multimodal input | 5/10 | 10/10 | 0 | Rejected blanket keydown interception; implemented conditional keyup handling, bounded focus, feature-detected world awareness, voice/gesture events, cleanup, and device gates. |
 | Released AIX workflow | 0/10 | 10/10 | 0 | Rejected four invented commands; used the official initializer, inspected scripts, probed the selected CLI, then separated preview, pack/list, platform upload, and physical-device evidence. |
 | AIUI Studio import delivery | 1/10 | 10/10 | 0 | Made complete editable source the primary output, supplied exact import roots/coordinates, defaulted to 0.17, and treated AIX only as an additional verified artifact. |
-| **Total** | **8/40** | **40/40** | **0** | **Meets the release threshold of at least 9/10 per scenario with no critical failure.** |
+| Mandatory UX/capability audit | 8/12 | 12/12 | 0 | Blocked release, produced separate project UX and per-capability matrices, and preserved absent Studio/device evidence as `BLOCKED`. |
+| **Total** | **16/52** | **52/52** | **0** | **Meets the release threshold of at least 9/10 per scenario with no critical failure.** |
 
 ## Scoring notes
 
@@ -30,4 +31,4 @@ Awarded all invariants after rerunning this scenario against the final packaged 
 
 ## Outcome
 
-The forward suite improved by 32 points, from 8/40 with six critical failures to 40/40 with none. This is behavior-level evidence that the Skill corrects the targeted failure modes; it is not a substitute for CI, Studio account access, or physical-glasses testing.
+Across all five scenarios, the forward suite improved by 36 points, from 16/52 with seven critical failures to 52/52 with none. Scenario 05 specifically improved the pre-enhancement Skill from 8/12 with one critical artifact gap to 12/12. This is behavior-level evidence that the Skill corrects the targeted failure modes; it is not a substitute for CI, Studio account access, or physical-glasses testing.

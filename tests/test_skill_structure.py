@@ -16,6 +16,7 @@ REFERENCE_PATHS = (
     "references/ink-authoring.md",
     "references/interaction-and-design.md",
     "references/runtime-capabilities.md",
+    "references/ux-and-capability-testing.md",
     "references/aix-workflow.md",
     "references/debugging-and-release.md",
 )
@@ -62,11 +63,13 @@ class SkillStructureTests(unittest.TestCase):
             "agent workers",
             "hardware input",
             "monochrome",
+            "ux audit",
+            "capability testing",
             "aix",
         ):
             self.assertIn(term, description)
 
-    def test_routes_to_exactly_the_seven_planned_references(self):
+    def test_routes_to_exactly_the_eight_planned_references(self):
         discovered = set(re.findall(r"references/[a-z0-9-]+\.md", self.body))
         self.assertEqual(set(REFERENCE_PATHS), discovered)
         for path in REFERENCE_PATHS:
