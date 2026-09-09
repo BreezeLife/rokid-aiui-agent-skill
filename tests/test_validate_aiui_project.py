@@ -426,6 +426,31 @@ class ValidatorGeneratedProjectTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertEqual(diagnostic_codes(result), [])
 
+    def test_wechat_control_words_in_attribute_values_are_not_directives(self) -> None:
+        controls = (
+            '<text aria-label="literal wx:if wx:elif wx:else">A</text>'
+            "<view data-note='literal wx:for wx:key wx:for-item wx:for-index'>B</view>"
+        )
+        cases = (
+            ("pages/index/index.ink", f"<page>{controls}</page>"),
+            ("pages/index/index.wxml", f"<view>{controls}</view>"),
+        )
+        for relative, content in cases:
+            with self.subTest(relative=relative), self.make_project() as directory:
+                project = Path(directory)
+                self.write_support_files(project)
+                page = project / relative
+                page.parent.mkdir(parents=True, exist_ok=True)
+                page.write_text(content, encoding="utf-8")
+                (project / "app.json").write_text(
+                    json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+                )
+
+                result = run_validator(project, "--strict", "--json")
+
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(diagnostic_codes(result), [])
+
     def test_widget_requires_matching_family_in_script_def(self) -> None:
         with self.make_project() as directory:
             project = Path(directory)

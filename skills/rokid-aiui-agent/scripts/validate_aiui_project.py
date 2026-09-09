@@ -22,7 +22,7 @@ STYLE_OPEN_RE = re.compile(r"<style\b[^>]*>", re.IGNORECASE)
 STYLE_BLOCK_RE = re.compile(r"<style\b[^>]*>.*?</style\s*>", re.IGNORECASE | re.DOTALL)
 TARGET_VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
 WX_TEMPLATE_CONTROL_RE = re.compile(
-    r"(?<![\w:.-])wx:(?:if|elif|else|for|for-item|for-index|key)\b",
+    r"wx:(?:if|elif|else|for|for-item|for-index|key)",
     re.IGNORECASE,
 )
 
@@ -627,11 +627,69 @@ def has_script_attribute(attributes: str, name: str) -> bool:
 def find_wechat_template_control_directives(source: str) -> List[str]:
     masked = MUSTACHE_RE.sub("", source)
     directives = set()
-    for match in re.finditer(r"<(?![!/?])[A-Za-z][^>]*>", masked, re.DOTALL):
-        directives.update(
-            directive.lower()
-            for directive in WX_TEMPLATE_CONTROL_RE.findall(match.group())
-        )
+    position = 0
+    while True:
+        start = masked.find("<", position)
+        if start < 0:
+            break
+        cursor = start + 1
+        if cursor >= len(masked) or not masked[cursor].isalpha():
+            position = cursor
+            continue
+
+        while cursor < len(masked) and (
+            masked[cursor].isalnum() or masked[cursor] in "_:.-"
+        ):
+            cursor += 1
+
+        while cursor < len(masked):
+            while cursor < len(masked) and masked[cursor].isspace():
+                cursor += 1
+            if cursor >= len(masked):
+                break
+            if masked[cursor] == ">":
+                cursor += 1
+                break
+            if masked[cursor] == "/" and masked[cursor : cursor + 2] == "/>":
+                cursor += 2
+                break
+
+            name_start = cursor
+            while cursor < len(masked) and (
+                not masked[cursor].isspace() and masked[cursor] not in "=/>"
+            ):
+                cursor += 1
+            if cursor == name_start:
+                cursor += 1
+                continue
+
+            attribute_name = masked[name_start:cursor]
+            if WX_TEMPLATE_CONTROL_RE.fullmatch(attribute_name):
+                directives.add(attribute_name.lower())
+
+            while cursor < len(masked) and masked[cursor].isspace():
+                cursor += 1
+            if cursor >= len(masked) or masked[cursor] != "=":
+                continue
+            cursor += 1
+            while cursor < len(masked) and masked[cursor].isspace():
+                cursor += 1
+            if cursor >= len(masked):
+                break
+            quote = masked[cursor] if masked[cursor] in "\"'" else None
+            if quote is not None:
+                cursor += 1
+                while cursor < len(masked) and masked[cursor] != quote:
+                    cursor += 1
+                if cursor < len(masked):
+                    cursor += 1
+            else:
+                while cursor < len(masked) and (
+                    not masked[cursor].isspace() and masked[cursor] != ">"
+                ):
+                    cursor += 1
+
+        position = max(cursor, start + 1)
     return sorted(directives)
 
 
