@@ -162,8 +162,10 @@ Agent context may contain:
 
 All fields are optional individually because host capability and permissions
 may vary. The Agent must not claim a source was present when it was absent.
-When none of image, location, place/work constraint, or usable question text is
-available, the Agent returns the `invalid` recovery flow.
+Only when image, location, place/work constraint, and usable question text are
+all unavailable does the Agent return the `invalid` recovery flow. Missing one
+modality instead degrades to the supported search, explanation, or recovery
+flow backed by the remaining evidence.
 
 The Page accepts a bounded JSON-serializable object with:
 
@@ -241,9 +243,9 @@ direction remains visible and is not displaced by the nearby list.
 - `no_match`: explicitly says that no recorded scene was found. It offers the
   nearest recorded spot only when valid location is available.
 - missing location: permits work/place-name exploration without implying that
-  distance sorting occurred.
+  distance sorting occurred; distance labels stay empty.
 - missing image: gives only the curated position or asks for a view when visual
-  confirmation is essential.
+  confirmation is essential, and never claims a dynamic visual adjustment.
 - `invalid`: presents a short Japanese retry path and never exposes raw input.
 
 ### 9.4 Visual and interaction rules
@@ -255,7 +257,9 @@ direction remains visible and is not displaced by the nearby list.
   decorative cards.
 - Do not encode state through luminance alone; pair labels, structure, and
   copy with focus styling.
-- Every actionable nearby entry has its own focus and blur behavior.
+- Every actionable nearby entry has its own focus and blur behavior. Selecting
+  an entry reveals its direction hint inside that row; later focus and blur do
+  not clear the selected row.
 - Default host key behavior is not intercepted unless the Page provides a
   complete replacement.
 - Motion, if any, is short and event driven. The MVP has no ambient animation.

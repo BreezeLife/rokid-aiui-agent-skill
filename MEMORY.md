@@ -25,6 +25,8 @@
 - 2026-09-09: Focus Timer defaults an omitted `durationSeconds` to 600 seconds (10 minutes), including empty, null, or undefined Page input. An explicitly supplied invalid duration remains an error rather than silently falling back.
 - 2026-09-09: SceneQuest / セイチ｜SEICHI is a curated Osaka MVP with exactly 12 source-traceable spots. Camera imagery, GPS/current-location context, the spoken question, and optional work/character constraints belong to the Agent host; the stable-AIUI-0.17 Page only validates and renders a bounded result and does not capture camera or GPS directly.
 - 2026-09-09: SceneQuest uses one Page for `_current` and `_blank`, four categorical result states (`matched`, `uncertain`, `no_match`, `invalid`), and at most one concrete retry for uncertain evidence. It does not bundle anime frames, run background geofencing, or claim nationwide coverage; dynamic visual photo guidance is allowed only when current evidence supports it, otherwise it falls back to the curated position.
+- 2026-09-09: SceneQuest uses `invalid` only when image, location, a place/work constraint, and usable question text are all unavailable. Without an image it may use only curated photo positions or request another image, never dynamic visual adjustment; without location it omits distance and any claim of distance ordering.
+- 2026-09-09: SceneQuest keeps voice/internal evidence separate from its strict seven-field Page input. Nearby selection is Page-local derived state: selecting one row marks only that row and reveals its direction hint inline, while focus and blur preserve the selection.
 
 ## Source priority
 

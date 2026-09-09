@@ -891,6 +891,10 @@ const inputs = {
     status: 'no_match',
     nearbySpots: [validNearby({ extra: 'bad' })]
   }),
+  callerSelectedNearby: capture({
+    status: 'no_match',
+    nearbySpots: [validNearby({ selected: true })]
+  }),
   inheritedNearby: capture({ status: 'no_match', nearbySpots: [inheritedNearby] }),
   customNearby: capture({ status: 'no_match', nearbySpots: [customNearby] }),
   nullPrototypeNearby: capture({
@@ -1106,6 +1110,7 @@ console.log(JSON.stringify({
             "arrayNearbyEntry",
             "stringNearbyEntry",
             "extraNearbyKey",
+            "callerSelectedNearby",
             "inheritedNearby",
             "customNearby",
             "throwingNearbyGetter",
