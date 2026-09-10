@@ -362,34 +362,65 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         def section_has_all(section: str, patterns: tuple[str, ...]) -> bool:
             semantic_units = []
             prose_lines = []
+            list_item_lines = []
 
             def flush_prose() -> None:
                 if prose_lines:
                     semantic_units.append(" ".join(prose_lines))
                     prose_lines.clear()
 
+            def flush_list_item() -> None:
+                if list_item_lines:
+                    semantic_units.append(" ".join(list_item_lines))
+                    list_item_lines.clear()
+
             for raw_line in section.splitlines():
                 line = re.sub(r"\s+", " ", raw_line).strip()
                 if not line:
+                    flush_list_item()
                     flush_prose()
                     continue
-                is_structured_line = line.startswith("|") or bool(
+                is_table_row = line.startswith("|")
+                is_list_item = bool(
                     re.match(r"^(?:[-+*]|\d+[.)])\s+", line)
                 )
                 is_block_marker = bool(
                     re.match(r"^(?:#{1,6}\s|```|~~~|>)", line)
                 )
-                if is_structured_line or is_block_marker:
+                if is_list_item:
+                    flush_list_item()
+                    flush_prose()
+                    list_item_lines.append(line)
+                    continue
+                if (
+                    list_item_lines
+                    and raw_line[:1].isspace()
+                    and not is_table_row
+                    and not is_block_marker
+                ):
+                    list_item_lines.append(line)
+                    continue
+                flush_list_item()
+                if is_table_row or is_block_marker:
                     flush_prose()
                     semantic_units.append(line)
                     continue
                 prose_lines.append(line)
+            flush_list_item()
             flush_prose()
 
             return any(
                 all(re.search(pattern, unit, re.IGNORECASE) for pattern in patterns)
                 for unit in semantic_units
             )
+
+        self.assertTrue(
+            section_has_all(
+                "- 创建完整、可编辑的 AIUI\n  项目",
+                (r"创建", r"完整", r"可编辑", r"AIUI", r"项目"),
+            ),
+            "an indented continuation must remain part of its list item",
+        )
 
         capabilities = sections["## 这个 Skill 能做什么"]
         capability_contracts = {
