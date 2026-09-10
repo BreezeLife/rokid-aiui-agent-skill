@@ -573,7 +573,7 @@ class AIUIProjectValidator:
                 source = candidate.read_text(encoding="utf-8")
             except (OSError, UnicodeError):
                 continue
-            source_without_markup_comments = COMMENT_RE.sub("", source)
+            source_without_markup_comments = CLOSED_MARKUP_COMMENT_RE.sub("", source)
             suffix = candidate.suffix.lower()
             if suffix in {".js", ".ts"}:
                 javascript = mask_javascript_comments_and_regex_literals(

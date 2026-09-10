@@ -124,7 +124,8 @@ class SceneQuestAgentContractTests(unittest.TestCase):
         )
         self.assertIn(
             "python skills/rokid-aiui-agent/scripts/validate_aiui_project.py "
-            "examples/scenequest-agent --target-version 0.17.0 --strict",
+            "examples/scenequest-agent --target-version 0.17.0 "
+            "--repository-root . --strict",
             strict_step["run"],
         )
 
@@ -185,7 +186,8 @@ class SceneQuestAgentContractTests(unittest.TestCase):
             "Ref: main",
             "Directory: examples/scenequest-agent",
             "python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py "
-            "examples/scenequest-agent --target-version 0.17.0 --strict",
+            "examples/scenequest-agent --target-version 0.17.0 "
+            "--repository-root . --strict",
             "bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "
             "examples/scenequest-agent",
             '"$AIX_BIN" preview examples/scenequest-agent '
