@@ -71,12 +71,12 @@ jobs:
 
       - name: Validate importable AIUI projects strictly
         run: |
-          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --strict
-          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-widget-worker --target-version 0.18.0 --strict
-          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
-          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
-          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --strict
-          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/scenequest-agent --target-version 0.17.0 --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --repository-root . --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-widget-worker --target-version 0.18.0 --repository-root . --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --repository-root . --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --repository-root . --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --repository-root . --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/scenequest-agent --target-version 0.17.0 --repository-root . --strict
 
       - name: Verify references
         run: python skills/rokid-aiui-agent/scripts/verify_references.py .

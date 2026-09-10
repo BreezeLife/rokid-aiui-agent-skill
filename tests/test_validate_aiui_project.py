@@ -167,6 +167,149 @@ class ValidatorGeneratedProjectTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(code, diagnostic_codes(result))
 
+    def test_project_root_inside_reserved_directory_is_rejected(self) -> None:
+        for reserved in (".git", ".Git", ".aiui-evidence", ".AIUI-EVIDENCE"):
+            with self.subTest(reserved=reserved), self.make_project() as directory:
+                project = Path(directory) / reserved / "project"
+                project.mkdir(parents=True)
+                self.write_support_files(project)
+                (project / "app.json").write_text(
+                    '{"pages":["pages/index/index"]}\n', encoding="utf-8"
+                )
+                self.write_page(project)
+
+                self.assert_json_error(project, "RESERVED_PROJECT_ROOT")
+
+    def test_explicit_repository_root_reserves_only_its_top_level_aliases(self) -> None:
+        with self.make_project() as directory:
+            repository = Path(directory) / "repository"
+            project = repository / "examples" / "agent"
+            project.mkdir(parents=True)
+            self.write_support_files(project)
+            nested_page = project / ".aiui-evidence" / "index.ink"
+            nested_page.parent.mkdir()
+            nested_page.write_text(
+                "<page><view>Nested source</view></page>\n", encoding="utf-8"
+            )
+            (project / "app.json").write_text(
+                json.dumps({"pages": [".aiui-evidence/index"]}),
+                encoding="utf-8",
+            )
+
+            result = run_validator(
+                project,
+                "--repository-root",
+                str(repository),
+                "--strict",
+                "--json",
+            )
+
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+            repository_evidence = repository / ".AIUI-EVIDENCE"
+            repository_evidence.mkdir()
+            secret = repository_evidence / "secret.json"
+            secret.write_text('{"secret":true}\n', encoding="utf-8")
+            (project / "app.js").write_text(
+                f"const secret = {json.dumps(str(secret))};\nexport default {{}};\n",
+                encoding="utf-8",
+            )
+            absolute_runtime_reference = run_validator(
+                project,
+                "--repository-root",
+                str(repository),
+                "--strict",
+                "--json",
+            )
+            self.assertEqual(1, absolute_runtime_reference.returncode)
+            self.assertIn(
+                "RESERVED_AUDIT_REFERENCE",
+                diagnostic_codes(absolute_runtime_reference),
+            )
+
+            self.write_support_files(project)
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": [".aiui-evidence/index"],
+                        "auditConfig": str(secret),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            absolute_manifest_reference = run_validator(
+                project,
+                "--repository-root",
+                str(repository),
+                "--strict",
+                "--json",
+            )
+            self.assertEqual(1, absolute_manifest_reference.returncode)
+            self.assertIn(
+                "RESERVED_AUDIT_REFERENCE",
+                diagnostic_codes(absolute_manifest_reference),
+            )
+
+            (project / "app.json").write_text(
+                json.dumps({"pages": [".aiui-evidence/index"]}),
+                encoding="utf-8",
+            )
+            (repository_evidence / "hidden.js").write_text(
+                "export default {};\n", encoding="utf-8"
+            )
+            rejected = run_validator(
+                project,
+                "--repository-root",
+                str(repository),
+                "--strict",
+                "--json",
+            )
+            self.assertEqual(1, rejected.returncode)
+            self.assertIn("RESERVED_AUDIT_SOURCE", diagnostic_codes(rejected))
+
+    def test_static_absolute_evidence_path_composition_is_rejected(self) -> None:
+        with self.make_project() as directory:
+            repository = Path(directory) / "repository with spaces"
+            project = repository / "examples" / "agent"
+            project.mkdir(parents=True)
+            self.write_support_files(project)
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            evidence = repository / ".aiui-evidence"
+            evidence.mkdir()
+            absolute_prefix = str(repository) + "/"
+            sources = (
+                "const path = "
+                + json.dumps(absolute_prefix)
+                + " + '.aiui-' + 'evidence/device proof.json';\n"
+                + "export default {};\n",
+                "const path = `${("
+                + json.dumps(str(repository))
+                + ")}/.aiui-evidence/device proof.json`;\n"
+                + "export default {};\n",
+                "const path = `${"
+                + json.dumps(absolute_prefix)
+                + " + ''}.aiui-evidence/device proof.json`;\n"
+                + "export default {};\n",
+            )
+
+            for source in sources:
+                with self.subTest(source=source.splitlines()[0]):
+                    (project / "app.js").write_text(source, encoding="utf-8")
+                    result = run_validator(
+                        project,
+                        "--repository-root",
+                        str(repository),
+                        "--strict",
+                        "--json",
+                    )
+                    self.assertEqual(1, result.returncode)
+                    self.assertIn(
+                        "RESERVED_AUDIT_REFERENCE", diagnostic_codes(result)
+                    )
+
     def test_app_json_missing_malformed_and_non_object_are_errors(self) -> None:
         cases = (
             (None, "APP_JSON_MISSING"),
@@ -210,6 +353,11 @@ class ValidatorGeneratedProjectTests(unittest.TestCase):
                     "pages\\windows\\page",
                     "pages/./dot/page",
                     "pages/../parent/page",
+                    ".aiui-evidence/page",
+                    ".git/page",
+                    ".Git/page",
+                    "pages/.aiui-evidence/page",
+                    "pages/.AIUI-EVIDENCE/page",
                 ]
             }
             (project / "app.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -217,7 +365,217 @@ class ValidatorGeneratedProjectTests(unittest.TestCase):
             result = run_validator(project, "--json")
 
             self.assertEqual(result.returncode, 1)
-            self.assertGreaterEqual(diagnostic_codes(result).count("PAGE_ROUTE_UNSAFE"), 4)
+            codes = diagnostic_codes(result)
+            self.assertEqual(7, codes.count("PAGE_ROUTE_UNSAFE"))
+            self.assertEqual(2, codes.count("PAGE_ROUTE_NOT_FOUND"))
+
+    def test_audit_evidence_directory_cannot_carry_runtime_source(self) -> None:
+        with self.make_project() as directory:
+            project = Path(directory)
+            self.write_support_files(project)
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            evidence_source = project / ".aiui-evidence" / "hidden.js"
+            evidence_source.parent.mkdir()
+            evidence_source.write_text(
+                "fetch('https://example.invalid');\n", encoding="utf-8"
+            )
+
+            result = run_validator(project, "--json")
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("RESERVED_AUDIT_SOURCE", diagnostic_codes(result))
+
+            evidence_source.unlink()
+            (evidence_source.parent / "config.json").write_text(
+                '{"endpoint":"https://example.invalid"}\n', encoding="utf-8"
+            )
+            page = project / "pages/index/index.ink"
+            page.write_text(
+                "<page><view>OK</view><script>"
+                "const config = '.aiui-evidence/config.json';"
+                "</script></page>\n",
+                encoding="utf-8",
+            )
+
+            referenced = run_validator(project, "--json")
+            self.assertEqual(referenced.returncode, 1)
+            self.assertIn("RESERVED_AUDIT_REFERENCE", diagnostic_codes(referenced))
+
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": ["pages/index/index"],
+                        "usingComponents": {
+                            "hidden": ".aiui-evidence/components/hidden"
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest_reference = run_validator(project, "--json")
+            self.assertEqual(manifest_reference.returncode, 1)
+            self.assertIn(
+                "RESERVED_AUDIT_REFERENCE", diagnostic_codes(manifest_reference)
+            )
+
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": ["pages/index/index"],
+                        "usingComponents": {
+                            "hidden": ".AIUI-EVIDENCE/components/hidden"
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            mixed_case_reference = run_validator(project, "--json")
+            self.assertEqual(mixed_case_reference.returncode, 1)
+            self.assertIn(
+                "RESERVED_AUDIT_REFERENCE", diagnostic_codes(mixed_case_reference)
+            )
+
+    def test_audit_evidence_root_cannot_be_a_symlink(self) -> None:
+        with self.make_project() as directory:
+            project = Path(directory) / "project"
+            project.mkdir()
+            self.write_support_files(project)
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            outside = Path(directory) / "external-evidence"
+            outside.mkdir()
+            (project / ".aiui-evidence").symlink_to(outside, target_is_directory=True)
+
+            result = run_validator(project, "--json")
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("RESERVED_AUDIT_SOURCE", diagnostic_codes(result))
+
+    def test_audit_evidence_root_must_be_a_directory(self) -> None:
+        with self.make_project() as directory:
+            project = Path(directory)
+            self.write_support_files(project)
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            (project / ".aiui-evidence").write_text(
+                "ordinary file cannot act as an evidence directory\n",
+                encoding="utf-8",
+            )
+
+            result = run_validator(project, "--json")
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("RESERVED_AUDIT_SOURCE", diagnostic_codes(result))
+
+    def test_mixed_case_audit_evidence_cannot_carry_runtime_source(self) -> None:
+        with self.make_project() as directory:
+            project = Path(directory)
+            self.write_support_files(project)
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            hidden = project / ".AIUI-EVIDENCE" / "hidden.js"
+            hidden.parent.mkdir()
+            hidden.write_text("export default {};\n", encoding="utf-8")
+
+            result = run_validator(project, "--json")
+
+            self.assertEqual(1, result.returncode)
+            self.assertIn("RESERVED_AUDIT_SOURCE", diagnostic_codes(result))
+
+    def test_reserved_evidence_word_in_source_comment_is_not_a_reference(self) -> None:
+        with self.make_project() as directory:
+            project = Path(directory)
+            self.write_support_files(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            page = project / "pages/index/index.ink"
+            page.parent.mkdir(parents=True)
+            page.write_text(
+                "<page><view>OK</view><script>"
+                "// Audit captures live under .aiui-evidence/.\n"
+                "export default {};"
+                "</script></page>\n",
+                encoding="utf-8",
+            )
+
+            result = run_validator(project, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_runtime_source_cannot_reference_repository_metadata(self) -> None:
+        with self.make_project() as directory:
+            project = Path(directory)
+            self.write_support_files(project)
+            self.write_page(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            sources = (
+                "const value = '../.git/config';\nexport default {};\n",
+                "const value = '../.AIUI-EVIDENCE/device.log';\nexport default {};\n",
+                r"const value = './.aiui\x2devidence/device.log';" + "\nexport default {};\n",
+                r"const value = './.aiui\u002devidence/device.log';" + "\nexport default {};\n",
+                r"const value = './.aiui\u{2d}evidence/device.log';" + "\nexport default {};\n",
+                "const value = '.aiui-' + 'evidence/device.log';\nexport default {};\n",
+                "const value = '.aiui-\\\nevidence/device.log';\nexport default {};\n",
+                "const value = '.aiui-' + ('evidence/device.log');\nexport default {};\n",
+                "const value = `.aiui-${'evidence'}/device.log`;\nexport default {};\n",
+            )
+            for source in sources:
+                with self.subTest(source=source.splitlines()[0]):
+                    (project / "app.js").write_text(source, encoding="utf-8")
+                    referenced = run_validator(project, "--strict", "--json")
+                    self.assertEqual(1, referenced.returncode)
+                    self.assertIn(
+                        "RESERVED_AUDIT_REFERENCE", diagnostic_codes(referenced)
+                    )
+
+    def test_runtime_reference_normalization_does_not_compact_markup_or_styles(self) -> None:
+        with self.make_project() as directory:
+            project = Path(directory)
+            self.write_support_files(project)
+            (project / "app.json").write_text(
+                json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
+            )
+            page = project / "pages/index/index.ink"
+            page.parent.mkdir(parents=True)
+            page.write_text(
+                "<page><text>.aiui- evidence</text>"
+                "<style>.aiui- evidence { color: green; }</style></page>\n",
+                encoding="utf-8",
+            )
+
+            result = run_validator(project, "--strict", "--json")
+
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+            self.write_page(project)
+            allowed_javascript = (
+                "const label = '.aiui- evidence';\nexport default {};\n",
+                r"const pattern = /\.git\//;" + "\nexport default {};\n",
+                r"const pattern = /\.aiui-evidence\//;" + "\nexport default {};\n",
+            )
+            for source in allowed_javascript:
+                with self.subTest(source=source.splitlines()[0]):
+                    (project / "app.js").write_text(source, encoding="utf-8")
+                    accepted = run_validator(project, "--strict", "--json")
+                    self.assertEqual(
+                        0,
+                        accepted.returncode,
+                        accepted.stdout + accepted.stderr,
+                    )
 
     def test_widget_and_worker_collections_must_be_lists(self) -> None:
         with self.make_project() as directory:

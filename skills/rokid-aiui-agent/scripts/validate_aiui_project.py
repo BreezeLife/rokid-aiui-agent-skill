@@ -25,6 +25,271 @@ WX_TEMPLATE_CONTROL_RE = re.compile(
     r"wx:(?:if|elif|else|for|for-item|for-index|key)",
     re.IGNORECASE,
 )
+RESERVED_PATH_NAMES = frozenset({".git", ".aiui-evidence"})
+RESERVED_SOURCE_REFERENCE_RE = re.compile(
+    r"(?<![A-Za-z0-9_.-])(?:\.git|\.aiui-evidence)"
+    r"(?:[\\/]|(?![A-Za-z0-9_.-]))",
+    re.IGNORECASE,
+)
+RUNTIME_RESERVED_PATH_RE = re.compile(
+    r"(?P<path>(?:(?:\.\.?)[\\/])*(?P<segment>\.git|\.aiui-evidence)"
+    r"(?:[\\/][A-Za-z0-9_.-]+)*)",
+    re.IGNORECASE,
+)
+JS_ASCII_ESCAPE_RE = re.compile(
+    r"\\x(?P<hex>[0-9A-Fa-f]{2})|"
+    r"\\u(?P<unicode>[0-9A-Fa-f]{4})|"
+    r"\\u\{(?P<braced>[0-9A-Fa-f]{1,6})\}"
+)
+
+
+def mask_code_comments(source: str) -> str:
+    """Blank JS-style comments while retaining strings and line boundaries."""
+
+    output = list(source)
+    state = "code"
+    index = 0
+    while index < len(source):
+        character = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if state == "code":
+            if character == "'":
+                state = "single"
+            elif character == '"':
+                state = "double"
+            elif character == "`":
+                state = "template"
+            elif character == "/" and following == "/":
+                output[index] = output[index + 1] = " "
+                state = "line-comment"
+                index += 1
+            elif character == "/" and following == "*":
+                output[index] = output[index + 1] = " "
+                state = "block-comment"
+                index += 1
+        elif state == "line-comment":
+            if character == "\n":
+                state = "code"
+            else:
+                output[index] = " "
+        elif state == "block-comment":
+            if character == "*" and following == "/":
+                output[index] = output[index + 1] = " "
+                state = "code"
+                index += 1
+            elif character != "\n":
+                output[index] = " "
+        elif character == "\\":
+            index += 1
+        elif (
+            (state == "single" and character == "'")
+            or (state == "double" and character == '"')
+            or (state == "template" and character == "`")
+        ):
+            state = "code"
+        index += 1
+    return "".join(output)
+
+
+def mask_javascript_regex_literals(source: str) -> str:
+    """Mask regex literals without changing strings, offsets, or newlines."""
+
+    structure = list(source)
+    state = "code"
+    index = 0
+    while index < len(source):
+        character = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if state == "code":
+            if character == "'":
+                structure[index] = " "
+                state = "single"
+            elif character == '"':
+                structure[index] = " "
+                state = "double"
+            elif character == "`":
+                structure[index] = " "
+                state = "template"
+            elif character == "/" and following == "/":
+                structure[index] = structure[index + 1] = " "
+                state = "line-comment"
+                index += 1
+            elif character == "/" and following == "*":
+                structure[index] = structure[index + 1] = " "
+                state = "block-comment"
+                index += 1
+        elif state == "line-comment":
+            if character == "\n":
+                state = "code"
+            else:
+                structure[index] = " "
+        elif state == "block-comment":
+            if character == "*" and following == "/":
+                structure[index] = structure[index + 1] = " "
+                state = "code"
+                index += 1
+            elif character != "\n":
+                structure[index] = " "
+        else:
+            structure[index] = "\n" if character == "\n" else " "
+            if character == "\\":
+                index += 1
+                if index < len(source) and source[index] != "\n":
+                    structure[index] = " "
+            elif (
+                (state == "single" and character == "'")
+                or (state == "double" and character == '"')
+                or (state == "template" and character == "`")
+            ):
+                state = "code"
+        index += 1
+
+    code = "".join(structure)
+    output = list(source)
+    regex_literal = re.compile(
+        r"/(?:\\[^\r\n]|\[(?:\\[^\r\n]|[^\]\\\r\n])*\]|[^/\\\[\r\n])+/[A-Za-z]*"
+    )
+    expression_punctuation = frozenset("([{:,;=!?&|+-*%^~<>")
+    expression_prefixes = re.compile(
+        r"(?:^|[^A-Za-z0-9_$])(?:await|case|delete|do|else|in|instanceof|new|"
+        r"of|return|throw|typeof|void|yield)\s*$"
+    )
+    for match in regex_literal.finditer(code):
+        previous = match.start() - 1
+        while previous >= 0 and code[previous].isspace():
+            previous -= 1
+        if not (
+            previous < 0
+            or code[previous] in expression_punctuation
+            or expression_prefixes.search(code[: match.start()]) is not None
+        ):
+            continue
+        for offset in range(match.start(), match.end()):
+            if output[offset] != "\n":
+                output[offset] = " "
+    return "".join(output)
+
+
+def mask_javascript_comments_and_regex_literals(source: str) -> str:
+    """Mask comments and context-recognizable regex while preserving strings."""
+
+    output = list(source)
+    regex_literal = re.compile(
+        r"/(?:\\[^\r\n]|\[(?:\\[^\r\n]|[^\]\\\r\n])*\]|[^/\\\[\r\n])+/[A-Za-z]*"
+    )
+    expression_punctuation = frozenset("([{:,;=!?&|+-*%^~<>")
+    expression_prefixes = re.compile(
+        r"(?:^|[^A-Za-z0-9_$])(?:await|case|delete|do|else|in|instanceof|new|"
+        r"of|return|throw|typeof|void|yield)\s*$"
+    )
+
+    def regex_can_start(offset: int) -> bool:
+        previous = offset - 1
+        while previous >= 0 and source[previous].isspace():
+            previous -= 1
+        return bool(
+            previous < 0
+            or source[previous] in expression_punctuation
+            or expression_prefixes.search(source[:offset]) is not None
+        )
+
+    state = "code"
+    index = 0
+    while index < len(source):
+        character = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if state == "code":
+            if character == "'":
+                state = "single"
+            elif character == '"':
+                state = "double"
+            elif character == "`":
+                state = "template"
+            elif character == "/" and following == "/":
+                output[index] = output[index + 1] = " "
+                state = "line-comment"
+                index += 1
+            elif character == "/" and following == "*":
+                output[index] = output[index + 1] = " "
+                state = "block-comment"
+                index += 1
+            elif character == "/" and regex_can_start(index):
+                match = regex_literal.match(source, index)
+                if match is not None:
+                    for offset in range(match.start(), match.end()):
+                        if output[offset] != "\n":
+                            output[offset] = " "
+                    index = match.end() - 1
+        elif state == "line-comment":
+            if character == "\n":
+                state = "code"
+            else:
+                output[index] = " "
+        elif state == "block-comment":
+            if character == "*" and following == "/":
+                output[index] = output[index + 1] = " "
+                state = "code"
+                index += 1
+            elif character != "\n":
+                output[index] = " "
+        elif character == "\\":
+            index += 1
+        elif (
+            (state == "single" and character == "'")
+            or (state == "double" and character == '"')
+            or (state == "template" and character == "`")
+        ):
+            state = "code"
+        index += 1
+    return "".join(output)
+
+
+def normalize_runtime_reference_text(
+    source: str, *, compose_javascript_literals: bool = True
+) -> str:
+    """Expose simple runtime path spellings without executing JavaScript."""
+
+    if not compose_javascript_literals:
+        return source
+
+    def decode_escape(match: re.Match[str]) -> str:
+        digits = next(value for value in match.groupdict().values() if value is not None)
+        codepoint = int(digits, 16)
+        return chr(codepoint) if codepoint <= 0x7F else match.group(0)
+
+    normalized = re.sub(r"\\(?:\r\n|\r|\n)", "", source)
+    normalized = JS_ASCII_ESCAPE_RE.sub(decode_escape, normalized)
+
+    simple_string_concatenation = re.compile(
+        r"(?P<left_quote>['\"`])(?P<left>[^'\"`\\$]*)(?P=left_quote)"
+        r"\s*\)*\s*\+\s*\(*\s*"
+        r"(?P<right_quote>['\"`])(?P<right>[^'\"`\\$]*)(?P=right_quote)"
+    )
+
+    def compose_simple_strings(match: re.Match[str]) -> str:
+        return json.dumps(match.group("left") + match.group("right"))
+
+    previous = None
+    while normalized != previous:
+        previous = normalized
+        normalized = simple_string_concatenation.sub(
+            compose_simple_strings, normalized
+        )
+
+    simple_template_interpolation = re.compile(
+        r"\$\{\s*\(*\s*(?P<quote>['\"`])"
+        r"(?P<value>[^'\"`\\$]*)(?P=quote)\s*\)*\s*\}"
+    )
+    normalized = simple_template_interpolation.sub(
+        lambda match: match.group("value"), normalized
+    )
+    previous = None
+    while normalized != previous:
+        previous = normalized
+        normalized = re.sub(
+            r"['\"`]\s*\)*\s*\+\s*\(*\s*['\"`]", "", normalized
+        )
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -39,10 +304,21 @@ class Diagnostic:
 
 
 class AIUIProjectValidator:
-    def __init__(self, project_dir: Path, target_version: str = "0.17.0") -> None:
-        self.project_dir = project_dir
+    def __init__(
+        self,
+        project_dir: Path,
+        target_version: str = "0.17.0",
+        repository_root: Optional[Path] = None,
+    ) -> None:
+        self.project_dir = project_dir.resolve()
         self.target_version = target_version
         self.target_version_tuple = parse_version_tuple(target_version)
+        self.repository_root_was_explicit = repository_root is not None
+        self.repository_root = (
+            repository_root.resolve()
+            if repository_root is not None
+            else self.project_dir
+        )
         self.diagnostics: List[Diagnostic] = []
 
     def error(self, code: str, path: str, message: str) -> None:
@@ -55,6 +331,38 @@ class AIUIProjectValidator:
         if not self.project_dir.is_dir():
             self.error("PROJECT_DIR_NOT_FOUND", ".", "project directory does not exist.")
             return self.diagnostics
+        if not self.repository_root.is_dir():
+            self.error(
+                "REPOSITORY_ROOT_NOT_FOUND",
+                ".",
+                "repository root is not a directory.",
+            )
+            return self.diagnostics
+        try:
+            repository_relative_root = self.project_dir.relative_to(self.repository_root)
+        except ValueError:
+            self.error(
+                "PROJECT_OUTSIDE_REPOSITORY",
+                ".",
+                "project directory must stay inside the repository root.",
+            )
+            return self.diagnostics
+        root_is_reserved = bool(
+            repository_relative_root.parts
+            and repository_relative_root.parts[0].lower() in RESERVED_PATH_NAMES
+        )
+        if not self.repository_root_was_explicit:
+            root_is_reserved = any(
+                part.lower() in RESERVED_PATH_NAMES
+                for part in self.project_dir.parts
+            )
+        if root_is_reserved:
+            self.error(
+                "RESERVED_PROJECT_ROOT",
+                ".",
+                "project directory cannot be inside reserved repository or audit paths.",
+            )
+            return self.diagnostics
 
         self._validate_recommended_files()
         self._validate_reserved_paths()
@@ -62,11 +370,59 @@ class AIUIProjectValidator:
         if manifest is None:
             return self.diagnostics
 
+        self._validate_manifest_reserved_references(manifest)
         self._validate_target_features(manifest)
         self._validate_pages(manifest)
         self._validate_widgets(manifest)
         self._validate_workers(manifest)
         return self.diagnostics
+
+    def _is_reserved_repository_path(self, path: Path) -> bool:
+        try:
+            relative = path.resolve().relative_to(self.repository_root)
+        except (OSError, ValueError):
+            return False
+        return bool(
+            relative.parts and relative.parts[0].lower() in RESERVED_PATH_NAMES
+        )
+
+    def _manifest_value_enters_reserved_path(self, value: str) -> bool:
+        if RESERVED_SOURCE_REFERENCE_RE.search(value) is None:
+            return False
+        normalized_value = value.replace("\\", "/")
+        unresolved = Path(normalized_value)
+        candidate = unresolved if unresolved.is_absolute() else self.project_dir / unresolved
+        return self._is_reserved_repository_path(candidate)
+
+    def _runtime_text_enters_reserved_path(self, value: str, source: Path) -> bool:
+        for match in RUNTIME_RESERVED_PATH_RE.finditer(value):
+            literal_start = max(
+                value.rfind(quote, 0, match.start()) for quote in ("'", '"', "`")
+            )
+            if literal_start >= 0:
+                quote = value[literal_start]
+                literal_end = value.find(quote, match.end())
+                if literal_end >= 0:
+                    literal_value = value[literal_start + 1 : literal_end]
+                    literal_path = Path(literal_value)
+                    if literal_path.is_absolute():
+                        return True
+            unresolved = Path(match.group("path").replace("\\", "/"))
+            candidates = (
+                unresolved
+                if unresolved.is_absolute()
+                else self.project_dir / unresolved,
+                unresolved if unresolved.is_absolute() else source.parent / unresolved,
+            )
+            for candidate in candidates:
+                resolved = candidate.resolve()
+                try:
+                    resolved.relative_to(self.repository_root)
+                except ValueError:
+                    return True
+                if self._is_reserved_repository_path(resolved):
+                    return True
+        return False
 
     def _validate_target_features(self, manifest: Dict[str, Any]) -> None:
         if self.target_version_tuple >= (0, 18, 0):
@@ -83,6 +439,28 @@ class AIUIProjectValidator:
                 "app.json",
                 "agentWorkers require AIUI 0.18.0 or newer; "
                 f"target is {self.target_version}.",
+            )
+
+    def _validate_manifest_reserved_references(
+        self, value: Any, pointer: str = "app.json"
+    ) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                self._validate_manifest_reserved_references(
+                    child, f"{pointer}.{key}"
+                )
+            return
+        if isinstance(value, list):
+            for index, child in enumerate(value):
+                self._validate_manifest_reserved_references(
+                    child, f"{pointer}[{index}]"
+                )
+            return
+        if isinstance(value, str) and self._manifest_value_enters_reserved_path(value):
+            self.error(
+                "RESERVED_AUDIT_REFERENCE",
+                "app.json",
+                f"{pointer} cannot reference a reserved repository or audit path.",
             )
 
     def _validate_recommended_files(self) -> None:
@@ -150,6 +528,87 @@ class AIUIProjectValidator:
                     "path is reserved for generated AIX package metadata.",
                 )
 
+        runtime_suffixes = {".ink", ".js", ".ts", ".wxml", ".wxss"}
+        evidence_roots = [
+            candidate
+            for candidate in self.repository_root.iterdir()
+            if candidate.name.lower() == ".aiui-evidence"
+        ]
+        for evidence_root in evidence_roots:
+            if evidence_root.is_symlink():
+                self.error(
+                    "RESERVED_AUDIT_SOURCE",
+                    evidence_root.name,
+                    "the audit evidence root cannot be a symlink.",
+                )
+                continue
+            if not evidence_root.is_dir():
+                self.error(
+                    "RESERVED_AUDIT_SOURCE",
+                    evidence_root.name,
+                    "the audit evidence root must be a directory.",
+                )
+                continue
+            for candidate in evidence_root.rglob("*"):
+                if candidate.is_symlink():
+                    self.error(
+                        "RESERVED_AUDIT_SOURCE",
+                        relative_path(candidate, self.repository_root),
+                        "the audit evidence directory cannot contain symlinks or runtime source.",
+                    )
+                elif candidate.is_file() and candidate.suffix.lower() in runtime_suffixes:
+                    self.error(
+                        "RESERVED_AUDIT_SOURCE",
+                        relative_path(candidate, self.repository_root),
+                        "the audit evidence directory cannot contain AIUI runtime source.",
+                    )
+
+        for candidate in self.project_dir.rglob("*"):
+            if not candidate.is_file() or candidate.suffix.lower() not in runtime_suffixes:
+                continue
+            relative = candidate.relative_to(self.project_dir)
+            if self._is_reserved_repository_path(candidate):
+                continue
+            try:
+                source = candidate.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                continue
+            source_without_markup_comments = COMMENT_RE.sub("", source)
+            suffix = candidate.suffix.lower()
+            if suffix in {".js", ".ts"}:
+                javascript = mask_javascript_comments_and_regex_literals(
+                    source_without_markup_comments
+                )
+                reference_views = [normalize_runtime_reference_text(javascript)]
+            elif suffix == ".ink":
+                markup = list(source_without_markup_comments)
+                scripts = SCRIPT_BLOCK_RE.findall(source_without_markup_comments)
+                for match in SCRIPT_BLOCK_RE.finditer(source_without_markup_comments):
+                    body_start, body_end = match.span(2)
+                    markup[body_start:body_end] = [
+                        "\n" if character == "\n" else " "
+                        for character in source_without_markup_comments[body_start:body_end]
+                    ]
+                reference_views = [mask_code_comments("".join(markup))]
+                reference_views.extend(
+                    normalize_runtime_reference_text(
+                        mask_javascript_comments_and_regex_literals(content)
+                    )
+                    for _, content in scripts
+                )
+            else:
+                reference_views = [mask_code_comments(source_without_markup_comments)]
+            if any(
+                RESERVED_SOURCE_REFERENCE_RE.search(reference_text)
+                and self._runtime_text_enters_reserved_path(reference_text, candidate)
+                for reference_text in reference_views
+            ):
+                self.error(
+                    "RESERVED_AUDIT_REFERENCE",
+                    relative.as_posix(),
+                    "AIUI runtime source cannot reference reserved repository or audit paths.",
+                )
+
     def _load_manifest(self) -> Optional[Dict[str, Any]]:
         path = self.project_dir / "app.json"
         if not path.is_file():
@@ -210,6 +669,14 @@ class AIUIProjectValidator:
                     "PAGE_ROUTE_UNSAFE",
                     "app.json",
                     f"page route {route!r} must be a safe extensionless relative path.",
+                )
+                continue
+
+            if self._is_reserved_repository_path(self.project_dir / route):
+                self.error(
+                    "PAGE_ROUTE_UNSAFE",
+                    "app.json",
+                    f"page route {route!r} cannot enter a reserved repository path.",
                 )
                 continue
 
@@ -276,6 +743,13 @@ class AIUIProjectValidator:
                     "WIDGET_PATH_UNSAFE",
                     "app.json",
                     f"widget path {route!r} must be a safe extensionless relative path.",
+                )
+            elif self._is_reserved_repository_path(self.project_dir / route):
+                route_valid = False
+                self.error(
+                    "WIDGET_PATH_UNSAFE",
+                    "app.json",
+                    f"widget path {route!r} cannot enter a reserved repository path.",
                 )
 
             if family not in ("1x1", "1x2"):
@@ -353,6 +827,13 @@ class AIUIProjectValidator:
                         "WORKER_SCRIPT_UNSAFE",
                         "app.json",
                         f"worker script {script!r} must be a safe relative path.",
+                    )
+                elif self._is_reserved_repository_path(self.project_dir / script):
+                    script_valid = False
+                    self.error(
+                        "WORKER_SCRIPT_UNSAFE",
+                        "app.json",
+                        f"worker script {script!r} cannot enter a reserved repository path.",
                     )
                 if PurePosixPath(script).suffix not in (".js", ".ts"):
                     script_valid = False
@@ -814,6 +1295,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("PROJECT_DIR", type=Path, help="AIUI project directory")
     parser.add_argument(
+        "--repository-root",
+        type=Path,
+        help=(
+            "repository boundary that owns top-level .git and .aiui-evidence; "
+            "defaults to PROJECT_DIR"
+        ),
+    )
+    parser.add_argument(
         "--strict", action="store_true", help="return exit status 1 when warnings exist"
     )
     parser.add_argument("--json", action="store_true", help="emit JSON diagnostics")
@@ -829,7 +1318,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
-    validator = AIUIProjectValidator(args.PROJECT_DIR, args.target_version)
+    validator = AIUIProjectValidator(
+        args.PROJECT_DIR,
+        args.target_version,
+        repository_root=args.repository_root,
+    )
     diagnostics = validator.validate()
     error_count = sum(item.severity == "ERROR" for item in diagnostics)
     warning_count = sum(item.severity == "WARNING" for item in diagnostics)

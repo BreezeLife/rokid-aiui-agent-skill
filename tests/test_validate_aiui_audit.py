@@ -103,6 +103,15 @@ CAP_LAYERS = {
     "event.bindtap": ("SOURCE", "STATIC", "LOGIC", "AIX", "STUDIO", "DEVICE"),
     "ui.button": ("SOURCE", "STATIC", "AIX", "STUDIO", "DEVICE"),
     "input.enter": ("SOURCE", "STATIC", "LOGIC", "STUDIO", "DEVICE"),
+    "input.key.unknown": ("SOURCE", "STATIC", "LOGIC", "STUDIO", "DEVICE"),
+    "input.voice.unknown": ("SOURCE", "STATIC", "LOGIC", "STUDIO", "DEVICE"),
+    "input.gesture-fallback.unknown": (
+        "SOURCE",
+        "STATIC",
+        "LOGIC",
+        "STUDIO",
+        "DEVICE",
+    ),
     "network.https": ("SOURCE", "STATIC", "LOGIC", "AIX", "STUDIO", "DEVICE"),
     "widget.declaration": ("SOURCE", "STATIC", "LOGIC", "AIX", "STUDIO", "DEVICE"),
     "agent-worker.declaration": ("SOURCE", "STATIC", "LOGIC", "AIX", "STUDIO", "DEVICE"),
@@ -117,6 +126,9 @@ CAP_IDS = {
     "event.bindtap": "CAP-BINDTAP",
     "ui.button": "CAP-BUTTON",
     "input.enter": "CAP-INPUT-ENTER",
+    "input.key.unknown": "CAP-INPUT-KEY",
+    "input.voice.unknown": "CAP-VOICE",
+    "input.gesture-fallback.unknown": "CAP-GESTURE-FALLBACK",
     "network.https": "CAP-NETWORK-HTTPS",
     "widget.declaration": "CAP-WIDGET-DECLARATION",
     "agent-worker.declaration": "CAP-AGENT-WORKER-DECLARATION",
@@ -137,6 +149,15 @@ SOURCE_PATHS = {
         ("SAMPLE", "samples/capabilities/pages/close/index.ink"),
     ),
     "input.enter": (("DOC", "documentation/1-framework/open-agent-format/page-events.en-US.md"),),
+    "input.key.unknown": (("DOC", "documentation/1-framework/open-agent-format/page-events.en-US.md"),),
+    "input.voice.unknown": (
+        ("SEARCH-SCOPE", "documentation/1-framework/open-agent-format"),
+        ("SEARCH-SCOPE", "documentation/3-api/ai"),
+    ),
+    "input.gesture-fallback.unknown": (
+        ("SEARCH-SCOPE", "documentation/1-framework/open-agent-format"),
+        ("SEARCH-SCOPE", "documentation/2-components"),
+    ),
     "network.https": (
         ("DOC", "documentation/3-api/network/https.en-US.md"),
         ("SAMPLE", "samples/capabilities/pages/network_https/index.ink"),
@@ -173,6 +194,21 @@ CAP_BEHAVIORS = {
         "One owned Enter input invokes the intended action exactly once",
         "Ignored or repeated Enter input preserves host defaults and a non-key fallback",
         "Hide/show and unload do not retain stale Enter handling",
+    ),
+    "input.key.unknown": (
+        "The intended key input performs exactly one owned action",
+        "Unknown, ignored, or repeated key delivery preserves host defaults and a non-key fallback",
+        "Hide/show and unload do not retain stale key handling",
+    ),
+    "input.voice.unknown": (
+        "The declared product intent is delivered once",
+        "No-match, unavailable, repeated, and ignored input use a non-voice fallback",
+        "Hide/show and unload do not retain stale voice work",
+    ),
+    "input.gesture-fallback.unknown": (
+        "The core task remains usable without the gesture sensor",
+        "Fallback failure leaves a clear exit without duplicate action",
+        "Fallback remains available after hide/show and reopen",
     ),
     "network.https": (
         "A successful HTTPS request updates only the current intended state",
@@ -288,6 +324,12 @@ class AuditFixture:
         self.root = root
         self.import_root = root / "project"
         (self.import_root / "pages/index").mkdir(parents=True)
+        (self.import_root / "AGENTS.md").write_text(
+            "# Audit fixture\n", encoding="utf-8"
+        )
+        (self.import_root / "app.js").write_text(
+            "export default {};\n", encoding="utf-8"
+        )
         (self.import_root / "app.json").write_text(
             json.dumps({"pages": ["pages/index/index"]}), encoding="utf-8"
         )
@@ -315,6 +357,8 @@ class AuditFixture:
                 str(self.import_root),
                 "--target-version",
                 self.target_version,
+                "--repository-root",
+                str(self.root),
             ],
             cwd=ROOT,
             text=True,
@@ -334,10 +378,11 @@ class AuditFixture:
                 if family == "UX-INPUT"
                 else [gate]
             )
-            for actual_gate in gates:
+            for gate_index, actual_gate in enumerate(gates, start=1):
+                identifier = family if len(gates) == 1 else f"{family}-GATE{gate_index}"
                 rows.append(
                     [
-                        f"[{family}] {{gate={actual_gate}}}",
+                        f"[{identifier}] {{gate={actual_gate}}}",
                         UX_CONTRACTS[family][0],
                         UX_CONTRACTS[family][1],
                         ux_criterion(family),
@@ -380,7 +425,8 @@ class AuditFixture:
             else:
                 source_cell = "; ".join(
                     f"{role}=[source](https://github.com/yodaos-project/AIUI/"
-                    f"blob/{source_revision}/{path})"
+                    f"{'tree' if role == 'SEARCH-SCOPE' else 'blob'}/"
+                    f"{source_revision}/{path})"
                     for role, path in SOURCE_PATHS[family]
                 )
             mechanism = str(item.get("mechanism", ""))
@@ -959,6 +1005,62 @@ class ValidateAiuiAuditTests(unittest.TestCase):
         self.temporary.cleanup()
         self.external_temporary.cleanup()
 
+    def test_cli_usage_errors_are_invalid_not_blocked_audits(self) -> None:
+        cases = (
+            [],
+            ["--unknown-audit-option"],
+        )
+        for arguments in cases:
+            with self.subTest(arguments=arguments):
+                completed = subprocess.run(
+                    [sys.executable, str(SCRIPT), *arguments],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(1, completed.returncode)
+                self.assertIn("usage:", completed.stderr.lower())
+
+    @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
+    def test_css_motion_cannot_be_scoped_to_na_or_release(self) -> None:
+        page = self.fixture.import_root / "pages/index/index.ink"
+        page.write_text(
+            '<page><button bindtap="handleTap">timer</button>'
+            '<style>@media (target: _current) {'
+            'button { transition: opacity 100ms; } }</style>'
+            '<script>export default { handleTap() {} };</script></page>\n',
+            encoding="utf-8",
+        )
+        (self.fixture.import_root / "aiui-audit-scope.json").write_text(
+            json.dumps({"schemaVersion": 1, "closed": True, "uxCriteria": []}),
+            encoding="utf-8",
+        )
+        self.fixture.report = self.fixture.inventory()
+        self.fixture.ux_rows = self.fixture.default_ux_rows()
+        self.fixture.cap_rows = self.fixture.default_capability_rows()
+        signers, policy = self.authority()
+        self.fixture.materialize_full_pass(signers)
+        row = next(
+            candidate
+            for candidate in self.fixture.ux_rows
+            if candidate[0].startswith("[UX-MOTION]")
+        )
+        source, claim = self.fixture.scope_locators(
+            row="UX-MOTION",
+            gate="motion-performance",
+            criterion=row[3],
+            signer=signers,
+        )
+        row[5] = "N/A"
+        row[6] = f"SCOPE: source={source}; claim={claim}"
+
+        completed = self.validate(self.fixture.render(), trust_policy=policy)
+
+        self.assertEqual(1, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("UX-MOTION", completed.stderr)
+        self.assertIn("applicable", completed.stderr.lower())
+
     def authority(self) -> tuple[SignerSet, Path]:
         signers: SignerSet = {}
         authorities = {}
@@ -1008,6 +1110,172 @@ class ValidateAiuiAuditTests(unittest.TestCase):
             encoding="utf-8",
         )
         return signers, policy
+
+    def test_case_alias_cannot_make_repository_owned_trust_material_external(self) -> None:
+        repository = self.repo / "RepoCase"
+        repository.mkdir()
+        internal_policy = repository / "policy.json"
+        internal_key = repository / "runner-public.pem"
+        internal_policy.write_text(
+            json.dumps({"schemaVersion": 1, "authorities": {}}), encoding="utf-8"
+        )
+        internal_key.write_text("not reached\n", encoding="utf-8")
+        alias_root = repository.with_name(repository.name.swapcase())
+        alias_policy = alias_root / internal_policy.name
+        alias_key = alias_root / internal_key.name
+        if not alias_policy.exists():
+            self.skipTest("case aliases require a case-insensitive filesystem")
+
+        namespace = runpy.run_path(str(SCRIPT))
+        error = namespace["AuditValidationError"]
+        load_policy = namespace["load_trust_policy"]
+        with self.assertRaisesRegex(error, "trust policy must be outside"):
+            load_policy(alias_policy, repository.resolve())
+
+        external_policy = self.external / "case-alias-policy.json"
+        external_policy.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "authorities": {
+                        "RUNNER": {
+                            "publicKeyPath": str(alias_key),
+                            "publicKeySha256": "0" * 64,
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(error, "public key must be outside"):
+            load_policy(external_policy, repository.resolve())
+
+    def test_commit_revision_includes_nested_same_named_evidence_directory(self) -> None:
+        repository = self.repo / "commit-repository"
+        project = repository / "examples" / "agent"
+        project.mkdir(parents=True)
+        (project / "app.json").write_text('{"pages":[]}\n', encoding="utf-8")
+
+        commands = (
+            ["git", "init", "--quiet"],
+            ["git", "add", "examples/agent/app.json"],
+            [
+                "git",
+                "-c",
+                "user.name=AIUI Test",
+                "-c",
+                "user.email=aiui-test@example.invalid",
+                "commit",
+                "--quiet",
+                "-m",
+                "fixture",
+            ],
+        )
+        for command in commands:
+            completed = subprocess.run(
+                command,
+                cwd=repository,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repository,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        nested_evidence = project / ".aiui-evidence"
+        nested_evidence.mkdir()
+        (nested_evidence / "hidden.js").write_text(
+            "fetch('https://example.invalid');\n", encoding="utf-8"
+        )
+
+        namespace = runpy.run_path(str(SCRIPT))
+        with self.assertRaises(namespace["AuditValidationError"]):
+            namespace["verify_commit_tree"](
+                repository.resolve(), project.resolve(), revision
+            )
+
+    def test_commit_revision_excludes_mixed_case_repository_evidence_root(self) -> None:
+        repository = self.repo / "case-evidence-repository"
+        repository.mkdir()
+        (repository / "app.json").write_text('{"pages":[]}\n', encoding="utf-8")
+        evidence = repository / ".AIUI-EVIDENCE"
+        evidence.mkdir()
+        capture = evidence / "capture.json"
+        capture.write_text("first\n", encoding="utf-8")
+        for command in (
+            ["git", "init", "--quiet"],
+            ["git", "add", "app.json", ".AIUI-EVIDENCE/capture.json"],
+            [
+                "git",
+                "-c",
+                "user.name=AIUI Test",
+                "-c",
+                "user.email=aiui-test@example.invalid",
+                "commit",
+                "--quiet",
+                "-m",
+                "fixture",
+            ],
+        ):
+            completed = subprocess.run(
+                command,
+                cwd=repository,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repository,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        capture.write_text("changed after commit\n", encoding="utf-8")
+
+        namespace = runpy.run_path(str(SCRIPT))
+        namespace["verify_commit_tree"](
+            repository.resolve(), repository.resolve(), revision
+        )
+
+    def test_audit_validation_rejects_repository_evidence_runtime_reference(self) -> None:
+        evidence = self.repo / ".aiui-evidence"
+        evidence.mkdir()
+        (evidence / "capture.json").write_text(
+            '{"captured":true}\n', encoding="utf-8"
+        )
+        (self.fixture.import_root / "app.js").write_text(
+            "const capture = '../.aiui-evidence/capture.json';\n"
+            "export default {};\n",
+            encoding="utf-8",
+        )
+        completed = self.validate()
+
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("reserved_audit_reference", completed.stderr.lower())
+
+    def test_audit_accepts_nested_same_named_source_with_explicit_repository(self) -> None:
+        original_page = self.fixture.import_root / "pages/index/index.ink"
+        nested_page = self.fixture.import_root / ".aiui-evidence" / "index.ink"
+        nested_page.parent.mkdir()
+        original_page.replace(nested_page)
+        (self.fixture.import_root / "app.json").write_text(
+            json.dumps({"pages": [".aiui-evidence/index"]}), encoding="utf-8"
+        )
+        self.fixture.report = self.fixture.inventory()
+        self.fixture.ux_rows = self.fixture.default_ux_rows()
+        self.fixture.cap_rows = self.fixture.default_capability_rows()
+
+        completed = self.validate(self.fixture.render())
+
+        self.assertEqual(2, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("structurally valid", completed.stdout.lower())
 
     def validate(
         self,
@@ -1078,7 +1346,12 @@ class ValidateAiuiAuditTests(unittest.TestCase):
                 1,
             )
             .replace("Import root: project", "Import root: UNAVAILABLE", 1)
-            .replace("Supported surfaces: _current", "Supported surfaces: UNAVAILABLE", 1)
+            .replace(
+                "Supported surfaces: "
+                + (",".join(self.fixture.report["supportedSurfaces"]) or "UNAVAILABLE"),
+                "Supported surfaces: UNAVAILABLE",
+                1,
+            )
             .replace(
                 "Inputs: "
                 + ",".join(
@@ -1108,6 +1381,23 @@ class ValidateAiuiAuditTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIn("Final status=PASS", completed.stdout)
         self.assertIn("Release-ready=YES", completed.stdout)
+
+    @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
+    def test_full_pass_cannot_release_a_project_with_a_missing_declared_route(self) -> None:
+        (self.fixture.import_root / "app.json").write_text(
+            json.dumps({"pages": ["pages/missing/index"]}), encoding="utf-8"
+        )
+        self.fixture.report = self.fixture.inventory()
+        self.fixture.ux_rows = self.fixture.default_ux_rows()
+        self.fixture.cap_rows = self.fixture.default_capability_rows()
+        signers, policy = self.authority()
+        self.fixture.materialize_full_pass(signers)
+
+        completed = self.validate(trust_policy=policy)
+
+        self.assertEqual(1, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("strict AIUI project validation failed", completed.stderr)
+        self.assertIn("PAGE_ROUTE_NOT_FOUND", completed.stderr)
 
     @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
     def test_full_pass_rejects_resigned_studio_runtime_from_another_aiui_version(self) -> None:
@@ -1195,8 +1485,11 @@ class ValidateAiuiAuditTests(unittest.TestCase):
         self.assertIn("inventory", completed.stderr.lower())
 
     def test_supported_surfaces_must_equal_scanner_ledger(self) -> None:
+        original_surfaces = ",".join(self.fixture.report["supportedSurfaces"])
         markdown = self.fixture.render().replace(
-            "Supported surfaces: _current", "Supported surfaces: banana", 1
+            f"Supported surfaces: {original_surfaces}",
+            "Supported surfaces: banana",
+            1,
         )
         completed = self.validate(markdown)
         self.assertEqual(1, completed.returncode)
@@ -1213,7 +1506,7 @@ class ValidateAiuiAuditTests(unittest.TestCase):
             encoding="utf-8",
         )
         self.fixture.report = self.fixture.inventory()
-        self.assertEqual([], self.fixture.report["supportedSurfaces"])
+        self.assertEqual(["Page"], self.fixture.report["supportedSurfaces"])
         self.fixture.ux_rows = self.fixture.default_ux_rows()
         self.fixture.cap_rows = self.fixture.default_capability_rows()
         self.fixture.materialize_full_pass(signers)
@@ -1264,6 +1557,34 @@ class ValidateAiuiAuditTests(unittest.TestCase):
         missing_result = self.validate(missing_enter)
         self.assertEqual(1, missing_result.returncode)
         self.assertIn("scanner", missing_result.stderr.lower())
+
+    def test_unresolved_key_input_forms_a_valid_blocked_audit_gate(self) -> None:
+        page = self.fixture.import_root / "pages/index/index.ink"
+        page.write_text(
+            page.read_text(encoding="utf-8").replace(
+                "export default { handleTap() {} };",
+                "export default { handleTap() {}, onKeyUp(payload) { "
+                "if (payload.code === configuredCode) this.handleTap(); } };",
+            ),
+            encoding="utf-8",
+        )
+        self.fixture.report = self.fixture.inventory()
+        self.fixture.ux_rows = self.fixture.default_ux_rows()
+        self.fixture.cap_rows = self.fixture.default_capability_rows()
+
+        unknown = next(
+            item
+            for item in self.fixture.report["items"]
+            if item["family"] == "input.key.unknown"
+        )
+        self.assertIn(
+            {"family": "input.key.unknown", "kind": "key", "gate": unknown["gate"]},
+            self.fixture.report["inputGates"],
+        )
+        completed = self.validate()
+
+        self.assertEqual(2, completed.returncode, completed.stderr)
+        self.assertIn("Final status=BLOCKED", completed.stdout)
 
     def test_capability_target_tuple_rejects_mixed_aiui_versions(self) -> None:
         markdown = self.fixture.render().replace(
@@ -1380,6 +1701,58 @@ class ValidateAiuiAuditTests(unittest.TestCase):
             self.assertEqual(1, completed.returncode)
             self.assertIn("contract", completed.stderr.lower())
 
+    def test_multiple_same_family_claims_accept_unique_provisional_instance_ids(self) -> None:
+        claims = self.fixture.import_root / "aiui-audit-claims.json"
+        claims.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "scopeClosed": True,
+                    "claims": [
+                        {
+                            "family": "network.https",
+                            "surface": "_current",
+                            "description": "Load the compact result",
+                        },
+                        {
+                            "family": "network.https",
+                            "surface": "_blank",
+                            "description": "Load the expanded result",
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.fixture.report = self.fixture.inventory()
+        self.fixture.ux_rows = self.fixture.default_ux_rows()
+        self.fixture.cap_rows = self.fixture.default_capability_rows()
+        provisional_rows = [
+            row
+            for row in self.fixture.cap_rows
+            if "{family=network.https}" in row[0]
+            and "PROJECT-BINDING:UNRESOLVED" in row[2]
+        ]
+        self.assertEqual(2, len(provisional_rows))
+        for index, row in enumerate(provisional_rows, start=1):
+            row[0] = row[0].replace(
+                "[CAP-NETWORK-HTTPS-PROVISIONAL]",
+                f"[CAP-NETWORK-HTTPS-CLAIM{index}-PROVISIONAL]",
+                1,
+            )
+
+        valid = self.fixture.render()
+        completed = self.validate(valid)
+        self.assertEqual(2, completed.returncode, completed.stderr)
+
+        duplicate = valid.replace(
+            "CAP-NETWORK-HTTPS-CLAIM2-PROVISIONAL",
+            "CAP-NETWORK-HTTPS-CLAIM1-PROVISIONAL",
+        )
+        rejected = self.validate(duplicate)
+        self.assertEqual(1, rejected.returncode)
+        self.assertIn("globally unique", rejected.stderr.lower())
+
     def test_source_unavailable_registered_family_keeps_canonical_behavior(self) -> None:
         family = "network.https"
         gate = "disclosed-network"
@@ -1418,7 +1791,12 @@ class ValidateAiuiAuditTests(unittest.TestCase):
                 1,
             )
             .replace("Import root: project", "Import root: UNAVAILABLE", 1)
-            .replace("Supported surfaces: _current", "Supported surfaces: UNAVAILABLE", 1)
+            .replace(
+                "Supported surfaces: "
+                + (",".join(self.fixture.report["supportedSurfaces"]) or "UNAVAILABLE"),
+                "Supported surfaces: UNAVAILABLE",
+                1,
+            )
             .replace(
                 "Inputs: "
                 + ",".join(
@@ -1439,6 +1817,13 @@ class ValidateAiuiAuditTests(unittest.TestCase):
         )
         accepted = self.validate(markdown, import_root="UNAVAILABLE")
         self.assertEqual(2, accepted.returncode, accepted.stderr)
+
+        instance_id = markdown.replace(
+            "CAP-NETWORK-HTTPS-PROVISIONAL",
+            "CAP-NETWORK-HTTPS-DISCLOSED-PROVISIONAL",
+        )
+        accepted_instance = self.validate(instance_id, import_root="UNAVAILABLE")
+        self.assertEqual(2, accepted_instance.returncode, accepted_instance.stderr)
 
         generic = markdown.replace(
             capability_path(family, "negative-fallback", behavior[1]),
@@ -1500,7 +1885,12 @@ class ValidateAiuiAuditTests(unittest.TestCase):
                 1,
             )
             .replace("Import root: project", "Import root: UNAVAILABLE", 1)
-            .replace("Supported surfaces: _current", "Supported surfaces: UNAVAILABLE", 1)
+            .replace(
+                "Supported surfaces: "
+                + (",".join(self.fixture.report["supportedSurfaces"]) or "UNAVAILABLE"),
+                "Supported surfaces: UNAVAILABLE",
+                1,
+            )
             .replace(f"Inputs: {original_inputs}", f"Inputs: tap@{gate}", 1)
             .replace(
                 f"Claimed capabilities: {original_claims}",
@@ -1540,7 +1930,7 @@ class ValidateAiuiAuditTests(unittest.TestCase):
         self.fixture.report = self.fixture.inventory()
         completed = self.validate()
         self.assertNotEqual(0, completed.returncode)
-        self.assertIn("versionviolation", completed.stderr.lower())
+        self.assertIn("widgets_unsupported_target", completed.stderr.lower())
 
     def test_result_requires_one_evidence_mapping_per_declared_layer(self) -> None:
         markdown = self.fixture.render().replace(
@@ -1790,84 +2180,40 @@ class ValidateAiuiAuditTests(unittest.TestCase):
         self.assertIn("Final status=BLOCKED", completed.stdout)
 
     @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
-    def test_worker_only_preview_uses_surface_aware_na_and_remains_blocked(self) -> None:
-        signers, policy = self.authority()
+    def test_structurally_valid_worker_preview_remains_blocked(self) -> None:
+        _, policy = self.authority()
         with tempfile.TemporaryDirectory() as temporary:
             fixture = AuditFixture(Path(temporary), target_version="0.18.0")
             (fixture.import_root / "workers").mkdir()
             (fixture.import_root / "app.json").write_text(
                 json.dumps(
                     {
-                        "pages": [],
+                        "pages": ["pages/index/index"],
                         "agentWorkers": [
                             {
                                 "name": "timer-worker",
                                 "script": "workers/timer.js",
                                 "trigger": {"type": "open"},
                                 "lifetime": "instant",
-                                "capabilities": ["background-timer"],
                             }
                         ],
                     }
                 ),
                 encoding="utf-8",
-            )
-            (fixture.import_root / "pages/index/index.ink").write_text(
-                "<page><text>unused</text></page>\n", encoding="utf-8"
             )
             (fixture.import_root / "workers/timer.js").write_text(
                 "export default { onOpen(event) { "
                 "event.waitUntil(Promise.resolve()); } };\n",
                 encoding="utf-8",
             )
-            (fixture.import_root / "aiui-audit-scope.json").write_text(
-                json.dumps({"schemaVersion": 1, "closed": True, "uxCriteria": []}),
-                encoding="utf-8",
-            )
-            (fixture.import_root / "aiui-audit-claims.json").write_text(
-                json.dumps(
-                    {
-                        "schemaVersion": 1,
-                        "scopeClosed": True,
-                        "claims": [
-                            {
-                                "family": "event.bindtap",
-                                "surface": "Agent Worker",
-                                "description": "Worker-owned external tap trigger",
-                            }
-                        ],
-                    }
-                ),
-                encoding="utf-8",
-            )
             fixture.report = fixture.inventory()
-            self.assertEqual(["Agent Worker"], fixture.report["supportedSurfaces"])
+            self.assertEqual(
+                ["Agent Worker", "Page", "_current"],
+                fixture.report["supportedSurfaces"],
+            )
             self.assertEqual(1, len(fixture.report["inputGates"]))
             fixture.ux_rows = fixture.default_ux_rows()
             fixture.cap_rows = fixture.default_capability_rows()
-            scoped_families = {
-                "UX-TARGET",
-                "UX-STATE",
-                "UX-TEXT",
-                "UX-FOCUS",
-                "UX-INPUT",
-                "UX-VISUAL",
-                "UX-ENVIRONMENT",
-                "UX-MOTION",
-            }
-            for row in fixture.ux_rows:
-                identifier = row[0].split("]", 1)[0][1:]
-                if identifier not in scoped_families:
-                    continue
-                gate = row[0].split("{gate=", 1)[1].split("}", 1)[0]
-                source, claim = fixture.scope_locators(
-                    row=identifier,
-                    gate=gate,
-                    criterion=row[3],
-                    signer=signers,
-                )
-                row[5] = "N/A"
-                row[6] = f"SCOPE: source={source}; claim={claim}"
             audit = fixture.write_audit()
             completed = subprocess.run(
                 [
@@ -1894,6 +2240,94 @@ class ValidateAiuiAuditTests(unittest.TestCase):
             set(namespace["UX_REQUIRED_LAYERS"]),
             set(namespace["UX_APPLICABILITY_MODES"]),
         )
+
+    def test_scanner_input_gate_is_applicable_without_surface_inference(self) -> None:
+        namespace = runpy.run_path(str(SCRIPT))
+        validator_class = namespace["AuditValidator"]
+        validator = validator_class.__new__(validator_class)
+        validator.inventory = {"items": []}
+        validator.supported_surfaces = ("Agent Worker",)
+        validator.input_gates = frozenset({"tap"})
+
+        self.assertTrue(validator._ux_is_applicable("UX-INPUT"))
+
+    def test_page_route_keeps_ui_ux_applicable_when_surface_ledger_is_incomplete(self) -> None:
+        namespace = runpy.run_path(str(SCRIPT))
+        validator_class = namespace["AuditValidator"]
+        validator = validator_class.__new__(validator_class)
+        validator.inventory = {"items": [{"family": "page.route"}]}
+        validator.supported_surfaces = ("Agent Worker",)
+        validator.input_gates = frozenset()
+
+        self.assertTrue(validator._ux_is_applicable("UX-TARGET"))
+        self.assertTrue(validator._ux_is_applicable("UX-STATE"))
+
+    @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
+    def test_voice_and_gesture_claims_make_recovery_na_invalid(self) -> None:
+        signers, policy = self.authority()
+        for family in ("input.voice.unknown", "input.gesture-fallback.unknown"):
+            with self.subTest(family=family):
+                with tempfile.TemporaryDirectory() as temporary:
+                    fixture = AuditFixture(Path(temporary))
+                    (fixture.import_root / "aiui-audit-claims.json").write_text(
+                        json.dumps(
+                            {
+                                "schemaVersion": 1,
+                                "scopeClosed": True,
+                                "claims": [
+                                    {
+                                        "family": family,
+                                        "surface": "_current",
+                                        "description": "Fallback recovery is required",
+                                    }
+                                ],
+                            }
+                        ),
+                        encoding="utf-8",
+                    )
+                    (fixture.import_root / "aiui-audit-scope.json").write_text(
+                        json.dumps(
+                            {"schemaVersion": 1, "closed": True, "uxCriteria": []}
+                        ),
+                        encoding="utf-8",
+                    )
+                    fixture.report = fixture.inventory()
+                    fixture.ux_rows = fixture.default_ux_rows()
+                    fixture.cap_rows = fixture.default_capability_rows()
+                    row = next(
+                        row
+                        for row in fixture.ux_rows
+                        if row[0].startswith("[UX-RECOVERY]")
+                    )
+                    source, claim = fixture.scope_locators(
+                        row="UX-RECOVERY",
+                        gate="failure-recovery",
+                        criterion=row[3],
+                        signer=signers,
+                    )
+                    row[5] = "N/A"
+                    row[6] = f"SCOPE: source={source}; claim={claim}"
+                    audit = fixture.write_audit()
+
+                    completed = subprocess.run(
+                        [
+                            sys.executable,
+                            str(SCRIPT),
+                            str(audit),
+                            "--repository-root",
+                            str(fixture.root),
+                            "--import-root",
+                            "project",
+                            "--trust-policy",
+                            str(policy),
+                        ],
+                        cwd=ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+
+                    self.assertEqual(1, completed.returncode, completed.stderr)
+                    self.assertIn("applicable", completed.stderr.lower())
 
     @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
     def test_all_ux_families_cannot_be_scoped_away(self) -> None:

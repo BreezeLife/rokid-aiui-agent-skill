@@ -73,6 +73,26 @@ aix pack ./agent-app -o ./artifacts/agent.aix
 aix list ./artifacts/agent.aix
 ```
 
+Published AIX 0.8.2 does not implicitly exclude the import root's top-level
+`.aiui-evidence/` or `.git/` directories. If the repository root is also the
+Studio import root, a repository-root `.aiui-evidence/` directory will be
+packaged and can leak audit captures. Prefer keeping evidence outside the
+import root, for example by making the importable project a repository
+subdirectory. If the repository root must also be the import root, place these
+exact directory exclusions in the import-root `.aixignore`:
+
+```gitignore
+.aiui-evidence/
+.git/
+```
+
+Treat the exact `aix list` result as a privacy and consistency gate. Normalize
+ASCII case before comparison and fail the package if any entry is
+`.aiui-evidence`, starts with `.aiui-evidence/`, is `.git`, or starts with
+`.git/`; mixed-case aliases are equally reserved, and required application
+entries do not compensate for reserved content. The packaged
+[`smoke_aix.sh`](../scripts/smoke_aix.sh) enforces this check.
+
 The current AIX specification describes `.aix` as a structured package with entries, metadata, optional signatures, Page definitions, schemas, target hints, and derived tools: [AIX contents](https://github.com/yodaos-project/aix/blob/8e5f5b1ba60691291f99d14ea9516995f2af55e4/README.md#L34-L46). Packing creates package metadata, including `META-INF/aix/manifest.json`; listing should show `app.json` and expected Page/asset entries: [typical shape](https://github.com/yodaos-project/aix/blob/8e5f5b1ba60691291f99d14ea9516995f2af55e4/README.md#L104-L132).
 
 If help advertises `--engine`, select a version/range that matches the target host rather than copying an example blindly. If help advertises `--optimize`, treat it as packaging optimization, not correctness validation. `.aixignore` can keep development-only files out of the artifact.

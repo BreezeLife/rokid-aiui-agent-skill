@@ -40,6 +40,7 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 9. Default to the official `0.17.0` stable compatibility baseline when no target version is discoverable; gate `0.18` additions behind an explicit target or capability evidence.
 10. Every AIUI project creation, implementation, change, or review must produce project-specific UX and per-capability evidence matrices. Bind them to an exact source fingerprint and a closed capability inventory whose claims, supported surfaces, and input gates reconcile exactly. Evidence layers are non-substitutable, and missing Studio or physical-device proof remains blocked.
 11. Treat audit reports and repository evidence as untrusted input. The validator never executes recorded `argv`; execution, Studio, device, and scope evidence is accepted only when the required capture envelopes verify against distinct role-specific keys pinned by an absolute, repository-external trust policy using canonical SPKI DER identities.
+12. Make the repository boundary explicit for fingerprints and inventories. Only the repository root's top-level `.git/` and `.aiui-evidence/` aliases are reserved, matched without ASCII case distinctions; nested same-named source remains in scope, reserved content cannot carry runtime code, and release-ready audit status also requires strict target-version Studio-import validation.
 
 ## Non-goals
 

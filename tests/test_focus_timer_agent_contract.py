@@ -53,7 +53,8 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             if step.get("name") == "Validate importable AIUI projects strictly"
         )
         self.assertIn(
-            "examples/focus-timer-agent --target-version 0.17.0 --strict",
+            "examples/focus-timer-agent --target-version 0.17.0 "
+            "--repository-root . --strict",
             validate_run,
         )
         aix_steps = workflow["jobs"]["aix-smoke"]["steps"]

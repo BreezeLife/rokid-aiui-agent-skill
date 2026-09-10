@@ -139,6 +139,30 @@ class AixSmokeScriptTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("META-INF/aix/manifest.json", result.stderr)
 
+    def test_rejects_package_that_contains_reserved_audit_evidence(self):
+        for reserved_entry in (
+            ".aiui-evidence/device-capture.png",
+            ".aiui-evidence/device-capture.png: 42 bytes (compressed: 8 bytes)",
+            ".aiui-evidence: 0 bytes (compressed: 0 bytes)",
+            ".git: 42 bytes (compressed: 8 bytes)",
+            "./.git/config: 42 bytes (compressed: 8 bytes)",
+            ".AIUI-EVIDENCE/device-capture.png: 42 bytes (compressed: 8 bytes)",
+            "./.Git/config: 42 bytes (compressed: 8 bytes)",
+        ):
+            with self.subTest(reserved_entry=reserved_entry):
+                result = self.run_smoke(
+                    "aix pack\naix list",
+                    (
+                        "META-INF/aix/manifest.json\n"
+                        "app.json\n"
+                        "pages/index/index.ink\n"
+                        f"{reserved_entry}"
+                    ),
+                )
+
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn("reserved", result.stderr.lower())
+
     def test_force_package_mode_ignores_aix_on_path(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -14,7 +14,13 @@ from fingerprint_aiui_project import fingerprint_project
 
 
 SOURCE_SUFFIXES = frozenset({".ink", ".js", ".ts", ".wxml", ".wxss", ".json"})
-EXCLUDED_TOP_LEVEL_DIRECTORIES = frozenset({".git", ".aiui-evidence"})
+RUNTIME_SOURCE_SUFFIXES = frozenset({".ink", ".js", ".ts", ".wxml", ".wxss"})
+REPOSITORY_METADATA_DIRECTORIES = frozenset({".git", ".aiui-evidence"})
+RESERVED_PATH_SEGMENT_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_.-])(?P<segment>\.git|\.aiui-evidence)"
+    r"(?![A-Za-z0-9_.-])",
+    re.IGNORECASE,
+)
 KNOWN_MANIFEST_KEYS = frozenset(
     {
         "pages",
@@ -84,6 +90,7 @@ REGISTERED_POLICY_FAMILIES = frozenset(
         "event.bindtap",
         "input.enter",
         "input.back",
+        "input.key.unknown",
         "input.scroll.unknown",
         "input.scroll.host",
         "component.scroll-view",
@@ -139,6 +146,7 @@ SURFACE_LABELS = {
     "shared": "Shared",
 }
 DECLARED_SURFACE_BY_FAMILY = {
+    "page.route": "Page",
     "widget.declaration": "Widget",
     "agent-worker.declaration": "Agent Worker",
 }
@@ -156,6 +164,7 @@ REFERENCE_GLOBALS = frozenset(
     | {"localStorage", "sessionStorage", "SpeechRecognition"}
 )
 CLAIMS_FILENAME = "aiui-audit-claims.json"
+SCOPE_FILENAME = "aiui-audit-scope.json"
 PROJECT_BINDING_UNRESOLVED = "PROJECT-BINDING:UNRESOLVED"
 NO_DECLARATION = "NONE REQUIRED"
 UNREGISTERED_DECLARATION = "UNKNOWN — source policy not registered"
@@ -163,6 +172,7 @@ INPUT_KIND_BY_FAMILY = {
     "event.bindtap": "tap",
     "input.enter": "enter",
     "input.back": "back",
+    "input.key.unknown": "key",
     "input.scroll.host": "directional-scroll",
     "component.scroll-view": "component-scroll",
     "input.scroll.unknown": "scroll",
@@ -174,6 +184,7 @@ INPUT_KIND_BY_FAMILY = {
     "input.touch-migration.unknown": "touch-migration",
     "input.gesture-fallback.unknown": "gesture-fallback",
 }
+LITERAL_VALUE_MARKER = "\x02"
 
 
 def line_number(text: str, offset: int) -> int:
@@ -195,6 +206,15 @@ def reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def is_backslash_escaped(text: str, offset: int) -> bool:
+    backslashes = 0
+    offset -= 1
+    while offset >= 0 and text[offset] == "\\":
+        backslashes += 1
+        offset -= 1
+    return backslashes % 2 == 1
+
+
 def mask_comments(text: str) -> str:
     """Replace comments with spaces while preserving offsets and string literals."""
     output = list(text)
@@ -210,11 +230,19 @@ def mask_comments(text: str) -> str:
                 state = "double"
             elif char == "`":
                 state = "template"
-            elif char == "/" and next_char == "/":
+            elif (
+                char == "/"
+                and next_char == "/"
+                and not is_backslash_escaped(text, index)
+            ):
                 output[index] = output[index + 1] = " "
                 state = "line-comment"
                 index += 1
-            elif char == "/" and next_char == "*":
+            elif (
+                char == "/"
+                and next_char == "*"
+                and not is_backslash_escaped(text, index)
+            ):
                 output[index] = output[index + 1] = " "
                 state = "block-comment"
                 index += 1
@@ -243,11 +271,13 @@ def mask_comments(text: str) -> str:
 
 
 def mask_literals_and_comments(text: str) -> str:
-    """Mask comments and JavaScript string literals without changing offsets."""
+    """Mask JS literals, retaining an offset-stable expression-end marker."""
     output = list(text)
     state = "code"
     expression_depth = 0
+    expression_start = 0
     template_parents: list[int] = []
+    expression_start_parents: list[int] = []
     index = 0
     while index < len(text):
         char = text[index]
@@ -262,16 +292,80 @@ def mask_literals_and_comments(text: str) -> str:
             elif char == "`":
                 output[index] = " "
                 template_parents.append(expression_depth)
+                expression_start_parents.append(expression_start)
                 expression_depth = 0
                 state = "template"
-            elif char == "/" and next_char == "/":
+            elif (
+                char == "/"
+                and next_char == "/"
+                and not is_backslash_escaped(text, index)
+            ):
                 output[index] = output[index + 1] = " "
                 state = "line-comment"
                 index += 1
-            elif char == "/" and next_char == "*":
+            elif (
+                char == "/"
+                and next_char == "*"
+                and not is_backslash_escaped(text, index)
+            ):
                 output[index] = output[index + 1] = " "
                 state = "block-comment"
                 index += 1
+            elif expression_depth and char == "/" and next_char != "=":
+                previous = index - 1
+                while previous >= expression_start and output[previous].isspace():
+                    previous -= 1
+                starts_regex = previous < expression_start or output[previous] in (
+                    "([{:,;=!?&|+-*%^~<>"
+                )
+                if not starts_regex:
+                    preceding_identifier = re.search(
+                        r"[A-Za-z_$][A-Za-z0-9_$]*$",
+                        "".join(output[expression_start : previous + 1]),
+                    )
+                    starts_regex = bool(
+                        preceding_identifier
+                        and preceding_identifier.group()
+                        in {
+                            "await",
+                            "case",
+                            "delete",
+                            "in",
+                            "instanceof",
+                            "new",
+                            "of",
+                            "return",
+                            "throw",
+                            "typeof",
+                            "void",
+                            "yield",
+                        }
+                    )
+                if starts_regex:
+                    cursor = index + 1
+                    in_character_class = False
+                    closing: int | None = None
+                    while cursor < len(text) and text[cursor] != "\n":
+                        if text[cursor] == "\\":
+                            cursor += 2
+                            continue
+                        if text[cursor] == "[":
+                            in_character_class = True
+                        elif text[cursor] == "]":
+                            in_character_class = False
+                        elif text[cursor] == "/" and not in_character_class:
+                            closing = cursor
+                            break
+                        cursor += 1
+                    if closing is not None:
+                        end = closing + 1
+                        while end < len(text) and text[end].isalpha():
+                            end += 1
+                        for masked_index in range(index, end):
+                            if output[masked_index] != "\n":
+                                output[masked_index] = " "
+                        output[closing] = LITERAL_VALUE_MARKER
+                        index = end - 1
             elif expression_depth and char == "{":
                 expression_depth += 1
             elif expression_depth and char == "}":
@@ -302,7 +396,7 @@ def mask_literals_and_comments(text: str) -> str:
                 (state == "single" and char == "'")
                 or (state == "double" and char == '"')
             ):
-                output[index] = " "
+                output[index] = LITERAL_VALUE_MARKER
                 state = "code"
             elif char != "\n":
                 output[index] = " "
@@ -314,13 +408,15 @@ def mask_literals_and_comments(text: str) -> str:
                     if text[index] != "\n":
                         output[index] = " "
             elif char == "`":
-                output[index] = " "
+                output[index] = LITERAL_VALUE_MARKER
                 state = "code"
                 expression_depth = template_parents.pop()
+                expression_start = expression_start_parents.pop()
             elif char == "$" and next_char == "{":
                 output[index] = output[index + 1] = " "
                 state = "code"
                 expression_depth = 1
+                expression_start = index + 2
                 index += 1
             elif char != "\n":
                 output[index] = " "
@@ -341,6 +437,8 @@ def mask_regex_literals(code_text: str) -> str:
             "await",
             "case",
             "delete",
+            "do",
+            "else",
             "in",
             "instanceof",
             "new",
@@ -353,6 +451,52 @@ def mask_regex_literals(code_text: str) -> str:
         }
     )
     expression_punctuation = frozenset("([{:,;=!?&|+-*%^~<>")
+
+    def follows_statement_head(closing: int) -> bool:
+        if closing < 0 or output[closing] != ")":
+            return False
+        depth = 0
+        opening: int | None = None
+        for offset in range(closing, -1, -1):
+            if output[offset] == ")":
+                depth += 1
+            elif output[offset] == "(":
+                depth -= 1
+                if depth == 0:
+                    opening = offset
+                    break
+        if opening is None:
+            return False
+        prefix = "".join(output[:opening])
+        return re.search(r"\b(?:if|for|while|with)\s*$", prefix) is not None
+
+    def closes_statement_block(closing: int) -> bool:
+        if closing < 0 or output[closing] != "}":
+            return False
+        depth = 0
+        opening: int | None = None
+        for offset in range(closing, -1, -1):
+            if output[offset] == "}":
+                depth += 1
+            elif output[offset] == "{":
+                depth -= 1
+                if depth == 0:
+                    opening = offset
+                    break
+        if opening is None:
+            return False
+        previous = opening - 1
+        while previous >= 0 and output[previous].isspace():
+            previous -= 1
+        if previous < 0 or output[previous] in "{;}":
+            return True
+        if output[previous] == ")":
+            return True
+        prefix = "".join(output[:opening])
+        return re.search(
+            r"\b(?:class|do|else|finally|function|try)\s*$", prefix
+        ) is not None
+
     index = 0
     while index < len(code_text):
         if code_text[index] != "/" or (
@@ -365,6 +509,25 @@ def mask_regex_literals(code_text: str) -> str:
         while previous >= 0 and code_text[previous].isspace():
             previous -= 1
         starts_expression = previous < 0 or code_text[previous] in expression_punctuation
+        if (
+            starts_expression
+            and previous > 0
+            and code_text[previous] in "+-"
+            and code_text[previous - 1] == code_text[previous]
+        ):
+            operand = previous - 2
+            while operand >= 0 and code_text[operand].isspace():
+                operand -= 1
+            if operand >= 0 and (
+                code_text[operand].isalnum()
+                or code_text[operand] in "_$)]}"
+                or code_text[operand] == LITERAL_VALUE_MARKER
+            ):
+                starts_expression = False
+        if not starts_expression:
+            starts_expression = follows_statement_head(previous)
+        if not starts_expression:
+            starts_expression = closes_statement_block(previous)
         if not starts_expression:
             preceding_identifier = re.search(
                 r"[A-Za-z_$][A-Za-z0-9_$]*$", code_text[: previous + 1]
@@ -405,6 +568,7 @@ def mask_regex_literals(code_text: str) -> str:
         for masked_index in range(index, end):
             if output[masked_index] != "\n":
                 output[masked_index] = " "
+        output[closing] = LITERAL_VALUE_MARKER
         index = end
     return "".join(output)
 
@@ -441,6 +605,224 @@ def mask_markup_comments(text: str) -> str:
             if output[index] != "\n":
                 output[index] = " "
     return "".join(output)
+
+
+def runtime_reference_scan_text(text: str, relative: str) -> str:
+    """Mask runtime-source comments while preserving path strings and offsets."""
+    suffix = Path(relative).suffix.lower()
+    if suffix == ".wxml":
+        return mask_markup_comments(text)
+    if suffix == ".ink":
+        return mask_comments(mask_markup_comments(text))
+    if suffix in {".js", ".ts", ".wxss"}:
+        return mask_comments(text)
+    return blank_preserving_lines(text)
+
+
+def decode_js_string_at(text: str, opening: int) -> tuple[str | None, int]:
+    """Decode one static JavaScript string while retaining its source span."""
+    quote = text[opening]
+    decoded: list[str] = []
+    static = True
+    cursor = opening + 1
+    simple_escapes = {
+        "b": "\b",
+        "f": "\f",
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "v": "\v",
+        "0": "\0",
+    }
+    while cursor < len(text):
+        char = text[cursor]
+        if char == quote:
+            return ("".join(decoded) if static else None, cursor + 1)
+        if quote == "`" and char == "$" and text[cursor + 1 : cursor + 2] == "{":
+            closing = matching_delimiter(text, cursor + 1, "{", "}")
+            if closing is None:
+                return None, len(text)
+            interpolation = static_js_string_concatenation(
+                text[cursor + 2 : closing]
+            )
+            if interpolation is None:
+                static = False
+            else:
+                decoded.append(interpolation)
+            cursor = closing + 1
+            continue
+        if char in "\r\n" and quote != "`":
+            return None, cursor + 1
+        if char != "\\":
+            decoded.append(char)
+            cursor += 1
+            continue
+
+        escape_start = cursor
+        cursor += 1
+        if cursor >= len(text):
+            return None, len(text)
+        escaped = text[cursor]
+        if escaped in "\r\n":
+            if escaped == "\r" and text[cursor + 1 : cursor + 2] == "\n":
+                cursor += 1
+            cursor += 1
+            continue
+        if escaped == "x":
+            hexadecimal = text[cursor + 1 : cursor + 3]
+            if len(hexadecimal) != 2 or re.fullmatch(r"[0-9A-Fa-f]{2}", hexadecimal) is None:
+                static = False
+                cursor = escape_start + 2
+                continue
+            decoded.append(chr(int(hexadecimal, 16)))
+            cursor += 3
+            continue
+        if escaped == "u":
+            if text[cursor + 1 : cursor + 2] == "{":
+                closing = text.find("}", cursor + 2)
+                hexadecimal = (
+                    text[cursor + 2 : closing] if closing >= 0 else ""
+                )
+                valid = (
+                    closing >= 0
+                    and re.fullmatch(r"[0-9A-Fa-f]{1,6}", hexadecimal)
+                    is not None
+                )
+                next_cursor = closing + 1 if closing >= 0 else cursor + 2
+            else:
+                hexadecimal = text[cursor + 1 : cursor + 5]
+                valid = (
+                    len(hexadecimal) == 4
+                    and re.fullmatch(r"[0-9A-Fa-f]{4}", hexadecimal)
+                    is not None
+                )
+                next_cursor = cursor + 5
+            value = int(hexadecimal, 16) if valid else -1
+            if not valid or value > 0x10FFFF or 0xD800 <= value <= 0xDFFF:
+                static = False
+            else:
+                decoded.append(chr(value))
+            cursor = next_cursor
+            continue
+        decoded.append(simple_escapes.get(escaped, escaped))
+        cursor += 1
+    return None, len(text)
+
+
+def static_js_string_literals(text: str) -> list[tuple[str, int, int]]:
+    """Return decoded non-interpolated JS string literals and source spans."""
+    literals: list[tuple[str, int, int]] = []
+    cursor = 0
+    while cursor < len(text):
+        if text[cursor] not in "'\"`":
+            cursor += 1
+            continue
+        value, end = decode_js_string_at(text, cursor)
+        if value is not None:
+            literals.append((value, cursor, end))
+        cursor = max(cursor + 1, end)
+    return literals
+
+
+def find_reserved_runtime_reference(
+    text: str, relative: str
+) -> tuple[str, int, str | None] | None:
+    """Find raw or statically-decoded reserved paths at original offsets."""
+    scan_text = runtime_reference_scan_text(text, relative)
+    literals = static_js_string_literals(scan_text)
+    for index, (value, start, end) in enumerate(literals):
+        match = RESERVED_PATH_SEGMENT_PATTERN.search(value)
+        if match is not None:
+            return match.group("segment"), start, value
+
+        combined = value
+        combined_end = end
+        for next_value, next_start, next_end in literals[index + 1 :]:
+            if re.fullmatch(
+                r"\s*\+\s*\(*\s*", scan_text[combined_end:next_start]
+            ) is None:
+                break
+            combined += next_value
+            combined_end = next_end
+            match = RESERVED_PATH_SEGMENT_PATTERN.search(combined)
+            if match is not None:
+                return match.group("segment"), start, combined
+    raw_scan_text = scan_text
+    if Path(relative).suffix.lower() in {".ink", ".js", ".ts"}:
+        raw_scan_text = mask_regex_literals(
+            mask_literals_and_comments(scan_text)
+        )
+    raw_match = RESERVED_PATH_SEGMENT_PATTERN.search(raw_scan_text)
+    if raw_match is not None:
+        return raw_match.group("segment"), raw_match.start("segment"), None
+    return None
+
+
+def reserved_path_segment(text: str) -> str | None:
+    match = RESERVED_PATH_SEGMENT_PATTERN.search(text)
+    return match.group("segment") if match else None
+
+
+def is_nested_repository_path(
+    value: str,
+    base: Path,
+    repository_root: Path | None,
+) -> bool:
+    """Return whether a reserved-looking local path stays below repo metadata."""
+    if repository_root is None or re.fullmatch(
+        r"[A-Za-z0-9_./-]+", value
+    ) is None:
+        return False
+    path = Path(value)
+    target = path.resolve() if path.is_absolute() else (base / path).resolve()
+    try:
+        relative = target.relative_to(repository_root)
+    except ValueError:
+        return False
+    return bool(
+        relative.parts
+        and relative.parts[0].casefold()
+        not in {
+            directory.casefold() for directory in REPOSITORY_METADATA_DIRECTORIES
+        }
+    )
+
+
+def reject_reserved_json_references(
+    value: Any,
+    location: str,
+    project_root: Path | None = None,
+    repository_root: Path | None = None,
+) -> None:
+    """Reject reserved path segments in every manifest string value."""
+    if isinstance(value, str):
+        segment = reserved_path_segment(value)
+        if segment is not None and not (
+            project_root is not None
+            and is_nested_repository_path(value, project_root, repository_root)
+        ):
+            raise ValueError(
+                "RESERVED_PATH_REFERENCE: "
+                f"{location} references reserved path segment {segment}"
+            )
+        return
+    if isinstance(value, list):
+        for index, member in enumerate(value):
+            reject_reserved_json_references(
+                member,
+                f"{location}[{index}]",
+                project_root,
+                repository_root,
+            )
+        return
+    if isinstance(value, dict):
+        for key, member in value.items():
+            reject_reserved_json_references(
+                member,
+                f"{location}.{key}",
+                project_root,
+                repository_root,
+            )
 
 
 def markup_scan_text(text: str, relative: str) -> str:
@@ -511,18 +893,65 @@ def mask_css_strings_and_comments(text: str) -> str:
     return "".join(output)
 
 
+CSS_IDENTIFIER_ESCAPE = r"\\(?:[0-9A-Fa-f]{1,6}\s?|[^\r\n])"
+CSS_IDENTIFIER_WITH_ESCAPE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_-])(?P<identifier>"
+    rf"(?:[A-Za-z_-]|{CSS_IDENTIFIER_ESCAPE})"
+    rf"(?:[A-Za-z0-9_-]|{CSS_IDENTIFIER_ESCAPE})*"
+    r")(?![A-Za-z0-9_-])"
+)
+
+
+def decode_css_identifier(identifier: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        escape = match.group()[1:]
+        hexadecimal = re.match(r"[0-9A-Fa-f]{1,6}", escape)
+        if hexadecimal is None:
+            return escape[:1]
+        value = int(hexadecimal.group(), 16)
+        if value == 0 or value > 0x10FFFF or 0xD800 <= value <= 0xDFFF:
+            return "\ufffd"
+        return chr(value)
+
+    return re.sub(CSS_IDENTIFIER_ESCAPE, replace, identifier)
+
+
+def normalize_css_identifier_escapes(text: str) -> str:
+    """Decode CSS identifiers without shifting source offsets."""
+    output = list(text)
+    for match in CSS_IDENTIFIER_WITH_ESCAPE_PATTERN.finditer(text):
+        identifier = match.group("identifier")
+        if "\\" not in identifier:
+            continue
+        decoded = decode_css_identifier(identifier)
+        start, end = match.span("identifier")
+        output[start:end] = list(decoded) + [" "] * (end - start - len(decoded))
+    return "".join(output)
+
+
 def style_scan_text(text: str, relative: str) -> str:
     """Return offset-preserving CSS source without comments or string content."""
     suffix = Path(relative).suffix.lower()
     if suffix == ".wxss":
         return mask_css_strings_and_comments(text)
-    if suffix != ".ink":
+    if suffix not in {".ink", ".wxml"}:
         return blank_preserving_lines(text)
 
     output = ["\n" if char == "\n" else " " for char in text]
+    if suffix == ".ink":
+        for match in re.finditer(
+            r"<style\b[^>]*>(?P<body>.*?)</style\s*>",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        ):
+            body_start, body_end = match.span("body")
+            output[body_start:body_end] = mask_css_strings_and_comments(
+                text[body_start:body_end]
+            )
+    markup_text = markup_scan_text(text, relative)
     for match in re.finditer(
-        r"<style\b[^>]*>(?P<body>.*?)</style\s*>",
-        text,
+        r"\bstyle\s*=\s*(?P<quote>[\"'])(?P<body>.*?)(?P=quote)",
+        markup_text,
         re.IGNORECASE | re.DOTALL,
     ):
         body_start, body_end = match.span("body")
@@ -530,6 +959,27 @@ def style_scan_text(text: str, relative: str) -> str:
             text[body_start:body_end]
         )
     return "".join(output)
+
+
+def expression_body_end(code_text: str, start: int) -> int:
+    """Return a conservative end offset for one expression-bodied arrow."""
+    stack: list[str] = []
+    closing_for = {"(": ")", "[": "]", "{": "}"}
+    index = start
+    while index < len(code_text):
+        char = code_text[index]
+        if char in closing_for:
+            stack.append(closing_for[char])
+        elif char in {")", "]", "}"}:
+            if not stack:
+                return index
+            if stack[-1] != char:
+                return index
+            stack.pop()
+        elif not stack and (char in ",;" or char == "\n"):
+            return index
+        index += 1
+    return len(code_text)
 
 
 def lexical_scopes(code_text: str) -> list[dict[str, int | None]]:
@@ -551,6 +1001,50 @@ def lexical_scopes(code_text: str) -> list[dict[str, int | None]]:
             stack.append(len(scopes) - 1)
         elif char == "}" and len(stack) > 1:
             scopes[stack.pop()]["end"] = offset
+    for loop_match in re.finditer(r"\bfor(?:\s+await)?\s*\(", code_text):
+        opening = code_text.rfind("(", loop_match.start(), loop_match.end())
+        closing = matching_delimiter(code_text, opening, "(", ")")
+        if closing is None:
+            continue
+        body_start = closing + 1
+        while body_start < len(code_text) and code_text[body_start].isspace():
+            body_start += 1
+        parent = scope_at(scopes, opening)
+        body_scope = (
+            child_scope_for_opening(scopes, body_start)
+            if body_start < len(code_text) and code_text[body_start] == "{"
+            else None
+        )
+        loop_end = (
+            int(scopes[body_scope]["end"])
+            if body_scope is not None
+            else expression_body_end(code_text, body_start)
+        )
+        scopes.append(
+            {
+                "start": opening + 1,
+                "end": loop_end,
+                "parent": parent,
+                "opening": loop_match.start(),
+            }
+        )
+        loop_scope = len(scopes) - 1
+        if body_scope is not None:
+            scopes[body_scope]["parent"] = loop_scope
+    for arrow in re.finditer(r"=>", code_text):
+        body_start = arrow.end()
+        while body_start < len(code_text) and code_text[body_start].isspace():
+            body_start += 1
+        if body_start >= len(code_text) or code_text[body_start] == "{":
+            continue
+        scopes.append(
+            {
+                "start": body_start,
+                "end": expression_body_end(code_text, body_start),
+                "parent": scope_at(scopes, body_start),
+                "opening": arrow.start(),
+            }
+        )
     return scopes
 
 
@@ -577,6 +1071,300 @@ def identifier_tokens(text: str) -> set[str]:
     return set(re.findall(r"[A-Za-z_$][A-Za-z0-9_$]*", text))
 
 
+def import_statement_spans(code_text: str) -> list[tuple[int, int]]:
+    """Return static import bodies, including balanced multiline imports."""
+    spans: list[tuple[int, int]] = []
+    closing_for = {"{": "}", "[": "]"}
+    for match in re.finditer(r"(?m)^\s*import\b", code_text):
+        probe = match.end()
+        while probe < len(code_text) and code_text[probe].isspace():
+            probe += 1
+        if probe < len(code_text) and code_text[probe] in "(.":
+            continue
+
+        body_start = match.end()
+        stack: list[str] = []
+        body_end = len(code_text)
+        cursor = body_start
+        while cursor < len(code_text):
+            char = code_text[cursor]
+            if char in closing_for:
+                stack.append(closing_for[char])
+            elif char in "}]":
+                if not stack or stack[-1] != char:
+                    body_end = cursor
+                    break
+                stack.pop()
+            elif not stack and char == ";":
+                body_end = cursor
+                break
+            elif not stack and char == "\n":
+                body = code_text[body_start:cursor]
+                if re.search(r"\bfrom\b", body) or not identifier_tokens(body):
+                    body_end = cursor
+                    break
+                next_offset = cursor + 1
+                while (
+                    next_offset < len(code_text)
+                    and code_text[next_offset].isspace()
+                ):
+                    next_offset += 1
+                continuation = re.match(
+                    r"(?:from\b|[{},*])", code_text[next_offset:]
+                )
+                if continuation is None:
+                    body_end = cursor
+                    break
+            cursor += 1
+        spans.append((body_start, body_end))
+    return spans
+
+
+def top_level_delimiter(
+    text: str, start: int, end: int, delimiter: str
+) -> int | None:
+    """Find a delimiter outside nested binding-pattern containers."""
+    stack: list[str] = []
+    closing_for = {"{": "}", "[": "]", "(": ")"}
+    for index in range(start, end):
+        char = text[index]
+        if char in closing_for:
+            stack.append(closing_for[char])
+        elif char in "}])":
+            if not stack or stack[-1] != char:
+                return None
+            stack.pop()
+        elif char == delimiter and not stack:
+            return index
+    return None
+
+
+def top_level_spans(
+    text: str, start: int, end: int, delimiter: str
+) -> list[tuple[int, int]]:
+    """Split a binding list without splitting nested patterns."""
+    spans: list[tuple[int, int]] = []
+    cursor = start
+    while cursor <= end:
+        separator = top_level_delimiter(text, cursor, end, delimiter)
+        if separator is None:
+            spans.append((cursor, end))
+            break
+        spans.append((cursor, separator))
+        cursor = separator + 1
+    return spans
+
+
+def binding_identifier_offsets(
+    binding_text: str, names: set[str]
+) -> list[tuple[str, int]]:
+    """Return identifiers that are definitely bound by a JS binding pattern.
+
+    Object property keys and default-value expressions are deliberately not
+    bindings. Unknown shapes return no binding rather than silently treating
+    every identifier token as a lexical shadow.
+    """
+    identifiers: list[tuple[str, int]] = []
+    identifier_pattern = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
+
+    def trim(start: int, end: int) -> tuple[int, int]:
+        while start < end and binding_text[start].isspace():
+            start += 1
+        while end > start and binding_text[end - 1].isspace():
+            end -= 1
+        return start, end
+
+    def parse(start: int, end: int) -> None:
+        start, end = trim(start, end)
+        if binding_text.startswith("...", start, end):
+            start, end = trim(start + 3, end)
+        assignment = top_level_delimiter(binding_text, start, end, "=")
+        if assignment is not None:
+            start, end = trim(start, assignment)
+        if start >= end:
+            return
+
+        identifier = identifier_pattern.fullmatch(binding_text, start, end)
+        if identifier is not None:
+            name = identifier.group()
+            if name in names:
+                identifiers.append((name, identifier.start()))
+            return
+
+        opener = binding_text[start]
+        if opener not in "{[":
+            return
+        closer = "}" if opener == "{" else "]"
+        closing = matching_delimiter(binding_text, start, opener, closer)
+        if closing != end - 1:
+            return
+        for member_start, member_end in top_level_spans(
+            binding_text, start + 1, closing, ","
+        ):
+            member_start, member_end = trim(member_start, member_end)
+            if member_start >= member_end:
+                continue
+            if opener == "{" and not binding_text.startswith(
+                "...", member_start, member_end
+            ):
+                colon = top_level_delimiter(
+                    binding_text, member_start, member_end, ":"
+                )
+                if colon is not None:
+                    parse(colon + 1, member_end)
+                    continue
+            parse(member_start, member_end)
+
+    for parameter_start, parameter_end in top_level_spans(
+        binding_text, 0, len(binding_text), ","
+    ):
+        parse(parameter_start, parameter_end)
+    return identifiers
+
+
+def mask_typescript_type_only_regions(code_text: str) -> str:
+    """Mask declarations that have no JavaScript runtime evaluation."""
+    output = list(code_text)
+
+    def mask(start: int, end: int) -> None:
+        for offset in range(start, min(end, len(output))):
+            if output[offset] != "\n":
+                output[offset] = " "
+
+    for interface in re.finditer(
+        r"\binterface\s+[A-Za-z_$][A-Za-z0-9_$]*\b", code_text
+    ):
+        opening = code_text.find("{", interface.end())
+        if opening < 0:
+            continue
+        closing = matching_delimiter(code_text, opening, "{", "}")
+        if closing is not None:
+            mask(interface.start(), closing + 1)
+
+    for alias in re.finditer(
+        r"\btype\s+[A-Za-z_$][A-Za-z0-9_$]*\b", code_text
+    ):
+        assignment = code_text.find("=", alias.end())
+        newline = code_text.find("\n", alias.end())
+        if assignment < 0 or (newline >= 0 and newline < assignment):
+            continue
+        braces = brackets = parentheses = 0
+        cursor = assignment + 1
+        complete = False
+        while cursor < len(code_text):
+            char = code_text[cursor]
+            if char == "{":
+                braces += 1
+            elif char == "}" and braces:
+                braces -= 1
+            elif char == "[":
+                brackets += 1
+            elif char == "]" and brackets:
+                brackets -= 1
+            elif char == "(":
+                parentheses += 1
+            elif char == ")" and parentheses:
+                parentheses -= 1
+            elif char == ";" and not (braces or brackets or parentheses):
+                cursor += 1
+                complete = True
+                break
+            cursor += 1
+        if complete:
+            mask(alias.start(), cursor)
+
+    for abstract_method in re.finditer(
+        r"\babstract\s+(?:[A-Za-z_$][A-Za-z0-9_$]*\s+)*"
+        r"[A-Za-z_$][A-Za-z0-9_$]*\s*\(",
+        code_text,
+    ):
+        opening = code_text.rfind(
+            "(", abstract_method.start(), abstract_method.end()
+        )
+        closing = matching_delimiter(code_text, opening, "(", ")")
+        if closing is None:
+            continue
+        semicolon = code_text.find(";", closing)
+        body_limit = semicolon if semicolon >= 0 else len(code_text)
+        body = code_text.find("{", closing, body_limit)
+        if semicolon >= 0 and body < 0:
+            mask(abstract_method.start(), semicolon + 1)
+    return "".join(output)
+
+
+def mask_typescript_parameter_annotations(code_text: str) -> str:
+    """Mask top-level annotations in runtime function/arrow parameters."""
+    output = list(code_text)
+    parameter_spans: set[tuple[int, int]] = set()
+
+    for function in re.finditer(
+        r"\bfunction(?:\s+[A-Za-z_$][A-Za-z0-9_$]*)?\s*\(", code_text
+    ):
+        opening = code_text.rfind("(", function.start(), function.end())
+        closing = matching_delimiter(code_text, opening, "(", ")")
+        if closing is not None:
+            parameter_spans.add((opening + 1, closing))
+
+    for opening_match in re.finditer(r"\(", code_text):
+        opening = opening_match.start()
+        closing = matching_delimiter(code_text, opening, "(", ")")
+        if closing is None:
+            continue
+        remainder = code_text[closing + 1 :]
+        if re.match(r"\s*(?::[^\n;{}]*)?=>", remainder):
+            parameter_spans.add((opening + 1, closing))
+
+    for start, end in sorted(parameter_spans):
+        braces = brackets = parentheses = 0
+        cursor = start
+        while cursor < end:
+            char = code_text[cursor]
+            if char == "{":
+                braces += 1
+            elif char == "}" and braces:
+                braces -= 1
+            elif char == "[":
+                brackets += 1
+            elif char == "]" and brackets:
+                brackets -= 1
+            elif char == "(":
+                parentheses += 1
+            elif char == ")" and parentheses:
+                parentheses -= 1
+            elif char == ":" and not (braces or brackets or parentheses):
+                annotation_start = cursor
+                if annotation_start > start and code_text[annotation_start - 1] == "?":
+                    annotation_start -= 1
+                type_braces = type_brackets = type_parentheses = 0
+                cursor += 1
+                while cursor < end:
+                    type_char = code_text[cursor]
+                    if type_char == "{":
+                        type_braces += 1
+                    elif type_char == "}" and type_braces:
+                        type_braces -= 1
+                    elif type_char == "[":
+                        type_brackets += 1
+                    elif type_char == "]" and type_brackets:
+                        type_brackets -= 1
+                    elif type_char == "(":
+                        type_parentheses += 1
+                    elif type_char == ")" and type_parentheses:
+                        type_parentheses -= 1
+                    elif not (type_braces or type_brackets or type_parentheses):
+                        if type_char == ",":
+                            break
+                        if type_char == "=" and code_text[cursor + 1 : cursor + 2] != ">":
+                            break
+                    cursor += 1
+                for offset in range(annotation_start, cursor):
+                    if output[offset] != "\n":
+                        output[offset] = " "
+                continue
+            cursor += 1
+    return "".join(output)
+
+
 def declaration_scopes(
     code_text: str,
     scopes: list[dict[str, int | None]],
@@ -589,6 +1377,7 @@ def declaration_scopes(
     hoisting details. That prevents platform globals from being guessed.
     """
     declarations: dict[tuple[int, str], set[int]] = {}
+    parameter_code_text = mask_typescript_parameter_annotations(code_text)
     callable_parameter_patterns = (
         re.compile(
             r"\bfunction(?:\s+[A-Za-z_$][A-Za-z0-9_$]*)?\s*"
@@ -598,17 +1387,34 @@ def declaration_scopes(
             r"(?P<method>[A-Za-z_$][A-Za-z0-9_$]*)\s*"
             r"\((?P<parameters>[^()]*)\)\s*\{"
         ),
-        re.compile(r"\((?P<parameters>[^()]*)\)\s*=>\s*\{"),
-        re.compile(r"(?P<parameters>[A-Za-z_$][A-Za-z0-9_$]*)\s*=>\s*\{"),
+        re.compile(r"\((?P<parameters>[^()]*)\)\s*(?P<arrow>=>)"),
+        re.compile(
+            r"(?P<parameters>[A-Za-z_$][A-Za-z0-9_$]*)\s*(?P<arrow>=>)"
+        ),
     )
     control_words = {"if", "for", "while", "switch", "catch", "with"}
+
+    def callable_child_scope(match: re.Match[str]) -> int | None:
+        if match.groupdict().get("arrow") is not None:
+            arrow_offset = match.start("arrow")
+            body_start = match.end("arrow")
+            while body_start < len(code_text) and code_text[body_start].isspace():
+                body_start += 1
+            opening = (
+                body_start
+                if body_start < len(code_text) and code_text[body_start] == "{"
+                else arrow_offset
+            )
+        else:
+            opening = code_text.rfind("{", match.start(), match.end())
+        return child_scope_for_opening(scopes, opening)
+
     function_scopes = {0}
     for pattern in callable_parameter_patterns:
-        for match in pattern.finditer(code_text):
+        for match in pattern.finditer(parameter_code_text):
             if "method" in match.groupdict() and match.group("method") in control_words:
                 continue
-            opening = code_text.rfind("{", match.start(), match.end())
-            child = child_scope_for_opening(scopes, opening)
+            child = callable_child_scope(match)
             if child is not None:
                 function_scopes.add(child)
 
@@ -634,10 +1440,64 @@ def declaration_scopes(
         r"(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)\b",
         code_text,
     ):
+        kind = match.group("kind")
+        previous = match.start() - 1
+        while previous >= 0 and code_text[previous].isspace():
+            previous -= 1
+        declaration_prefix = code_text[: match.start()]
+        named_declaration = (
+            previous < 0
+            or code_text[previous] in "{;}"
+            or re.search(
+                r"\bexport(?:\s+default)?\s*$", declaration_prefix
+            )
+            is not None
+        )
+        if kind == "function" and re.search(
+            r"\basync\s*$", declaration_prefix
+        ):
+            async_match = re.search(r"\basync\s*$", declaration_prefix)
+            assert async_match is not None
+            before_async = async_match.start() - 1
+            while before_async >= 0 and code_text[before_async].isspace():
+                before_async -= 1
+            named_declaration = (
+                before_async < 0 or code_text[before_async] in "{;}"
+            )
+        named_expression = kind in {"class", "function"} and not named_declaration
+        if named_expression:
+            if kind == "function":
+                parameters_opening = code_text.find("(", match.end())
+                parameters_closing = (
+                    matching_delimiter(
+                        code_text, parameters_opening, "(", ")"
+                    )
+                    if parameters_opening >= 0
+                    else None
+                )
+                body_opening = (
+                    code_text.find("{", parameters_closing + 1)
+                    if parameters_closing is not None
+                    else -1
+                )
+            else:
+                body_opening = code_text.find("{", match.end())
+            expression_scope = (
+                child_scope_for_opening(scopes, body_opening)
+                if body_opening >= 0
+                else None
+            )
+            if expression_scope is not None:
+                declare(
+                    match.group("name"),
+                    match.start("name"),
+                    scope_id=expression_scope,
+                )
+                continue
         declare(
             match.group("name"),
             match.start("name"),
-            declaration_kind=match.group("kind"),
+            declaration_kind=kind,
         )
 
     for match in re.finditer(
@@ -650,45 +1510,75 @@ def declaration_scopes(
         if closing is None:
             continue
         binding = code_text[opening : closing + 1]
-        for name in names:
-            binding_match = re.search(
-                rf"(?:^|[,{{]|\[|:|\.\.\.)\s*"
-                rf"(?P<name>{re.escape(name)})\b"
-                r"(?=\s*(?:[,}\]]|=))",
-                binding,
+        for name, relative_offset in binding_identifier_offsets(binding, names):
+            declare(
+                name,
+                opening + relative_offset,
+                scope_id=scope_at(scopes, match.start()),
+                declaration_kind=match.group("kind"),
             )
-            if binding_match:
-                declare(
-                    name,
-                    opening + binding_match.start("name"),
-                    scope_id=scope_at(scopes, match.start()),
-                    declaration_kind=match.group("kind"),
-                )
 
-    for match in re.finditer(r"(?m)^\s*import\b(?P<body>[^;\n]*)", code_text):
-        body = match.group("body")
-        for name in names & identifier_tokens(body):
-            declare(name, match.start("body") + body.find(name), 0)
+    for body_start, body_end in import_statement_spans(code_text):
+        body = code_text[body_start:body_end]
+        from_token = re.search(r"\bfrom\b", body)
+        clause = body[: from_token.start()] if from_token else body
+        default_binding = re.match(
+            r"\s*(?:type\s+)?(?P<local>[A-Za-z_$][A-Za-z0-9_$]*)"
+            r"(?=\s*(?:,|$))",
+            clause,
+        )
+        if default_binding and default_binding.group("local") in names:
+            declare(
+                default_binding.group("local"),
+                body_start + default_binding.start("local"),
+                0,
+            )
+        for namespace in re.finditer(
+            r"\*\s+as\s+(?P<local>[A-Za-z_$][A-Za-z0-9_$]*)",
+            clause,
+        ):
+            if namespace.group("local") in names:
+                declare(
+                    namespace.group("local"),
+                    body_start + namespace.start("local"),
+                    0,
+                )
+        for named_block in re.finditer(r"\{(?P<specifiers>[^{}]*)\}", clause):
+            specifiers = named_block.group("specifiers")
+            for specifier in re.finditer(
+                r"(?:^|,)\s*(?:type\s+)?"
+                r"(?P<imported>[A-Za-z_$][A-Za-z0-9_$]*)"
+                r"(?:\s+as\s+(?P<local>[A-Za-z_$][A-Za-z0-9_$]*))?",
+                specifiers,
+            ):
+                local_group = "local" if specifier.group("local") else "imported"
+                local = specifier.group(local_group)
+                if local in names:
+                    declare(
+                        local,
+                        body_start
+                        + named_block.start("specifiers")
+                        + specifier.start(local_group),
+                        0,
+                    )
 
     parameter_patterns = callable_parameter_patterns + (
         re.compile(r"\bcatch\s*\((?P<parameters>[^()]*)\)\s*\{"),
     )
     seen_parameter_blocks: set[tuple[int, str]] = set()
     for pattern in parameter_patterns:
-        for match in pattern.finditer(code_text):
+        for match in pattern.finditer(parameter_code_text):
             if "method" in match.groupdict() and match.group("method") in control_words:
                 continue
-            opening = code_text.rfind("{", match.start(), match.end())
-            child = child_scope_for_opening(scopes, opening)
+            child = callable_child_scope(match)
             if child is None:
                 continue
             parameters = match.group("parameters")
-            for name in names & identifier_tokens(parameters):
+            for name, relative_offset in binding_identifier_offsets(parameters, names):
                 identity = (child, name)
                 if identity in seen_parameter_blocks:
                     continue
                 seen_parameter_blocks.add(identity)
-                relative_offset = parameters.find(name)
                 declare(name, match.start("parameters") + relative_offset, child)
     return declarations
 
@@ -757,7 +1647,7 @@ def method_bodies(
 ) -> list[tuple[re.Match[str], str, int]]:
     bodies: list[tuple[re.Match[str], str, int]] = []
     for match in re.finditer(method_pattern, text):
-        opening = text.find("{", match.start(), match.end())
+        opening = text.rfind("{", match.start(), match.end())
         if opening < 0:
             continue
         closing = matching_delimiter(text, opening, "{", "}")
@@ -777,7 +1667,32 @@ def is_method_declaration(structure_text: str, name_offset: int) -> bool:
     cursor = closing + 1
     while cursor < len(structure_text) and structure_text[cursor].isspace():
         cursor += 1
-    return cursor < len(structure_text) and structure_text[cursor] == "{"
+    if cursor >= len(structure_text) or structure_text[cursor] != "{":
+        return False
+
+    depth = 0
+    owner_opening: int | None = None
+    for offset in range(name_offset - 1, -1, -1):
+        if structure_text[offset] == "}":
+            depth += 1
+        elif structure_text[offset] == "{":
+            if depth == 0:
+                owner_opening = offset
+                break
+            depth -= 1
+    if owner_opening is None:
+        return False
+    previous = owner_opening - 1
+    while previous >= 0 and structure_text[previous].isspace():
+        previous -= 1
+    if previous >= 0 and structure_text[previous] in "=(:,[?":
+        return True
+    owner_prefix = structure_text[:owner_opening]
+    return (
+        re.search(r"\bexport\s+default\s*$", owner_prefix) is not None
+        or re.search(r"\b(?:return|yield)\s*$", owner_prefix) is not None
+        or re.search(r"\bclass\b[^{};]*$", owner_prefix) is not None
+    )
 
 
 def direct_case_literals(
@@ -785,6 +1700,20 @@ def direct_case_literals(
 ) -> list[tuple[str, int]]:
     """Return direct string-literal cases from one switch body with offsets."""
     cases: list[tuple[str, int]] = []
+    for offset in direct_case_offsets(structure_body):
+        literal = re.match(
+            r"case\s*(?P<quote>[\"'])(?P<code>[A-Za-z0-9_-]+)"
+            r"(?P=quote)\s*:",
+            source_body[offset:],
+        )
+        if literal:
+            cases.append((literal.group("code"), offset))
+    return cases
+
+
+def direct_case_offsets(structure_body: str) -> list[int]:
+    """Return direct `case` token offsets, excluding nested block contents."""
+    offsets: list[int] = []
     depth = 0
     for token in re.finditer(r"[{}]|\bcase\b", structure_body):
         value = token.group()
@@ -793,14 +1722,150 @@ def direct_case_literals(
         elif value == "}":
             depth = max(0, depth - 1)
         elif depth == 0:
-            literal = re.match(
-                r"case\s*(?P<quote>[\"'])(?P<code>[A-Za-z0-9_-]+)"
-                r"(?P=quote)\s*:",
-                source_body[token.start() :],
-            )
-            if literal:
-                cases.append((literal.group("code"), token.start()))
-    return cases
+            offsets.append(token.start())
+    return offsets
+
+
+def callback_key_bindings(parameters: str) -> tuple[str | None, set[str], bool]:
+    """Resolve the event object or destructured code binding for a key callback."""
+    identifier = r"[A-Za-z_$][A-Za-z0-9_$]*"
+    simple = re.fullmatch(rf"\s*(?P<event>{identifier})\s*", parameters)
+    if simple:
+        return simple.group("event"), set(), True
+
+    if re.fullmatch(r"\s*\{.*\}\s*", parameters, re.DOTALL):
+        binding = re.search(
+            rf"(?:^|[,{{])\s*code\b"
+            rf"(?:\s*:\s*(?P<alias>{identifier}))?"
+            r"(?=\s*(?:[,}=]))",
+            parameters,
+        )
+        if binding:
+            return None, {binding.group("alias") or "code"}, True
+    return None, set(), False
+
+
+def callback_key_selector_spans(
+    structure_body: str,
+    source_body: str,
+    event_parameter: str | None,
+    code_bindings: set[str],
+) -> list[tuple[int, int, str]]:
+    """Find supported key-code selectors without reading masked string content."""
+    spans: set[tuple[int, int, str]] = set()
+    if event_parameter is not None:
+        escaped = re.escape(event_parameter)
+        for match in re.finditer(
+            rf"(?<![A-Za-z0-9_$.]){escaped}\s*\.\s*code\b",
+            structure_body,
+        ):
+            spans.add((*match.span(), event_parameter))
+        for match in re.finditer(
+            rf"(?<![A-Za-z0-9_$.]){escaped}\s*\[\s*\x02?\s*\]",
+            structure_body,
+        ):
+            candidate = source_body[match.start() : match.end()]
+            if re.fullmatch(
+                rf"{escaped}\s*\[\s*(?P<quote>[\"'])code(?P=quote)\s*\]",
+                candidate,
+            ):
+                spans.add((*match.span(), event_parameter))
+
+    for binding in code_bindings:
+        for match in re.finditer(
+            rf"(?<![A-Za-z0-9_$.]){re.escape(binding)}\b",
+            structure_body,
+        ):
+            spans.add((*match.span(), binding))
+    return sorted(spans)
+
+
+def mark_key_selectors(
+    structure_body: str, spans: list[tuple[int, int, str]]
+) -> str:
+    """Replace key selectors with one offset-stable marker for syntax scans."""
+    marker = "\x01"
+    output = list(structure_body)
+    for start, end, _binding in spans:
+        for index in range(start, end):
+            if output[index] != "\n":
+                output[index] = " "
+        output[start] = marker
+    return "".join(output)
+
+
+def code_literal_after(source_text: str, offset: int) -> str | None:
+    """Read one supported string code literal after an already-located operator."""
+    literal = re.match(
+        r"\s*(?P<quote>[\"'])(?P<code>[A-Za-z0-9_-]+)(?P=quote)",
+        source_text[offset:],
+    )
+    return literal.group("code") if literal else None
+
+
+JS_IDENTIFIER_ESCAPE = r"\\u(?:[0-9A-Fa-f]{4}|\{[0-9A-Fa-f]{1,6}\})"
+JS_IDENTIFIER_WITH_ESCAPE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_$\\])(?P<identifier>"
+    rf"(?:[A-Za-z_$]|{JS_IDENTIFIER_ESCAPE})"
+    rf"(?:[A-Za-z0-9_$]|{JS_IDENTIFIER_ESCAPE})*"
+    r")(?![A-Za-z0-9_$\\])"
+)
+
+
+def decode_js_identifier(identifier: str) -> str | None:
+    """Decode JavaScript Unicode identifier escapes, rejecting bad scalars."""
+    if "\\" not in identifier:
+        return identifier
+
+    invalid = False
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal invalid
+        token = match.group()
+        hexadecimal = token[3:-1] if token.startswith("\\u{") else token[2:]
+        value = int(hexadecimal, 16)
+        if value > 0x10FFFF or 0xD800 <= value <= 0xDFFF:
+            invalid = True
+            return ""
+        return chr(value)
+
+    decoded = re.sub(JS_IDENTIFIER_ESCAPE, replace, identifier)
+    return None if invalid or "\\" in decoded else decoded
+
+
+def normalize_js_identifier_escapes(text: str) -> str:
+    """Decode identifier escapes into the front of their original source span."""
+    output = list(text)
+    for match in JS_IDENTIFIER_WITH_ESCAPE_PATTERN.finditer(text):
+        identifier = match.group("identifier")
+        if "\\" not in identifier:
+            continue
+        decoded = decode_js_identifier(identifier)
+        if decoded is None:
+            continue
+        start, end = match.span("identifier")
+        output[start:end] = list(decoded) + [" "] * (end - start - len(decoded))
+    return "".join(output)
+
+
+def static_js_string_concatenation(expression: str) -> str | None:
+    """Evaluate an expression made only from static strings joined by `+`."""
+    masked = mask_comments(expression)
+    literals = static_js_string_literals(masked)
+    if not literals:
+        return None
+    cursor = 0
+    values: list[str] = []
+    for index, (value, start, end) in enumerate(literals):
+        separator = masked[cursor:start]
+        expected = r"\s*" if index == 0 else r"\s*\+\s*"
+        if re.fullmatch(expected, separator) is None:
+            return None
+        values.append(value)
+        cursor = end
+    if masked[cursor:].strip():
+        return None
+    return "".join(values)
 
 
 def object_member_offsets(
@@ -818,10 +1883,16 @@ def object_member_offsets(
     members: dict[str, set[int]] = {}
     cursor = opening + 1
     while cursor < closing:
-        while cursor < closing and (masked[cursor].isspace() or masked[cursor] == ","):
+        while cursor < closing and (
+            masked[cursor] == ","
+            or (masked[cursor].isspace() and text[cursor] not in "'\"`")
+        ):
             cursor += 1
         if cursor >= closing:
             break
+        name: str | None = None
+        name_offset = cursor
+        after = cursor
         candidate = re.match(
             r"(?:(?:async|get|set)\s+)?(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)",
             masked[cursor:closing],
@@ -830,24 +1901,43 @@ def object_member_offsets(
             name = candidate.group("name")
             name_offset = cursor + candidate.start("name")
             after = cursor + candidate.end()
-            while after < closing and masked[after].isspace():
-                after += 1
-            if after == closing or masked[after] in "(:,":
-                members.setdefault(name, set()).add(name_offset)
-                if (
-                    include_methods
-                    and name == "methods"
-                    and after < closing
-                    and masked[after] == ":"
+        elif text[cursor] in "'\"`":
+            value, literal_end = decode_js_string_at(text, cursor)
+            if value is not None and re.fullmatch(
+                r"[A-Za-z_$][A-Za-z0-9_$]*", value
+            ):
+                name = value
+                after = literal_end
+        elif masked[cursor] == "[":
+            computed_end = matching_delimiter(text, cursor, "[", "]")
+            if computed_end is not None and computed_end < closing:
+                value = static_js_string_concatenation(
+                    text[cursor + 1 : computed_end]
+                )
+                if value is not None and re.fullmatch(
+                    r"[A-Za-z_$][A-Za-z0-9_$]*", value
                 ):
-                    nested_opening = after + 1
-                    while nested_opening < closing and masked[nested_opening].isspace():
-                        nested_opening += 1
-                    if nested_opening < closing and masked[nested_opening] == "{":
-                        for nested_name, offsets in object_member_offsets(
-                            text, nested_opening
-                        ).items():
-                            members.setdefault(nested_name, set()).update(offsets)
+                    name = value
+                    after = computed_end + 1
+
+        while after < closing and masked[after].isspace():
+            after += 1
+        if name is not None and (after == closing or masked[after] in "(:,"):
+            members.setdefault(name, set()).add(name_offset)
+            if (
+                include_methods
+                and name == "methods"
+                and after < closing
+                and masked[after] == ":"
+            ):
+                nested_opening = after + 1
+                while nested_opening < closing and masked[nested_opening].isspace():
+                    nested_opening += 1
+                if nested_opening < closing and masked[nested_opening] == "{":
+                    for nested_name, offsets in object_member_offsets(
+                        text, nested_opening
+                    ).items():
+                        members.setdefault(nested_name, set()).update(offsets)
 
         braces = brackets = parentheses = 0
         while cursor < closing:
@@ -872,16 +1962,101 @@ def object_member_offsets(
 
 
 def exported_object_members(
-    text: str, *, include_methods: bool = True
+    text: str,
+    *,
+    structure_text: str | None = None,
+    include_methods: bool = True,
 ) -> dict[str, set[int]]:
+    structure = structure_text or mask_literals_and_comments(text)
     members: dict[str, set[int]] = {}
-    for export_match in re.finditer(r"\bexport\s+default\s*\{", text):
-        opening = text.find("{", export_match.start(), export_match.end())
+    for export_match in re.finditer(r"\bexport\s+default\s*\{", structure):
+        opening = structure.find("{", export_match.start(), export_match.end())
         for name, offsets in object_member_offsets(
             text, opening, include_methods=include_methods
         ).items():
             members.setdefault(name, set()).update(offsets)
     return members
+
+
+def owner_composition_offsets(structure_text: str) -> list[int]:
+    """Locate surface exports whose object ownership cannot be closed."""
+    unresolved: list[int] = []
+    for specifier_export in re.finditer(
+        r"\bexport\s*\{(?P<specifiers>[^{}]*)\}", structure_text
+    ):
+        if re.search(r"(?:^|,)\s*(?:default\b|[A-Za-z_$][A-Za-z0-9_$]*\s+as\s+default\b)", specifier_export.group("specifiers")):
+            unresolved.append(specifier_export.start())
+    for export_match in re.finditer(r"\bexport\s+default\b", structure_text):
+        cursor = export_match.end()
+        while cursor < len(structure_text) and structure_text[cursor].isspace():
+            cursor += 1
+        if cursor >= len(structure_text) or structure_text[cursor] != "{":
+            unresolved.append(
+                cursor if cursor < len(structure_text) else export_match.start()
+            )
+            continue
+        closing = matching_delimiter(structure_text, cursor, "{", "}")
+        if closing is None:
+            unresolved.append(cursor)
+            continue
+
+        member = cursor + 1
+        while member < closing:
+            while member < closing and (
+                structure_text[member].isspace() or structure_text[member] == ","
+            ):
+                member += 1
+            if member >= closing:
+                break
+            if structure_text.startswith("...", member):
+                unresolved.append(member)
+                break
+            if re.match(r"(?:async\s+)?\*", structure_text[member:closing]):
+                unresolved.append(member)
+                break
+            member_identifier = re.match(
+                r"(?:(?:async|get|set)\s+)?(?P<name>"
+                rf"(?:[A-Za-z_$]|{JS_IDENTIFIER_ESCAPE})"
+                rf"(?:[A-Za-z0-9_$]|{JS_IDENTIFIER_ESCAPE})*)",
+                structure_text[member:closing],
+            )
+            if (
+                member_identifier is not None
+                and "\\" in member_identifier.group("name")
+            ):
+                unresolved.append(member + member_identifier.start("name"))
+                break
+            if re.match(r"__proto__\s*:", structure_text[member:closing]):
+                unresolved.append(member)
+                break
+            computed = re.match(
+                r"(?:(?:async|get|set)\s+)?\[",
+                structure_text[member:closing],
+            )
+            if computed is not None:
+                unresolved.append(member + computed.end() - 1)
+                break
+
+            braces = brackets = parentheses = 0
+            while member < closing:
+                char = structure_text[member]
+                if char == "{":
+                    braces += 1
+                elif char == "}" and braces:
+                    braces -= 1
+                elif char == "[":
+                    brackets += 1
+                elif char == "]" and brackets:
+                    brackets -= 1
+                elif char == "(":
+                    parentheses += 1
+                elif char == ")" and parentheses:
+                    parentheses -= 1
+                elif char == "," and not (braces or brackets or parentheses):
+                    member += 1
+                    break
+                member += 1
+    return unresolved
 
 
 def owner_key(relative: str) -> str:
@@ -1353,9 +2528,10 @@ def add_registered_source_items(
                 )
             )
 
-    for match in re.finditer(
-        r":host-focus(?![A-Za-z0-9_-])", style_scan_text(source_text, relative)
-    ):
+    style_text = normalize_css_identifier_escapes(
+        style_scan_text(source_text, relative)
+    )
+    for match in re.finditer(r":host-focus(?![A-Za-z0-9_-])", style_text):
         items.append(
             make_item(
                 "focus.host",
@@ -1367,15 +2543,132 @@ def add_registered_source_items(
             )
         )
 
+    motion_property_pattern = re.compile(
+        r"(?<![A-Za-z0-9_-])(?P<property>"
+        r"(?:-[A-Za-z]+-)?transition(?:-[A-Za-z-]+)?"
+        r"|(?:-[A-Za-z]+-)?animation(?:-[A-Za-z-]+)?)\s*:",
+        re.IGNORECASE | re.MULTILINE,
+    )
+    for match in motion_property_pattern.finditer(style_text):
+        property_name = match.group("property").lower()
+        add_unregistered(
+            items,
+            unmatched_symbols,
+            f"MOTION:{property_name}",
+            relative,
+            *line_and_column(source_text, match.start("property")),
+        )
+    for match in re.finditer(
+        r"@(?:-[A-Za-z]+-)?keyframes\b", style_text, re.IGNORECASE
+    ):
+        add_unregistered(
+            items,
+            unmatched_symbols,
+            "MOTION:@keyframes",
+            relative,
+            *line_and_column(source_text, match.start()),
+        )
+
     structure_code_text = mask_regex_literals(code_text)
     scopes = lexical_scopes(structure_code_text)
-    global_declarations = declaration_scopes(
-        structure_code_text, scopes, {"fetch", "document"}
+    normalized_identifier_text = normalize_js_identifier_escapes(
+        structure_code_text
     )
+    escaped_platform_names = set(REFERENCE_GLOBALS) | {
+        "document",
+        "fetch",
+        "globalThis",
+        "navigator",
+        "self",
+        "window",
+        "wx",
+    }
+    escaped_declarations = declaration_scopes(
+        normalized_identifier_text, scopes, escaped_platform_names
+    )
+    for escaped_match in JS_IDENTIFIER_WITH_ESCAPE_PATTERN.finditer(
+        structure_code_text
+    ):
+        identifier = escaped_match.group("identifier")
+        if "\\" not in identifier:
+            continue
+        decoded = decode_js_identifier(identifier)
+        if decoded is None:
+            continue
+        reference_name = decoded
+        previous = escaped_match.start("identifier") - 1
+        while previous >= 0 and structure_code_text[previous].isspace():
+            previous -= 1
+        if previous >= 0 and structure_code_text[previous] == ".":
+            chain = re.search(
+                r"(?P<chain>[A-Za-z_$][A-Za-z0-9_$]*"
+                r"(?:\s*\.\s*[A-Za-z_$][A-Za-z0-9_$]*)*)\s*$",
+                normalized_identifier_text[:previous],
+            )
+            if chain is None:
+                continue
+            reference_name = re.split(r"\s*\.\s*", chain.group("chain"))[0]
+        if reference_name not in escaped_platform_names:
+            continue
+        reference_offset = (
+            chain.start("chain")
+            if previous >= 0
+            and structure_code_text[previous] == "."
+            and chain is not None
+            else escaped_match.start("identifier")
+        )
+        if is_import_binding(normalized_identifier_text, reference_offset):
+            continue
+        if any(
+            escaped_match.start("identifier") in offsets
+            for (_scope_id, name), offsets in escaped_declarations.items()
+            if name == reference_name
+        ):
+            continue
+        if resolved_declaration_scope(
+            reference_name,
+            reference_offset,
+            scopes,
+            escaped_declarations,
+        ) is not None:
+            continue
+        if is_method_declaration(
+            normalized_identifier_text, escaped_match.start("identifier")
+        ):
+            continue
+        if re.match(
+            r"\s*:", normalized_identifier_text[escaped_match.end("identifier") :]
+        ):
+            continue
+        add_unregistered(
+            items,
+            unmatched_symbols,
+            f"REFERENCE:{reference_name}",
+            relative,
+            *line_and_column(source_text, escaped_match.start("identifier")),
+        )
+
+    global_declarations = declaration_scopes(
+        normalized_identifier_text,
+        scopes,
+        {"document", "enableWorldAwareness", "fetch", "wx"},
+    )
+    declared_fetch_offsets = {
+        offset
+        for (_scope_id, name), offsets in global_declarations.items()
+        if name == "fetch"
+        for offset in offsets
+    }
+    consumed_fetch_offsets: set[int] = set()
     for match in re.finditer(r"(?<![\w.$])fetch\s*\(", structure_code_text):
+        if match.start() in declared_fetch_offsets:
+            continue
+        if is_method_declaration(structure_code_text, match.start()):
+            continue
         if resolved_declaration_scope(
             "fetch", match.start(), scopes, global_declarations
         ) is None:
+            consumed_fetch_offsets.add(match.start())
             items.append(
                 make_item(
                     "network.https",
@@ -1387,22 +2680,40 @@ def add_registered_source_items(
                 )
             )
 
-    fetch_aliases: list[tuple[str, int, int]] = []
+    fetch_aliases: list[tuple[str, str, int, int, int]] = []
     for match in re.finditer(
-        r"\bconst\s+(?P<alias>[A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*fetch\b",
+        r"\b(?P<kind>const|let|var)\s+"
+        r"(?P<alias>[A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?P<fetch>fetch)\b",
         structure_code_text,
     ):
         if resolved_declaration_scope(
-            "fetch", match.start(), scopes, global_declarations
+            "fetch", match.start("fetch"), scopes, global_declarations
         ) is None:
             fetch_aliases.append(
-                (match.group("alias"), scope_at(scopes, match.start()), match.end())
+                (
+                    match.group("kind"),
+                    match.group("alias"),
+                    match.start("alias"),
+                    match.end(),
+                    match.start("fetch"),
+                )
             )
     if fetch_aliases:
         alias_declarations = declaration_scopes(
-            structure_code_text, scopes, {alias for alias, _, _ in fetch_aliases}
+            structure_code_text,
+            scopes,
+            {alias for _, alias, _, _, _ in fetch_aliases},
         )
-        for alias, alias_scope, declaration_end in fetch_aliases:
+        for (
+            kind,
+            alias,
+            declaration_offset,
+            declaration_end,
+            fetch_offset,
+        ) in fetch_aliases:
+            alias_scope = resolved_declaration_scope(
+                alias, declaration_offset, scopes, alias_declarations
+            )
             for call in re.finditer(
                 rf"(?<![A-Za-z0-9_$.]){re.escape(alias)}\s*\(",
                 structure_code_text,
@@ -1418,16 +2729,49 @@ def add_registered_source_items(
                     != alias_scope
                 ):
                     continue
-                items.append(
-                    make_item(
-                        "network.https",
-                        f"fetch-alias:{alias}",
-                        "fetch(...)",
-                        NO_DECLARATION,
+                if kind == "const":
+                    consumed_fetch_offsets.add(fetch_offset)
+                    items.append(
+                        make_item(
+                            "network.https",
+                            f"fetch-alias:{alias}",
+                            "fetch(...)",
+                            NO_DECLARATION,
+                            relative,
+                            *line_and_column(source_text, call.start()),
+                        )
+                    )
+                else:
+                    add_unregistered(
+                        items,
+                        unmatched_symbols,
+                        f"fetch-alias:{alias}(...)",
                         relative,
                         *line_and_column(source_text, call.start()),
                     )
-                )
+
+    for match in re.finditer(r"(?<![A-Za-z0-9_$.])fetch\b", structure_code_text):
+        if match.start() in consumed_fetch_offsets:
+            continue
+        if match.start() in declared_fetch_offsets:
+            continue
+        if is_import_binding(structure_code_text, match.start()):
+            continue
+        if resolved_declaration_scope(
+            "fetch", match.start(), scopes, global_declarations
+        ) is not None:
+            continue
+        if is_method_declaration(structure_code_text, match.start()):
+            continue
+        if re.match(r"\s*:", structure_code_text[match.end() :]):
+            continue
+        add_unregistered(
+            items,
+            unmatched_symbols,
+            "REFERENCE:fetch",
+            relative,
+            *line_and_column(source_text, match.start()),
+        )
 
     for binding in ("bindtap", "bindfocus", "bindblur"):
         family = "event.bindtap" if binding == "bindtap" else "focus.element"
@@ -1451,8 +2795,15 @@ def add_registered_source_items(
 
     for symbol, (family, api_binding) in KNOWN_WX_CALLS.items():
         for match in re.finditer(
-            rf"(?<![A-Za-z0-9_$.]){re.escape(symbol)}\s*\(", code_text
+            rf"(?<![A-Za-z0-9_$.]){re.escape(symbol)}\s*\(",
+            structure_code_text,
         ):
+            if is_import_binding(structure_code_text, match.start()):
+                continue
+            if resolved_declaration_scope(
+                "wx", match.start(), scopes, global_declarations
+            ) is not None:
+                continue
             items.append(
                 make_item(
                     family,
@@ -1507,10 +2858,25 @@ def add_registered_source_items(
                     )
                 )
 
-        for match in re.finditer(
-            r"(?<![A-Za-z0-9_$])(?:this\.)?enableWorldAwareness\s*\(",
-            code_text,
-        ):
+        consumed_world_awareness_offsets: set[int] = set()
+        world_awareness_pattern = re.compile(
+            r"(?<![A-Za-z0-9_$.])(?:(?P<this>this)\s*\.\s*)?"
+            r"(?P<name>enableWorldAwareness)\s*\("
+        )
+        for match in world_awareness_pattern.finditer(structure_code_text):
+            name_offset = match.start("name")
+            if match.group("this") is None and (
+                is_import_binding(structure_code_text, name_offset)
+                or resolved_declaration_scope(
+                    "enableWorldAwareness",
+                    name_offset,
+                    scopes,
+                    global_declarations,
+                )
+                is not None
+            ):
+                continue
+            consumed_world_awareness_offsets.add(name_offset)
             items.append(
                 make_item(
                     "page.world-awareness",
@@ -1518,8 +2884,41 @@ def add_registered_source_items(
                     "enableWorldAwareness(...)",
                     NO_DECLARATION,
                     relative,
-                    *line_and_column(source_text, match.start()),
+                    *line_and_column(source_text, name_offset),
                 )
+            )
+
+        for match in re.finditer(
+            r"(?<![A-Za-z0-9_$.])(?:(?P<this>this)\s*\.\s*)?"
+            r"(?P<name>enableWorldAwareness)\b",
+            structure_code_text,
+        ):
+            name_offset = match.start("name")
+            if name_offset in consumed_world_awareness_offsets:
+                continue
+            if match.group("this") is None and (
+                is_import_binding(structure_code_text, name_offset)
+                or resolved_declaration_scope(
+                    "enableWorldAwareness",
+                    name_offset,
+                    scopes,
+                    global_declarations,
+                )
+                is not None
+            ):
+                continue
+            if is_method_declaration(structure_code_text, name_offset):
+                continue
+            if re.match(
+                r"\s*:", structure_code_text[match.end("name") :]
+            ):
+                continue
+            add_unregistered(
+                items,
+                unmatched_symbols,
+                "REFERENCE:enableWorldAwareness",
+                relative,
+                *line_and_column(source_text, name_offset),
             )
 
         for match in re.finditer(
@@ -1562,55 +2961,131 @@ def add_registered_source_items(
                     )
                 )
             else:
-                add_unregistered(
-                    items,
-                    unmatched_symbols,
+                record_unresolved_key_input(
+                    callback_name,
                     api_binding,
+                    absolute_offset,
+                )
+
+        def record_unresolved_key_input(
+            callback_name: str, mechanism: str, absolute_offset: int
+        ) -> None:
+            items.append(
+                make_item(
+                    "input.key.unknown",
+                    mechanism,
+                    PROJECT_BINDING_UNRESOLVED,
+                    PROJECT_BINDING_UNRESOLVED,
                     relative,
                     *line_and_column(source_text, absolute_offset),
+                    policy_state="binding-unresolved",
+                    gate_salt=callback_name,
                 )
+            )
 
-        callback_text = mask_comments(source_text)
-        for method_match, body, body_offset in method_bodies(
-            callback_text,
-            r"\b(?P<callback>onKey(?:Down|Up))\s*\([^)]*\)\s*\{",
-        ):
-            callback_name = method_match.group("callback")
-            if method_match.start("callback") not in local_owner_offsets.get(
-                callback_name, set()
-            ):
-                continue
-            for match in re.finditer(
-                r"event\.code\s*(?:===|!==|==|!=)\s*[\"']"
-                r"(?P<code>[A-Za-z0-9_-]+)[\"']",
-                body,
-            ):
-                record_key_event(
-                    callback_name, match.group("code"), body_offset + match.start()
-                )
-
+        parsed_key_callbacks: set[tuple[str, int]] = set()
         for method_match, body, body_offset in method_bodies(
             structure_code_text,
-            r"\b(?P<callback>onKey(?:Down|Up))\s*\([^)]*\)\s*\{",
+            r"\b(?P<callback>onKey(?:Down|Up))\s*"
+            r"\((?P<parameters>[^()]*)\)\s*\{",
         ):
             callback_name = method_match.group("callback")
             if method_match.start("callback") not in local_owner_offsets.get(
                 callback_name, set()
             ):
                 continue
-            for _, switch_body, switch_body_offset in method_bodies(
-                body, r"\bswitch\s*\(\s*event\.code\s*\)\s*\{"
+            parsed_key_callbacks.add(
+                (callback_name, method_match.start("callback"))
+            )
+            source_body = source_text[body_offset : body_offset + len(body)]
+            event_parameter, code_bindings, reliable_parameters = (
+                callback_key_bindings(method_match.group("parameters"))
+            )
+            selector_spans = callback_key_selector_spans(
+                body,
+                source_body,
+                event_parameter,
+                code_bindings,
+            )
+            callback_scope = child_scope_for_opening(scopes, body_offset - 1)
+            key_binding_names = set(code_bindings)
+            if event_parameter is not None:
+                key_binding_names.add(event_parameter)
+            key_declarations = declaration_scopes(
+                structure_code_text, scopes, key_binding_names
+            )
+            selector_spans = [
+                (start, end, binding)
+                for start, end, binding in selector_spans
+                if callback_scope is not None
+                and resolved_declaration_scope(
+                    binding,
+                    body_offset + start,
+                    scopes,
+                    key_declarations,
+                )
+                == callback_scope
+            ]
+            selector_text = mark_key_selectors(body, selector_spans)
+            selector_offsets = {start for start, _end, _binding in selector_spans}
+            consumed_selectors: set[int] = set()
+            unresolved = not reliable_parameters or not selector_spans
+
+            for comparison in re.finditer(
+                r"(?P<selector>\x01)\s*(?:===|!==|==|!=)", selector_text
             ):
+                code = code_literal_after(source_body, comparison.end())
+                if code is None:
+                    unresolved = True
+                    continue
+                consumed_selectors.add(comparison.start("selector"))
+                record_key_event(
+                    callback_name,
+                    code,
+                    body_offset + comparison.start("selector"),
+                )
+
+            switch_pattern = (
+                r"\bswitch\s*\(\s*(?P<selector>"
+                + "\x01"
+                + r")\s*\)\s*\{"
+            )
+            for switch_match, switch_body, switch_body_offset in method_bodies(
+                selector_text, switch_pattern
+            ):
+                consumed_selectors.add(switch_match.start("selector"))
                 absolute_body_offset = body_offset + switch_body_offset
                 source_switch_body = source_text[
                     absolute_body_offset : absolute_body_offset + len(switch_body)
                 ]
-                for code, case_offset in direct_case_literals(
+                case_offsets = direct_case_offsets(switch_body)
+                case_literals = direct_case_literals(
                     switch_body, source_switch_body
-                ):
+                )
+                if not case_offsets or len(case_literals) != len(case_offsets):
+                    unresolved = True
+                for code, case_offset in case_literals:
                     record_key_event(
                         callback_name, code, absolute_body_offset + case_offset
                     )
+            if selector_offsets - consumed_selectors:
+                unresolved = True
+            if unresolved:
+                record_unresolved_key_input(
+                    callback_name,
+                    f"Page.{callback_name}:input-unresolved",
+                    method_match.start("callback"),
+                )
+
+        for callback_name in ("onKeyDown", "onKeyUp"):
+            for offset in sorted(local_owner_offsets.get(callback_name, set())):
+                if (callback_name, offset) in parsed_key_callbacks:
+                    continue
+                record_unresolved_key_input(
+                    callback_name,
+                    f"Page.{callback_name}:input-unresolved",
+                    offset,
+                )
 
 
 def add_speech_inventory(
@@ -1800,8 +3275,10 @@ def add_speech_inventory(
 
 
 def is_import_binding(code_text: str, offset: int) -> bool:
-    line_start = code_text.rfind("\n", 0, offset) + 1
-    return re.search(r"\bimport\b", code_text[line_start:offset]) is not None
+    return any(
+        body_start <= offset < body_end
+        for body_start, body_end in import_statement_spans(code_text)
+    )
 
 
 def add_platform_quarantines(
@@ -1822,16 +3299,69 @@ def add_platform_quarantines(
 
     scopes = lexical_scopes(code_text)
     global_declarations = declaration_scopes(
-        code_text, scopes, {"fetch", "document", "SpeechRecognition"}
+        code_text,
+        scopes,
+        {
+            "Function",
+            "SpeechRecognition",
+            "document",
+            "eval",
+            "fetch",
+            "globalThis",
+            "self",
+            "window",
+            "wx",
+        },
     )
 
+    for symbol in ("eval", "Function"):
+        declared_offsets = {
+            offset
+            for (_scope_id, name), offsets in global_declarations.items()
+            if name == symbol
+            for offset in offsets
+        }
+        for match in re.finditer(
+            rf"(?<![A-Za-z0-9_$.]){re.escape(symbol)}\b", code_text
+        ):
+            if match.start() in declared_offsets:
+                continue
+            if is_import_binding(code_text, match.start()):
+                continue
+            if resolved_declaration_scope(
+                symbol, match.start(), scopes, global_declarations
+            ) is not None:
+                continue
+            if is_method_declaration(code_text, match.start()):
+                continue
+            if re.match(r"\s*:", code_text[match.end() :]):
+                continue
+            quarantine(f"REFERENCE:{symbol}", match.start())
+
     namespace_pattern = re.compile(
-        r"(?<![A-Za-z0-9_$.])(?P<symbol>(?:window|globalThis)"
+        r"(?<![A-Za-z0-9_$.])(?P<symbol>(?P<base>window|globalThis|self)"
         r"(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*)"
     )
     for match in namespace_pattern.finditer(code_text):
+        base = match.group("base")
+        if any(
+            match.start() in offsets
+            for (scope_id, name), offsets in global_declarations.items()
+            if name == base
+        ):
+            continue
+        if resolved_declaration_scope(
+            base, match.start(), scopes, global_declarations
+        ) is not None:
+            continue
+        if is_import_binding(code_text, match.start()):
+            continue
+        if is_method_declaration(code_text, match.start()):
+            continue
         symbol = match.group("symbol")
         remainder = code_text[match.end() :]
+        if symbol == base and re.match(r"\s*:", remainder):
+            continue
         if re.match(r"\s*\(", remainder):
             quarantine(f"{symbol}(...)", match.start())
         else:
@@ -1863,6 +3393,12 @@ def add_platform_quarantines(
         r"\s*\(",
         code_text,
     ):
+        if is_import_binding(code_text, match.start()):
+            continue
+        if resolved_declaration_scope(
+            "wx", match.start(), scopes, global_declarations
+        ) is not None:
+            continue
         symbol = match.group("symbol")
         if symbol not in KNOWN_WX_CALLS:
             quarantine(f"{symbol}(...)", match.start())
@@ -1872,6 +3408,16 @@ def add_platform_quarantines(
         code_text,
     ):
         if is_import_binding(code_text, match.start()):
+            continue
+        if any(
+            match.start() in offsets
+            for (_scope_id, name), offsets in global_declarations.items()
+            if name == "wx"
+        ):
+            continue
+        if resolved_declaration_scope(
+            "wx", match.start(), scopes, global_declarations
+        ) is not None:
             continue
         if re.match(r"\s*\(", code_text[match.end() :]):
             continue
@@ -1910,6 +3456,17 @@ def add_platform_quarantines(
         for match in re.finditer(
             rf"(?<![A-Za-z0-9_$.]){re.escape(symbol)}\b", code_text
         ):
+            if symbol == "wx":
+                if any(
+                    match.start() in offsets
+                    for (_scope_id, name), offsets in global_declarations.items()
+                    if name == symbol
+                ):
+                    continue
+                if resolved_declaration_scope(
+                    symbol, match.start(), scopes, global_declarations
+                ) is not None:
+                    continue
             if symbol == "SpeechRecognition":
                 if any(
                     match.start() in offsets
@@ -2017,9 +3574,69 @@ def reconcile_claims(
             unmatched_symbols.append(unmatched)
 
 
-def inventory_project(project_root: Path, target_version: str) -> dict[str, object]:
+def inventory_project(
+    project_root: Path,
+    target_version: str,
+    repository_root: Path | None = None,
+) -> dict[str, object]:
     root = project_root.resolve()
-    revision_before = fingerprint_project(root)
+    repository: Path | None = None
+    reserved_repository_names = {
+        directory.casefold() for directory in REPOSITORY_METADATA_DIRECTORIES
+    }
+    if repository_root is not None:
+        repository = repository_root.resolve()
+        if not repository.is_dir():
+            raise ValueError(f"repository root is not a directory: {repository_root}")
+        try:
+            relative_root = root.relative_to(repository)
+        except ValueError as error:
+            raise ValueError("project root is outside repository root") from error
+        if (
+            relative_root.parts
+            and relative_root.parts[0].casefold()
+            in reserved_repository_names
+        ):
+            raise ValueError(
+                "RESERVED_IMPORT_ROOT: project root is inside reserved "
+                f"repository directory: {relative_root.as_posix()}"
+            )
+        evidence_roots = [
+            child
+            for child in repository.iterdir()
+            if child.name.casefold() == ".aiui-evidence"
+        ]
+        for evidence_root in evidence_roots:
+            evidence_label = evidence_root.relative_to(repository).as_posix()
+            if evidence_root.is_symlink():
+                raise ValueError(
+                    f"RESERVED_AUDIT_SOURCE: {evidence_label}: the audit "
+                    "evidence directory cannot be a symlink"
+                )
+            if not evidence_root.is_dir():
+                raise ValueError(
+                    f"RESERVED_AUDIT_SOURCE: {evidence_label}: the audit "
+                    "evidence path must be a directory"
+                )
+            for candidate in sorted(evidence_root.rglob("*")):
+                evidence_relative = candidate.relative_to(repository).as_posix()
+                if candidate.is_symlink():
+                    raise ValueError(
+                        "RESERVED_AUDIT_SOURCE: "
+                        f"{evidence_relative}: the audit evidence directory "
+                        "cannot contain symlinks or AIUI runtime source"
+                    )
+                if (
+                    candidate.is_file()
+                    and candidate.suffix.lower() in RUNTIME_SOURCE_SUFFIXES
+                ):
+                    raise ValueError(
+                        "RESERVED_AUDIT_SOURCE: "
+                        f"{evidence_relative}: the audit evidence directory "
+                        "cannot contain AIUI runtime source"
+                    )
+
+    revision_before = fingerprint_project(root, repository)
     items: list[dict[str, object]] = []
     unmatched_symbols: list[dict[str, object]] = []
     claims: list[dict[str, str]] = []
@@ -2040,6 +3657,12 @@ def inventory_project(project_root: Path, target_version: str) -> dict[str, obje
         )
         if not isinstance(manifest, dict):
             raise ValueError("app.json root must be an object")
+        reject_reserved_json_references(
+            manifest,
+            "app.json",
+            root,
+            repository,
+        )
         manifest_entries, manifest_unmatched = manifest_items(manifest)
         items.extend(manifest_entries)
         unmatched_symbols.extend(manifest_unmatched)
@@ -2083,16 +3706,49 @@ def inventory_project(project_root: Path, target_version: str) -> dict[str, obje
     source_surface_kinds: dict[str, str] = {}
     for candidate in sorted(root.rglob("*")):
         relative_path = candidate.relative_to(root)
-        if relative_path.parts and relative_path.parts[0] in EXCLUDED_TOP_LEVEL_DIRECTORIES:
-            continue
+        if repository is not None:
+            repository_relative = candidate.relative_to(repository)
+            if (
+                repository_relative.parts
+                and repository_relative.parts[0].casefold()
+                in reserved_repository_names
+            ):
+                continue
         if not candidate.is_file() or candidate.suffix.lower() not in SOURCE_SUFFIXES:
             continue
         relative = relative_path.as_posix()
-        if relative in {"app.json", CLAIMS_FILENAME}:
+        if relative in {"app.json", CLAIMS_FILENAME, SCOPE_FILENAME}:
             continue
         text = candidate.read_text(encoding="utf-8")
+        if candidate.suffix.lower() in RUNTIME_SOURCE_SUFFIXES:
+            reserved_reference = find_reserved_runtime_reference(text, relative)
+            if reserved_reference is not None:
+                segment, reference_offset, reference_value = reserved_reference
+                if reference_value is not None and is_nested_repository_path(
+                    reference_value, candidate.parent, repository
+                ):
+                    reserved_reference = None
+            if reserved_reference is not None:
+                line, column = line_and_column(text, reference_offset)
+                raise ValueError(
+                    "RESERVED_PATH_REFERENCE: "
+                    f"{relative}:{line}:{column} references reserved path segment "
+                    f"{segment}"
+                )
+        if candidate.suffix.lower() == ".json":
+            add_unregistered(
+                items,
+                unmatched_symbols,
+                f"CONFIGURATION:{relative}",
+                relative,
+                1,
+            )
+            continue
         scan_text = markup_scan_text(text, relative)
         code_text = executable_code_text(text, relative)
+        if candidate.suffix.lower() == ".ts":
+            code_text = mask_typescript_type_only_regions(code_text)
+        code_text = mask_regex_literals(code_text)
         if relative in worker_scripts:
             surface_kind = "worker"
         elif relative.startswith("widgets/"):
@@ -2103,8 +3759,10 @@ def inventory_project(project_root: Path, target_version: str) -> dict[str, obje
             surface_kind = "page"
         else:
             surface_kind = "shared"
-        all_members = exported_object_members(code_text)
-        direct_members = exported_object_members(code_text, include_methods=False)
+        all_members = exported_object_members(text, structure_text=code_text)
+        direct_members = exported_object_members(
+            text, structure_text=code_text, include_methods=False
+        )
         key = owner_key(relative)
         audit_surface = AUDIT_SURFACE_BY_SOURCE_KIND.get(surface_kind)
         if audit_surface is not None:
@@ -2152,6 +3810,15 @@ def inventory_project(project_root: Path, target_version: str) -> dict[str, obje
             owner_handlers.get(key, set()),
             direct_members,
         )
+        if surface_kind in {"app", "page", "widget", "worker"}:
+            for offset in owner_composition_offsets(code_text):
+                add_unregistered(
+                    items,
+                    unmatched_symbols,
+                    f"{SURFACE_LABELS[surface_kind]}.owner-composition-unresolved",
+                    relative,
+                    *line_and_column(text, offset),
+                )
 
         if surface_kind == "widget":
             for callback in sorted(WIDGET_CALLBACKS):
@@ -2294,10 +3961,11 @@ def inventory_project(project_root: Path, target_version: str) -> dict[str, obje
             )
 
         if surface_kind == "page":
-            has_world_awareness = re.search(
-                r"(?<![A-Za-z0-9_$])(?:this\.)?enableWorldAwareness\s*\(",
-                code_text,
-            ) is not None
+            has_world_awareness = any(
+                item["family"] == "page.world-awareness"
+                and item["locations"][0]["path"] == relative
+                for item in items
+            )
             for callback_name in ("onHeadGesture", "onHeadGestureStateChange"):
                 for offset in sorted(direct_members.get(callback_name, set())):
                     callback = f"{callback_name}(event)"
@@ -2392,7 +4060,7 @@ def inventory_project(project_root: Path, target_version: str) -> dict[str, obje
         for entry in unmatched_symbols
     }
     ordered_unmatched = [unique_unmatched[key] for key in sorted(unique_unmatched)]
-    revision_after = fingerprint_project(root)
+    revision_after = fingerprint_project(root, repository)
     if revision_before != revision_after:
         raise ValueError("project changed while capability inventory was running")
     version_violations = []
@@ -2463,9 +4131,21 @@ def main() -> int:
         choices=("0.17.0", "0.18.0"),
         help="canonical AIUI target version",
     )
+    parser.add_argument(
+        "--repository-root",
+        type=Path,
+        help=(
+            "audit repository root; only this exact root's .git and "
+            ".aiui-evidence directories are excluded"
+        ),
+    )
     args = parser.parse_args()
     try:
-        report = inventory_project(args.project_root, args.target_version)
+        report = inventory_project(
+            args.project_root,
+            args.target_version,
+            args.repository_root,
+        )
     except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as error:
         parser.error(str(error))
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))

@@ -13,6 +13,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -28,6 +29,7 @@ from typing import Any, Optional
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent
 INVENTORY_SCRIPT = SCRIPT_DIRECTORY / "inventory_aiui_capabilities.py"
 FINGERPRINT_SCRIPT = SCRIPT_DIRECTORY / "fingerprint_aiui_project.py"
+PROJECT_VALIDATOR_SCRIPT = SCRIPT_DIRECTORY / "validate_aiui_project.py"
 EVIDENCE_DIRECTORY = ".aiui-evidence"
 STABLE_AIUI_REVISION = "88e70bb0382525c1a93ef077c2401dcc31a273ce"
 PREVIEW_AIUI_REVISION = "8b19a87b4ba8b486c0dd4dd3fd32290d27891069"
@@ -77,6 +79,7 @@ INPUT_KINDS = frozenset(
         "tap",
         "enter",
         "back",
+        "key",
         "directional-scroll",
         "component-scroll",
         "scroll",
@@ -94,6 +97,7 @@ INPUT_FAMILIES = frozenset(
         "event.bindtap",
         "input.enter",
         "input.back",
+        "input.key.unknown",
         "input.scroll.host",
         "component.scroll-view",
         "input.scroll.unknown",
@@ -110,6 +114,7 @@ INPUT_KIND_BY_FAMILY = {
     "event.bindtap": "tap",
     "input.enter": "enter",
     "input.back": "back",
+    "input.key.unknown": "key",
     "input.scroll.host": "directional-scroll",
     "component.scroll-view": "component-scroll",
     "input.scroll.unknown": "scroll",
@@ -222,6 +227,11 @@ PROVISIONAL_BEHAVIOR = (
     "Hide/show and unload do not retain stale capability work",
 )
 UNRESOLVED_BEHAVIOR = {
+    "input.key.unknown": (
+        "The intended key input performs exactly one owned action",
+        "Unknown, ignored, or repeated key delivery preserves host defaults and a non-key fallback",
+        "Hide/show and unload do not retain stale key handling",
+    ),
     "input.scroll.unknown": (
         "The declared product intent affects only its owned target",
         "Unsupported or ignored scrolling preserves host behavior",
@@ -287,6 +297,9 @@ CAPABILITY_POLICIES = {
     "event.bindtap": CapabilityPolicy("CAP-BINDTAP", ALL_LAYERS),
     "input.enter": CapabilityPolicy("CAP-INPUT-ENTER", SOURCE_STATIC_LOGIC_STUDIO_DEVICE),
     "input.back": CapabilityPolicy("CAP-INPUT-BACK", SOURCE_STATIC_LOGIC_STUDIO_DEVICE),
+    "input.key.unknown": CapabilityPolicy(
+        "CAP-INPUT-KEY", SOURCE_STATIC_LOGIC_STUDIO_DEVICE, True
+    ),
     "input.scroll.unknown": CapabilityPolicy(
         "CAP-INPUT-SCROLL", SOURCE_STATIC_LOGIC_STUDIO_DEVICE, True
     ),
@@ -353,6 +366,21 @@ CAPABILITY_POLICIES = {
         "CAP-AGENT-WORKER-WAIT-UNTIL", ALL_LAYERS, True
     ),
 }
+FAILURE_CAPABILITY_FAMILIES = frozenset(
+    {
+        "ai.speech-recognition",
+        "input.voice-wakeup",
+        "input.voice.unknown",
+        "voice.declaration.unknown",
+        "input.fallback.unknown",
+        "input.touch-migration.unknown",
+        "page.world-awareness",
+        "input.head-gesture",
+        "input.gesture-fallback.unknown",
+    }
+)
+if not FAILURE_CAPABILITY_FAMILIES.issubset(CAPABILITY_POLICIES):
+    raise RuntimeError("failure capability registry must stay within capability policies")
 CAPABILITY_CONTRACT_TOKENS = {
     family: "cap-" + family.replace(".", "-") + "-v1"
     for family in CAPABILITY_POLICIES
@@ -398,6 +426,7 @@ CAPABILITY_BEHAVIOR_CONTRACTS = {
         "Ignored or repeated Back input preserves host defaults and a usable exit",
         "Hide/show and unload do not retain stale Back handling",
     ),
+    "input.key.unknown": UNRESOLVED_BEHAVIOR["input.key.unknown"],
     "input.scroll.unknown": UNRESOLVED_BEHAVIOR["input.scroll.unknown"],
     "input.voice.unknown": UNRESOLVED_BEHAVIOR["input.voice.unknown"],
     "voice.declaration.unknown": UNRESOLVED_BEHAVIOR["voice.declaration.unknown"],
@@ -557,6 +586,7 @@ CAPABILITY_SOURCE_POLICIES = {
     ),
     "input.enter": frozenset({("DOC", stable_blob(PAGE_EVENTS_DOC))}),
     "input.back": frozenset({("DOC", stable_blob(PAGE_EVENTS_DOC))}),
+    "input.key.unknown": frozenset({("DOC", stable_blob(PAGE_EVENTS_DOC))}),
     "input.scroll.host": frozenset({("DOC", stable_blob(PAGE_EVENTS_DOC))}),
     "input.scroll.unknown": frozenset(
         {
@@ -705,6 +735,19 @@ def normalized(value: str) -> str:
 def capability_contract_cell(family: str, path: str, description: str) -> str:
     token = CAPABILITY_CONTRACT_TOKENS[family]
     return f"{{contract={token}}} {{path={path}}} {description}"
+
+
+def is_provisional_capability_id(identifier: str, base_id: str) -> bool:
+    """Allow a stable instance discriminator before the final marker."""
+
+    return (
+        re.fullmatch(
+            re.escape(base_id)
+            + r"(?:-(?!PROVISIONAL(?:-|$))[A-Z0-9]+)*-PROVISIONAL",
+            identifier,
+        )
+        is not None
+    )
 
 
 def strict_json(data: bytes, description: str) -> dict[str, Any]:
@@ -867,6 +910,8 @@ def current_inventory(repository_root: Path, import_path: Path, version: str) ->
             str(import_path),
             "--target-version",
             version,
+            "--repository-root",
+            str(repository_root),
         ],
         repository_root,
         "AIUI capability inventory",
@@ -1053,7 +1098,76 @@ def current_inventory(repository_root: Path, import_path: Path, version: str) ->
     return report
 
 
+def validate_project_structure(
+    repository_root: Path, import_path: Path, version: str
+) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_VALIDATOR_SCRIPT),
+            str(import_path),
+            "--repository-root",
+            str(repository_root),
+            "--target-version",
+            version,
+            "--strict",
+            "--json",
+        ],
+        cwd=repository_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    payload = strict_json(
+        completed.stdout.encode("utf-8"), "strict AIUI project validation"
+    )
+    require(
+        set(payload)
+        == {
+            "valid",
+            "strict",
+            "targetVersion",
+            "errorCount",
+            "warningCount",
+            "diagnostics",
+        },
+        "strict AIUI project validation schema is not exact",
+    )
+    require(payload.get("strict") is True, "AIUI project validator did not run in strict mode")
+    require(
+        payload.get("targetVersion") == version,
+        "AIUI project validator targetVersion changed",
+    )
+    diagnostics = payload.get("diagnostics")
+    require(
+        isinstance(diagnostics, list),
+        "strict AIUI project validation diagnostics must be an array",
+    )
+    diagnostic_codes = [
+        str(item.get("code", "UNKNOWN"))
+        for item in diagnostics
+        if isinstance(item, dict)
+    ]
+    detail = ",".join(diagnostic_codes) or completed.stderr.strip() or "unknown failure"
+    require(
+        completed.returncode == 0 and payload.get("valid") is True,
+        f"strict AIUI project validation failed: {detail}",
+    )
+
+
 def verify_commit_tree(repository_root: Path, import_path: Path, revision: str) -> None:
+    repository = repository_root.resolve()
+
+    def is_reserved(path: Path) -> bool:
+        try:
+            relative = path.relative_to(repository)
+        except ValueError:
+            return False
+        return bool(
+            relative.parts
+            and relative.parts[0].lower() in {".git", EVIDENCE_DIRECTORY}
+        )
+
     def git(*arguments: str) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(
             ["git", *arguments], cwd=repository_root, capture_output=True, check=False
@@ -1077,7 +1191,7 @@ def verify_commit_tree(repository_root: Path, import_path: Path, revision: str) 
         repository_path = raw_path.decode("utf-8")
         require(repository_path.startswith(prefix), "commit tree escaped import root")
         relative = repository_path[len(prefix) :]
-        if relative.split("/", 1)[0] == EVIDENCE_DIRECTORY:
+        if is_reserved(repository / repository_path):
             continue
         require(object_type == "blob", f"unsupported git object: {repository_path}")
         require(mode in {"100644", "100755"}, f"unsupported git mode: {repository_path}")
@@ -1085,7 +1199,7 @@ def verify_commit_tree(repository_root: Path, import_path: Path, revision: str) 
     actual: dict[str, tuple[str, bytes]] = {}
     for candidate in import_path.rglob("*"):
         relative_path = candidate.relative_to(import_path)
-        if relative_path.parts and relative_path.parts[0] in {".git", EVIDENCE_DIRECTORY}:
+        if is_reserved(candidate):
             continue
         require(not candidate.is_symlink(), f"symlink in import root: {relative_path}")
         if candidate.is_dir():
@@ -1136,11 +1250,17 @@ class CaptureAuthority:
 
 
 def is_below(path: Path, directory: Path) -> bool:
-    try:
-        path.relative_to(directory)
-    except ValueError:
-        return False
-    return True
+    current = path
+    while True:
+        try:
+            if os.path.samefile(current, directory):
+                return True
+        except OSError:
+            return False
+        parent = current.parent
+        if parent == current:
+            return False
+        current = parent
 
 
 def canonical_public_key_sha256(public_key: bytes) -> str:
@@ -1294,6 +1414,9 @@ class AuditValidator:
             self.project_revision = "UNAVAILABLE"
         else:
             assert self.import_path is not None
+            validate_project_structure(
+                self.repository_root, self.import_path, version
+            )
             self.inventory = current_inventory(self.repository_root, self.import_path, version)
             self._validate_revision(metadata["Project revision"])
         self.device_host_value = metadata["Device/host"]
@@ -1386,6 +1509,9 @@ class AuditValidator:
         self._validate_final(markdown, sections[HEADINGS[2]], all_rows)
         if not self.source_unavailable:
             assert self.import_path is not None
+            validate_project_structure(
+                self.repository_root, self.import_path, version
+            )
             completion_inventory = current_inventory(
                 self.repository_root, self.import_path, version
             )
@@ -1502,7 +1628,7 @@ class AuditValidator:
         else:
             if policy_state == "binding-unresolved":
                 require(
-                    identifier == policy.base_id + "-PROVISIONAL"
+                    is_provisional_capability_id(identifier, policy.base_id)
                     and row[2] == PROJECT_BINDING_UNRESOLVED
                     and row[3] == PROJECT_BINDING_UNRESOLVED,
                     f"project-binding provisional contract is not exact for {identifier}",
@@ -1527,26 +1653,28 @@ class AuditValidator:
         surfaces = set(self.supported_surfaces)
         if surfaces.intersection(ui_surfaces):
             return True
-        if surfaces and surfaces.issubset({"Agent Worker", "App"}):
-            return False
-        return any(
+        if any(
             candidate.startswith(
                 ("page.", "widget.", "focus.", "ui.", "event.", "input.", "component.")
             )
             for candidate in inventory_families
-        )
+        ):
+            return True
+        return False
+
+    def _has_target_surface(self) -> bool:
+        return bool({"_current", "_blank"}.intersection(self.supported_surfaces))
 
     def _ux_is_applicable(self, family: str) -> bool:
         mode = UX_APPLICABILITY_MODES[family]
         inventory_families = {
             str(item.get("family")) for item in self.inventory.get("items", [])
         }
-        ui_surfaces = {"_current", "_blank", "Page", "Widget"}
         has_ui = self._has_ui_surface()
         if mode == "always":
             return True
         if mode == "declared-surface":
-            return bool(set(self.supported_surfaces).intersection(ui_surfaces))
+            return has_ui
         if mode == "ui-surface":
             return has_ui
         if mode == "focus-or-actionable":
@@ -1557,22 +1685,20 @@ class AuditValidator:
                 )
             )
         if mode == "scanner-input":
-            return has_ui and bool(self.input_gates)
+            return bool(self.input_gates)
         if mode == "failure-capability":
             return any(
                 candidate == "project.unregistered"
                 or candidate.startswith(("network.", "media.camera.", "agent-worker."))
-                or candidate
-                in {
-                    "ai.speech-recognition",
-                    "input.voice-wakeup",
-                    "page.world-awareness",
-                    "input.head-gesture",
-                }
+                or candidate in FAILURE_CAPABILITY_FAMILIES
                 for candidate in inventory_families
             )
         require(mode == "scope-conditional", f"unknown UX applicability mode: {mode}")
-        return False
+        return any(
+            str(item.get("mechanism", "")).startswith("MOTION:")
+            for item in self.inventory.get("items", [])
+            if isinstance(item, dict)
+        )
 
     def _validate_ux_rows(self, rows: list[list[str]], input_gates: set[str]) -> list[ParsedRow]:
         parsed_rows: list[ParsedRow] = []
@@ -1642,10 +1768,10 @@ class AuditValidator:
                 continue
             mode = UX_APPLICABILITY_MODES[parsed.family]
             applicable = self._ux_is_applicable(parsed.family)
-            if parsed.family == "UX-TARGET" and not self.supported_surfaces:
+            if parsed.family == "UX-TARGET" and not self._has_target_surface():
                 require(
                     parsed.result == "BLOCKED",
-                    "UX-TARGET must remain BLOCKED when supported surfaces are unavailable",
+                    "UX-TARGET must remain BLOCKED when target surfaces are unavailable",
                 )
             elif (
                 parsed.family == "UX-INPUT"
@@ -1812,7 +1938,7 @@ class AuditValidator:
                 )
             else:
                 require(
-                    identifier == policy.base_id + "-PROVISIONAL"
+                    is_provisional_capability_id(identifier, policy.base_id)
                     and row[2] == PROJECT_BINDING_UNRESOLVED
                     and row[3] == PROJECT_BINDING_UNRESOLVED,
                     f"unavailable registered family must use its provisional contract: {identifier}",
@@ -2261,8 +2387,8 @@ class AuditValidator:
         require(row.capability_binding is None, "inventoried capabilities cannot be N/A")
         require(not self.source_unavailable, "source-unavailable rows cannot be N/A")
         require(
-            not (row.family == "UX-TARGET" and not self.supported_surfaces),
-            "UX-TARGET cannot be N/A when supported surfaces are unavailable",
+            not (row.family == "UX-TARGET" and not self._has_target_surface()),
+            "UX-TARGET cannot be N/A when target surfaces are unavailable",
         )
         if row.family == "UX-INPUT":
             if self._has_ui_surface():
@@ -2435,8 +2561,14 @@ def validate_audit(
     ).validate(markdown)
 
 
+class AuditArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        self.print_usage(sys.stderr)
+        self.exit(1, f"{self.prog}: error: {message}\n")
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = AuditArgumentParser(
         description="Validate a completed AIUI UX/capability audit against fresh source and signed evidence."
     )
     parser.add_argument("audit_markdown", type=Path, help="completed audit Markdown")

@@ -29,9 +29,9 @@ This repository is a compact, source-traceable development workflow—not a froz
 
 每个项目还必须交付两张审查表：UX 表逐项覆盖承载面、状态、长文本、焦点、输入、恢复、生命周期、单绿色视觉、真实背景和性能；能力表对每个 API、组件、事件或设备能力记录版本/设备/承载面、权限、固定版本官方来源、成功与失败路径、fallback、清理和证据。结果只允许 `PASS`、`FAIL`、`BLOCKED`、有理由的 `N/A`。缺少相应证据层级时只能记为 `BLOCKED`；关键路径仍有 `FAIL` 或 `BLOCKED` 时，不得称为完整或可发布。
 
-审计前须在准确的导入根创建 `aiui-audit-claims.json`。它使用精确的 schema 1：顶层只有 `schemaVersion`、`scopeClosed`、`claims`，其中 `scopeClosed` 必须为 `true`，即使 `claims` 是空数组也不能省略文件。扫描器输出 schema 2 inventory，并把 claims 文件的路径、存在性、闭合状态、SHA-256 与数量写入 `claimsLedger`；审计中的能力清单、`Supported surfaces` 和 `Inputs` 必须与扫描结果完全一致。声明中的自然语言不能仅凭 family/surface 相同就借用一个无关源码调用；每条非空产品声明都保留独立的未绑定或隔离 gate。Page 路由本身不会自动声明承载面；每条输入路径分别对应一个 `{family,kind,gate}`，不能把 tap、按键、语音或手势合成一个 gate。只有扫描结果的 `inputGates` 确实为空时才写 `Inputs: none`，并使用固定 `no-input` gate。
+审计前须在准确的导入根创建 `aiui-audit-claims.json`。它使用精确的 schema 1：顶层只有 `schemaVersion`、`scopeClosed`、`claims`，其中 `scopeClosed` 必须为 `true`，即使 `claims` 是空数组也不能省略文件。扫描器输出 schema 2 inventory，并把 claims 文件的路径、存在性、闭合状态、SHA-256 与数量写入 `claimsLedger`；审计中的能力清单、`Supported surfaces` 和 `Inputs` 必须与扫描结果完全一致。声明中的自然语言不能仅凭 family/surface 相同就借用一个无关源码调用；每条非空产品声明都保留独立的未绑定或隔离 gate。已声明并存在的 Page 路由会建立 `Page` 承载面，但只有源码或闭合声明才能进一步建立 `_current` / `_blank` 等具体目标。每条输入路径分别对应一个 `{family,kind,gate}`，不能把 tap、按键、语音或手势合成一个 gate。只有扫描结果的 `inputGates` 确实为空时才写 `Inputs: none`，并使用固定 `no-input` gate。
 
-内容寻址的采集清单和产物统一放进 `.aiui-evidence/`，采集前后必须绑定同一源码指纹；源码指纹只固定排除这个目录和顶层 `.git/`，不会忽略 `.DS_Store` 等 Git 忽略文件。所有记录命令、日志或产物的执行证据以及所有 AIX 执行捕获都需要 `RUNNER` 权威签名；Studio、真机和 `N/A` 范围证明分别需要 `STUDIO`、`DEVICE` 和 `SCOPE` 权威签名。Studio 的 `hostRuntime` 与真机的 `runtimeVersion` 必须精确等于本次审计的 canonical AIUI 版本。签名公钥必须由仓库外的绝对路径 trust policy 按角色固定；`publicKeySha256` 是 OpenSSL 规范化后的 SPKI DER SHA-256，各角色不能通过复用同一密钥或改写 PEM 格式冒充不同权威。项目仓库自行提供的单个设备公钥不受信任。
+内容寻址的采集清单和产物统一放进仓库根 `.aiui-evidence/`，采集前后必须绑定同一源码指纹；运行 fingerprint 和 inventory 时必须显式传入仓库根。工具按 ASCII 大小写不敏感规则只排除该仓库根的 `.git/` 与 `.aiui-evidence/`，嵌套导入目录中的同名路径仍按源码扫描，且保留目录不能包含运行时代码、软链接或被项目清单/源码引用。它不会忽略 `.DS_Store` 等 Git 忽略文件。所有记录命令、日志或产物的执行证据以及所有 AIX 执行捕获都需要 `RUNNER` 权威签名；Studio、真机和 `N/A` 范围证明分别需要 `STUDIO`、`DEVICE` 和 `SCOPE` 权威签名。Studio 的 `hostRuntime` 与真机的 `runtimeVersion` 必须精确等于本次审计的 canonical AIUI 版本。签名公钥必须由仓库外的绝对路径 trust policy 按角色固定；路径归属使用实际文件身份而不是大小写敏感的字符串比较。`publicKeySha256` 是 OpenSSL 规范化后的 SPKI DER SHA-256，各角色不能通过复用同一密钥或改写 PEM 格式冒充不同权威。项目仓库自行提供的单个设备公钥不受信任。
 
 ## 安装
 
@@ -142,7 +142,7 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_audit.py AUDIT.md \
 - `2`：报告结构有效，但结果为 `FAIL` 或 `BLOCKED`，因此不可发布；
 - `1`：报告无效、过期、被篡改或缺少受信权威。
 
-没有可检查源码时，使用精确的 `--import-root UNAVAILABLE` 模式，并在报告中把 `Project revision`、`Import root`、`Device/host` 和 `Supported surfaces` 都写为 `UNAVAILABLE`；所有行必须保持 `BLOCKED`，结构合法时返回 `2`。`N/A` 不是缺设备或缺时间的替代词：生命周期始终适用；没有承载面清单时目标检查只能 `BLOCKED`；Page/Widget UI 的状态、文本、焦点、视觉、环境和扫描器发现的每条输入都不能排除。只有与 App/Worker-only 工程无关的 UI 条件、可选动效、没有相关风险能力时的恢复，或扫描器确认零输入时的唯一固定 `no-input` gate 可以申请 `N/A`；出现 network、camera、voice、world-awareness、gesture、worker 或未注册能力风险时，恢复检查重新成为必需。每个排除还必须由当前 inventory 与闭合 `aiui-audit-scope.json` 同时证明不在源码和产品范围内，并使用两个不同的 `SCOPE` 签名条目；已盘点能力不能标为 `N/A`，也不能把全部 UX 家族排除掉。
+没有可检查源码时，使用精确的 `--import-root UNAVAILABLE` 模式，并在报告中把 `Project revision`、`Import root`、`Device/host` 和 `Supported surfaces` 都写为 `UNAVAILABLE`；所有行必须保持 `BLOCKED`，结构合法时返回 `2`。`N/A` 不是缺设备或缺时间的替代词：生命周期始终适用；没有承载面清单时目标检查只能 `BLOCKED`；结构有效的 Page/Widget UI 所对应的状态、文本、焦点、视觉、环境，以及扫描器发现的每条输入都不能排除。只有经源码与闭合产品范围共同证明无关的条件、可选动效、没有相关风险能力时的恢复，或扫描器确认零输入时的唯一固定 `no-input` gate 可以申请 `N/A`；Agent Worker 必须由有效 Page 或 Widget 打开，不能借 Worker 声明排除其宿主 UI。出现 network、camera、voice、world-awareness、gesture、worker 或未注册能力风险时，恢复检查重新成为必需。每个排除还必须由当前 inventory 与闭合 `aiui-audit-scope.json` 同时证明不在源码和产品范围内，并使用两个不同的 `SCOPE` 签名条目；已盘点能力不能标为 `N/A`，也不能把全部 UX 家族排除掉。
 
 ## 本地验证
 
@@ -150,13 +150,13 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_audit.py AUDIT.md \
 python3 -m pip install --only-binary=:all: -r requirements-dev.txt
 python3 -m unittest discover -s tests -v
 python3 -m unittest -v tests.test_validate_aiui_audit.ValidateAiuiAuditTests.test_full_pass_black_box_is_the_only_release_ready_exit_zero
-python3 skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py examples/focus-timer-agent
-python3 skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py examples/focus-timer-agent --target-version 0.17.0
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/scenequest-agent --target-version 0.17.0 --strict
+python3 skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py examples/focus-timer-agent --repository-root .
+python3 skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py examples/focus-timer-agent --target-version 0.17.0 --repository-root .
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --repository-root . --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --repository-root . --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --repository-root . --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --repository-root . --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/scenequest-agent --target-version 0.17.0 --repository-root . --strict
 python3 skills/rokid-aiui-agent/scripts/verify_references.py .
 npm ci --ignore-scripts --no-audit --no-fund
 AIX_BIN="$PWD/node_modules/.bin/aix"
@@ -183,13 +183,13 @@ test -s "$scenequest_preview_html"
 grep -Fq 'pages/index/index.ink' "$scenequest_preview_html"
 ```
 
-上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署。
+上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署，并在包清单含 `.git/` 或 `.aiui-evidence/` 时失败，防止审计证据进入交付包。
 
 ## 目录
 
 - `skills/rokid-aiui-agent/SKILL.md`：任务路由、证据原则和验证门槛。
 - `skills/rokid-aiui-agent/references/`：工程、`.ink`、交互设计、runtime、强制 UX/能力测试、AIX 与发布指南。
-- `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`：零依赖结构检查器，默认以 `0.17.0` 为目标，支持 `--target-version` / `--strict` / `--json`。
+- `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`：零依赖结构检查器，默认以 `0.17.0` 为目标，支持 `--target-version` / `--repository-root` / `--strict` / `--json`。
 - `skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py`：对准确的 Studio 导入目录生成可复算的 `WORKTREE:SHA-256` 审查版本。
 - `skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py`：确定性盘点闭合 claims、准确承载面、逐路径输入、路由、声明及高风险 API/事件，输出必须逐项对账的 schema-2 inventory。
 - `skills/rokid-aiui-agent/scripts/validate_aiui_audit.py`：对最终 UX/逐能力矩阵、闭合 inventory、证据快照和发布结论执行 fail-closed 校验。

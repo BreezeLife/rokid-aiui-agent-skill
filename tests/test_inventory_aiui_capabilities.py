@@ -24,15 +24,19 @@ class InventoryAiuiCapabilitiesTests(unittest.TestCase):
         self,
         project: Path,
         target_version: str = "0.17.0",
+        repository_root: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        argv = [
+            sys.executable,
+            str(SCRIPT),
+            str(project),
+            "--target-version",
+            target_version,
+        ]
+        if repository_root is not None:
+            argv.extend(("--repository-root", str(repository_root)))
         return subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT),
-                str(project),
-                "--target-version",
-                target_version,
-            ],
+            argv,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -282,13 +286,17 @@ export default {
             "onKeyUp(event.code=Enter)",
             {item["apiBinding"] for item in by_family["input.enter"]},
         )
+        self.assertIn("input.key.unknown", by_family)
+        self.assertIn(
+            "onKeyUp(event.code=GlobalHook)",
+            {item["mechanism"] for item in by_family["input.key.unknown"]},
+        )
         unregistered_bindings = {
             item["apiBinding"]
             for item in by_family["project.unregistered"]
         }
         self.assertTrue(
             {
-                "PROJECT-SYMBOL:onKeyUp(event.code=GlobalHook)",
                 "PROJECT-SYMBOL:setInterval(...)",
                 "PROJECT-SYMBOL:clearInterval(...)",
             }.issubset(unregistered_bindings)
@@ -575,6 +583,72 @@ const documentation = ':host-focus';
                 },
             )
 
+    def test_local_and_imported_wx_are_not_platform_capabilities(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "global").mkdir(parents=True)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":["pages/global/index"]}\n', encoding="utf-8"
+            )
+            (project / "pages" / "global" / "index.ink").write_text(
+                "<page><text>Global</text></page>\n"
+                "<script setup>export default { onLoad() { "
+                "wx.request({ url: '/official' }); } };</script>\n",
+                encoding="utf-8",
+            )
+            local_sources = {
+                "default.js": (
+                    "import wx from './fake';\n"
+                    "wx.request({ url: '/default' });\n"
+                ),
+                "namespace.js": (
+                    "import * as wx from './fake';\n"
+                    "wx.request({ url: '/namespace' });\n"
+                ),
+                "named.js": (
+                    "import { client as wx } from './fake';\n"
+                    "wx.request({ url: '/named' });\n"
+                ),
+                "local.js": (
+                    "const wx = { request(options) { return options; } };\n"
+                    "wx.request({ url: '/local' });\n"
+                ),
+                "parameter.js": (
+                    "function invoke(wx) { return wx.request({ url: '/param' }); }\n"
+                ),
+            }
+            for name, source in local_sources.items():
+                (project / "lib" / name).write_text(source, encoding="utf-8")
+            (project / "lib" / "fake.js").write_text(
+                "export const client = { request(options) { return options; } };\n"
+                "export default client;\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            network_paths = [
+                item["locations"][0]["path"]
+                for item in report["items"]
+                if item["family"] == "network.https"
+            ]
+            self.assertEqual(["pages/global/index.ink"], network_paths)
+            local_wx_findings = [
+                (
+                    entry["path"],
+                    entry["line"],
+                    entry["column"],
+                    entry["symbol"],
+                )
+                for entry in report["unmatchedSymbols"]
+                if entry["path"].startswith("lib/")
+                and "wx" in entry["symbol"]
+            ]
+            self.assertEqual([], local_wx_findings)
+
     def test_widget_lifecycle_callbacks_are_version_gated_not_silent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
@@ -702,6 +776,266 @@ const documentation = ':host-focus';
                 bindings,
             )
 
+    def test_key_callbacks_support_named_bracket_and_destructured_code_inputs(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            page_sources = {
+                "named": """
+<page><text>Named</text></page>
+<script setup>
+export default {
+  onKeyDown(e) { if (e.code === "Enter") return; }
+};
+</script>
+""",
+                "bracket": """
+<page><text>Bracket</text></page>
+<script setup>
+export default {
+  onKeyUp(event) { if (event['code'] === "Backspace") return; }
+};
+</script>
+""",
+                "destructured": """
+<page><text>Destructured</text></page>
+<script setup>
+export default {
+  onKeyUp({ code }) {
+    switch (code) { case "ArrowDown": return; }
+  }
+};
+</script>
+""",
+            }
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": [
+                            f"pages/{name}/index" for name in sorted(page_sources)
+                        ]
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            for name, source in page_sources.items():
+                page = project / "pages" / name
+                page.mkdir(parents=True)
+                (page / "index.ink").write_text(
+                    source.strip() + "\n", encoding="utf-8"
+                )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            bindings = {
+                item["apiBinding"]
+                for item in report["items"]
+                if item["family"] in {"input.enter", "input.back", "input.scroll.host"}
+            }
+            self.assertEqual(
+                {
+                    "onKeyDown(event.code=Enter)",
+                    "onKeyUp(event.code=Backspace)",
+                    "onKeyUp(event.code=ArrowDown)",
+                },
+                bindings,
+            )
+            self.assertFalse(
+                any(
+                    entry["symbol"].endswith(":input-unresolved")
+                    for entry in report["unmatchedSymbols"]
+                )
+            )
+
+    def test_partially_unresolved_key_callback_is_quarantined(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":["pages/index/index"]}\n', encoding="utf-8"
+            )
+            (project / "pages" / "index" / "index.ink").write_text(
+                """
+<page><text>Ready</text></page>
+<script setup>
+export default {
+  onKeyUp(e) {
+    if (e.code === "Enter") return;
+    if (e.code === configuredCode) return;
+  }
+};
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertIn(
+                "onKeyUp(event.code=Enter",
+                " ".join(
+                    str(item["apiBinding"])
+                    for item in report["items"]
+                    if item["family"] == "input.enter"
+                ),
+            )
+            provisional = [
+                item
+                for item in report["items"]
+                if item["family"] == "input.key.unknown"
+            ]
+            self.assertEqual(1, len(provisional))
+            self.assertEqual("binding-unresolved", provisional[0]["policyState"])
+            self.assertEqual(
+                "PROJECT-BINDING:UNRESOLVED", provisional[0]["apiBinding"]
+            )
+            self.assertIn(
+                provisional[0]["gate"],
+                {
+                    entry["gate"]
+                    for entry in report["inputGates"]
+                    if entry["family"] == "input.key.unknown"
+                },
+            )
+
+    def test_unparsed_key_callback_syntax_retains_a_typed_input_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":["pages/index/index"]}\n', encoding="utf-8"
+            )
+            (project / "pages" / "index" / "index.ink").write_text(
+                """
+<page><text>Ready</text></page>
+<script setup>
+export default {
+  onKeyDown: (payload) => handleKey(payload),
+  onKeyUp
+};
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            provisional = [
+                item
+                for item in report["items"]
+                if item["family"] == "input.key.unknown"
+            ]
+            self.assertEqual(2, len(provisional))
+            self.assertTrue(
+                all(item["policyState"] == "binding-unresolved" for item in provisional)
+            )
+            self.assertEqual(
+                {item["gate"] for item in provisional},
+                {
+                    entry["gate"]
+                    for entry in report["inputGates"]
+                    if entry["family"] == "input.key.unknown"
+                },
+            )
+
+    def test_quoted_and_static_computed_key_callbacks_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "quoted").mkdir(parents=True)
+            (project / "pages" / "computed").mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":["pages/quoted/index","pages/computed/index"]}\n',
+                encoding="utf-8",
+            )
+            (project / "pages" / "quoted" / "index.ink").write_text(
+                """
+<page><text>Quoted</text></page>
+<script setup>
+export default {
+  'onKeyUp'(event) { return event.code === 'Enter'; }
+};
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "computed" / "index.ink").write_text(
+                """
+<page><text>Computed</text></page>
+<script setup>
+export default {
+  ['onKey' + 'Down'](event) { return event.code === 'Backspace'; }
+};
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            provisional = [
+                item
+                for item in report["items"]
+                if item["family"] == "input.key.unknown"
+            ]
+            self.assertEqual(
+                {"pages/quoted/index.ink", "pages/computed/index.ink"},
+                {item["locations"][0]["path"] for item in provisional},
+            )
+            self.assertTrue(
+                all(item["policyState"] == "binding-unresolved" for item in provisional)
+            )
+
+    def test_nested_helper_parameter_shadow_is_not_outer_key_input(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":["pages/index/index"]}\n', encoding="utf-8"
+            )
+            (project / "pages" / "index" / "index.ink").write_text(
+                """
+<page><text>Ready</text></page>
+<script setup>
+export default {
+  onKeyUp(event) {
+    function helper(event) { return event.code === 'Enter'; }
+    const arrow = (event) => event.code === 'Backspace';
+    return helper(event) || arrow(event);
+  }
+};
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertFalse(
+                any(
+                    item["family"] in {"input.enter", "input.back"}
+                    for item in report["items"]
+                )
+            )
+            self.assertEqual(
+                1,
+                sum(
+                    item["family"] == "input.key.unknown"
+                    for item in report["items"]
+                ),
+            )
+
     def test_local_fetch_and_comment_target_are_not_registered_platform_capabilities(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
@@ -756,6 +1090,50 @@ const documentation = ':host-focus';
             )
             symbols = {entry["symbol"] for entry in report["unmatchedSymbols"]}
             self.assertNotIn("window.fetch", symbols)
+
+    def test_typescript_type_only_fetch_is_not_runtime_network(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "types.ts").write_text(
+                "interface Client {\n"
+                "  fetch(url: string): Promise<Response>;\n"
+                "}\n"
+                "type ClientAlias = { fetch(url: string): Promise<Response> };\n"
+                "type NativeFetch = typeof fetch;\n"
+                "type Requester = (fetch: (url: string) => unknown) => unknown;\n"
+                "abstract class AbstractClient {\n"
+                "  abstract fetch(url: string): Promise<Response>;\n"
+                "}\n"
+                "function invoke(fetch: (url: string) => unknown) {\n"
+                "  return fetch('/local');\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            (project / "lib" / "runtime.ts").write_text(
+                "fetch('/official');\n", encoding="utf-8"
+            )
+
+            result = self.run_script(project)
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            network_paths = [
+                item["locations"][0]["path"]
+                for item in report["items"]
+                if item["family"] == "network.https"
+            ]
+            self.assertEqual(["lib/runtime.ts"], network_paths)
+            self.assertFalse(
+                any(
+                    entry["path"] == "lib/types.ts"
+                    and "fetch" in entry["symbol"]
+                    for entry in report["unmatchedSymbols"]
+                )
+            )
 
     def test_static_template_bindings_require_handlers_owned_by_the_surface(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -866,6 +1244,166 @@ const documentation = ':host-focus';
                     "AgentWorker.event.waitUntil",
                     "Shared.onLoad",
                 }.issubset(symbols)
+            )
+
+    def test_unclosed_surface_owner_composition_is_quarantined(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "pages" / "proto").mkdir(parents=True)
+            (project / "pages" / "reexport").mkdir(parents=True)
+            (project / "pages" / "unicode").mkdir(parents=True)
+            (project / "pages" / "generator").mkdir(parents=True)
+            (project / "pages" / "async-generator").mkdir(parents=True)
+            (project / "widgets" / "card").mkdir(parents=True)
+            (project / "workers").mkdir()
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": [
+                            "pages/index/index",
+                            "pages/proto/index",
+                            "pages/reexport/index",
+                            "pages/unicode/index",
+                            "pages/generator/index",
+                            "pages/async-generator/index",
+                        ],
+                        "widgets": [
+                            {"path": "widgets/card/index", "family": "1x1"}
+                        ],
+                        "agentWorkers": [
+                            {
+                                "name": "job",
+                                "script": "workers/job.js",
+                                "trigger": {"type": "open"},
+                                "lifetime": "instant",
+                            }
+                        ],
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "index" / "index.ink").write_text(
+                """
+<page><text>Page</text></page>
+<script setup>
+const hiddenHandlers = {
+  onKeyUp(event) { return event.code === 'Enter'; }
+};
+export default { ...hiddenHandlers };
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "proto" / "index.ink").write_text(
+                "<page><text>Proto</text></page>\n"
+                "<script setup>export default { __proto__: { "
+                "onKeyUp(event) { return event.code === 'Enter'; } "
+                "} };</script>\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "reexport" / "index.ink").write_text(
+                "<page><text>Re-export</text></page>\n"
+                "<script setup>const page = { onLoad() {} }; "
+                "export { page as default };</script>\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "unicode" / "index.ink").write_text(
+                "<page><text>Unicode</text></page>\n"
+                "<script setup>export default { "
+                "onK\\u0065yUp(event) { return event.code; } "
+                "};</script>\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "generator" / "index.ink").write_text(
+                "<page><text>Generator</text></page>\n"
+                "<script setup>export default { "
+                "*onKeyUp(event) { yield event.code; } "
+                "};</script>\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "async-generator" / "index.ink").write_text(
+                "<page><text>Async generator</text></page>\n"
+                "<script setup>export default { "
+                "async *onKeyUp(event) { yield event.code; } "
+                "};</script>\n",
+                encoding="utf-8",
+            )
+            (project / "widgets" / "card" / "index.ink").write_text(
+                """
+<widget><text>Widget</text></widget>
+<script setup>
+const widget = { onCreate() {} };
+export default widget;
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "workers" / "job.js").write_text(
+                """
+import { handlers } from './handlers';
+export default { ...handlers };
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "app.js").write_text(
+                "const app = { onLaunch() {}, onError(error) {} };\n"
+                "export default app;\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project, target_version="0.18.0")
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            composition = {
+                (entry["symbol"], entry["path"])
+                for entry in report["unmatchedSymbols"]
+                if entry["symbol"].endswith("owner-composition-unresolved")
+            }
+            self.assertEqual(
+                {
+                    (
+                        "Page.owner-composition-unresolved",
+                        "pages/index/index.ink",
+                    ),
+                    (
+                        "Widget.owner-composition-unresolved",
+                        "widgets/card/index.ink",
+                    ),
+                    (
+                        "AgentWorker.owner-composition-unresolved",
+                        "workers/job.js",
+                    ),
+                    (
+                        "Page.owner-composition-unresolved",
+                        "pages/proto/index.ink",
+                    ),
+                    (
+                        "Page.owner-composition-unresolved",
+                        "pages/reexport/index.ink",
+                    ),
+                    (
+                        "Page.owner-composition-unresolved",
+                        "pages/unicode/index.ink",
+                    ),
+                    (
+                        "Page.owner-composition-unresolved",
+                        "pages/generator/index.ink",
+                    ),
+                    (
+                        "Page.owner-composition-unresolved",
+                        "pages/async-generator/index.ink",
+                    ),
+                    (
+                        "App.owner-composition-unresolved",
+                        "app.js",
+                    ),
+                },
+                composition,
             )
 
     def test_manifest_nested_capability_shapes_are_inventoried_or_rejected(self) -> None:
@@ -1131,7 +1669,7 @@ export default { ready() { return fakeMarkup + fakeApis; } };
             symbols = {entry["symbol"] for entry in report["unmatchedSymbols"]}
             self.assertNotIn("<future-view>", symbols)
             self.assertFalse(any("document" in symbol for symbol in symbols))
-            self.assertEqual([], report["supportedSurfaces"])
+            self.assertEqual(["Page"], report["supportedSurfaces"])
 
     def test_speech_association_is_lexically_scoped_and_accepts_inline_start(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1275,6 +1813,9 @@ function varShadow(flag) {
   const request = fetch;
   return request('/local-var');
 }
+const helpers = {
+  fetch() { return 'object method, not a global reference'; }
+};
 const load = fetch;
 export default {
   load() { return 'method declaration, not an alias call'; },
@@ -1302,6 +1843,876 @@ export default {
                 )
                 + 1,
                 network_items[0]["locations"][0]["line"],
+            )
+            self.assertNotIn(
+                "REFERENCE:fetch",
+                {entry["symbol"] for entry in report["unmatchedSymbols"]},
+            )
+
+    def test_global_fetch_call_followed_by_a_block_is_not_method_syntax(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "block.js").write_text(
+                "fetch('/global')\n{ const marker = true; }\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            network = [
+                item
+                for item in json.loads(result.stdout)["items"]
+                if item["family"] == "network.https"
+            ]
+            self.assertEqual(1, len(network))
+            self.assertEqual(1, network[0]["locations"][0]["line"])
+
+    def test_unconsumed_global_fetch_references_are_uniformly_quarantined(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":["pages/index/index"]}\n', encoding="utf-8"
+            )
+            (project / "pages" / "index" / "index.ink").write_text(
+                """
+<page><text>Ready</text></page>
+<script setup>
+fetch.call(undefined, 'https://call.example.invalid');
+fetch.apply(undefined, ['https://apply.example.invalid']);
+fetch.bind(undefined)('https://bind.example.invalid');
+Reflect.apply(fetch, undefined, ['https://reflect.example.invalid']);
+fetch?.('https://optional.example.invalid');
+let net = fetch;
+net('https://alias.example.invalid');
+(0, fetch)('https://sequence.example.invalid');
+function local(fetch) {
+  fetch.call(undefined, '/local-call');
+  (0, fetch)('/local-sequence');
+}
+</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            unmatched = report["unmatchedSymbols"]
+            self.assertEqual(
+                7,
+                sum(entry["symbol"] == "REFERENCE:fetch" for entry in unmatched),
+            )
+            self.assertIn(
+                "fetch-alias:net",
+                {entry["symbol"] for entry in unmatched},
+            )
+            self.assertTrue(
+                {3, 4, 5, 6, 7, 8, 10}.issubset(
+                    {
+                        entry["line"]
+                        for entry in unmatched
+                        if entry["symbol"] == "REFERENCE:fetch"
+                    }
+                )
+            )
+
+    def test_fetch_quarantine_distinguishes_imported_local_bindings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "imported").mkdir(parents=True)
+            (project / "pages" / "aliased").mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":["pages/imported/index","pages/aliased/index"]}\n',
+                encoding="utf-8",
+            )
+            (project / "pages" / "imported" / "index.js").write_text(
+                "import fetch from './client';\nfetch.apply(null, []);\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "aliased" / "index.js").write_text(
+                "import { fetch as libraryFetch } from './client';\n"
+                "fetch.apply(null, []);\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            references = [
+                entry
+                for entry in report["unmatchedSymbols"]
+                if entry["symbol"] == "REFERENCE:fetch"
+            ]
+            self.assertEqual(1, len(references))
+            self.assertEqual("pages/aliased/index.js", references[0]["path"])
+            self.assertEqual(2, references[0]["line"])
+
+    def test_multiline_imported_fetch_is_not_a_platform_global(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "client.js").write_text(
+                """
+import {
+  fetch
+} from './client';
+fetch('/local-import');
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertFalse(
+                any(
+                    item["locations"][0]["path"] == "lib/client.js"
+                    and item["family"]
+                    in {"network.https", "project.unregistered"}
+                    for item in report["items"]
+                )
+            )
+
+    def test_unicode_escaped_fetch_identifiers_are_quarantined(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "escaped.js").write_text(
+                "\\u0066etch('https://one.example.invalid');\n"
+                "f\\u0065tch('https://two.example.invalid');\n"
+                "// \\u0066etch('comment-only');\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            references = [
+                entry
+                for entry in report["unmatchedSymbols"]
+                if entry["symbol"] == "REFERENCE:fetch"
+            ]
+            self.assertEqual(2, len(references))
+            self.assertEqual({1, 2}, {entry["line"] for entry in references})
+
+    def test_unicode_escaped_platform_roots_are_quarantined_unless_shadowed(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "escaped.js").write_text(
+                "\\u0077x.request({url: 'https://one.example.invalid'});\n"
+                "navig\\u0061tor.mediaDevices.getUserMedia({video: true});\n"
+                "function local(\\u0077x, navig\\u0061tor) {\n"
+                "  \\u0077x.request({url: '/local'});\n"
+                "  return navig\\u0061tor.mediaDevices;\n"
+                "}\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            references = [
+                entry
+                for entry in json.loads(result.stdout)["unmatchedSymbols"]
+                if entry["symbol"] in {"REFERENCE:wx", "REFERENCE:navigator"}
+            ]
+            self.assertEqual(
+                {("REFERENCE:wx", 1), ("REFERENCE:navigator", 2)},
+                {(entry["symbol"], entry["line"]) for entry in references},
+            )
+
+    def test_dynamic_code_entry_points_are_quarantined_unless_shadowed(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "dynamic.js").write_text(
+                "eval(\"fetch('/direct')\");\n"
+                "(0, eval)(\"fetch('/indirect')\");\n"
+                "Function(\"return fetch('/function')\")();\n"
+                "new Function(\"return wx.request({url:'/new'})\")();\n"
+                "function local(eval, Function) {\n"
+                "  eval('local');\n"
+                "  return new Function('local');\n"
+                "}\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            references = [
+                entry
+                for entry in json.loads(result.stdout)["unmatchedSymbols"]
+                if entry["symbol"]
+                in {"REFERENCE:eval", "REFERENCE:Function"}
+            ]
+            self.assertEqual(
+                {
+                    ("REFERENCE:eval", 1),
+                    ("REFERENCE:eval", 2),
+                    ("REFERENCE:Function", 3),
+                    ("REFERENCE:Function", 4),
+                },
+                {(entry["symbol"], entry["line"]) for entry in references},
+            )
+
+    def test_loop_and_named_expression_bindings_do_not_shadow_later_fetch(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            sources = {
+                "loop-of.js": (
+                    "for (const fetch of []) {}\n"
+                    "fetch('/global-loop-of');\n"
+                ),
+                "loop-classic.js": (
+                    "for (let fetch = local; false;) {}\n"
+                    "fetch('/global-loop-classic');\n"
+                ),
+                "function-expression.js": (
+                    "const helper = function fetch() {};\n"
+                    "fetch('/global-function-expression');\n"
+                ),
+                "class-expression.js": (
+                    "const Helper = class fetch {};\n"
+                    "fetch('/global-class-expression');\n"
+                ),
+                "void-expression.js": (
+                    "void function fetch() {};\n"
+                    "fetch('/global-void-expression');\n"
+                ),
+                "typeof-expression.js": (
+                    "typeof function fetch() {};\n"
+                    "fetch('/global-typeof-expression');\n"
+                ),
+                "unary-expression.js": (
+                    "~function fetch() {};\n"
+                    "fetch('/global-unary-expression');\n"
+                ),
+                "function-declaration.js": (
+                    "function fetch() {}\nfetch('/local-function');\n"
+                ),
+                "class-declaration.js": (
+                    "class fetch {}\nnew fetch('/local-class');\n"
+                ),
+            }
+            for name, source in sources.items():
+                (project / "lib" / name).write_text(source, encoding="utf-8")
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            network_items = [
+                item
+                for item in report["items"]
+                if item["family"] == "network.https"
+            ]
+            network_paths = {
+                item["locations"][0]["path"]
+                for item in network_items
+            }
+            self.assertEqual(
+                {
+                    "lib/class-expression.js",
+                    "lib/function-expression.js",
+                    "lib/loop-classic.js",
+                    "lib/loop-of.js",
+                    "lib/typeof-expression.js",
+                    "lib/unary-expression.js",
+                    "lib/void-expression.js",
+                },
+                network_paths,
+            )
+            self.assertEqual(7, len(network_items))
+            self.assertTrue(
+                all(item["locations"][0]["line"] == 2 for item in network_items)
+            )
+
+    def test_regex_literals_do_not_create_or_distort_global_findings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "regex.js").write_text(
+                "const names = /document|wx.request|fetch/;\n"
+                "{ const document = {}; if (names) /{/.test('x'); }\n"
+                "document.cookie;\n"
+                "{ const document = {}; if (names) {} /{/.test('x'); }\n"
+                "document.title;\n"
+                "{ const document = {}; if (names) /x/; else /{/.test('x'); }\n"
+                "document.body;\n"
+                "{ const document = {}; do /{/.test('x'); while (false); }\n"
+                "document.URL;\n"
+                "const stringDivision = '1' / fetch('/string') / 2;\n"
+                "const templateDivision = `1` / fetch('/template') / 2;\n"
+                "const regexDivision = /x/ / fetch('/regex') / 2;\n"
+                "let counter = 1; counter++ / fetch('/postfix') / counter;\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            findings = {
+                (entry["symbol"], entry["line"])
+                for entry in report["unmatchedSymbols"]
+                if any(
+                    token in entry["symbol"]
+                    for token in ("document", "fetch", "wx")
+                )
+            }
+            self.assertEqual(
+                {
+                    ("REFERENCE:document.cookie", 3),
+                    ("REFERENCE:document.title", 5),
+                    ("REFERENCE:document.body", 7),
+                    ("REFERENCE:document.URL", 9),
+                },
+                findings,
+            )
+            network_lines = {
+                item["locations"][0]["line"]
+                for item in report["items"]
+                if item["family"] == "network.https"
+            }
+            self.assertEqual({10, 11, 12, 13}, network_lines)
+
+    def test_template_expression_regex_does_not_hide_platform_calls(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "template.js").write_text(
+                "const plain = `${/}/.test('}') && fetch('/plain')}`;\n"
+                "const escaped = `${/\\}/.test('}') && fetch('/escaped')}`;\n"
+                "const characterClass = `${/[}]/.test('}') && "
+                "fetch('/class')}`;\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            network_lines = {
+                item["locations"][0]["line"]
+                for item in json.loads(result.stdout)["items"]
+                if item["family"] == "network.https"
+            }
+            self.assertEqual({1, 2, 3}, network_lines)
+
+    def test_self_namespace_fetch_is_quarantined_without_shadow_false_positives(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "workers").mkdir(parents=True)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": [],
+                        "agentWorkers": [
+                            {
+                                "name": "network",
+                                "script": "workers/network.js",
+                                "trigger": {"type": "open"},
+                                "lifetime": "instant",
+                            }
+                        ],
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "workers" / "network.js").write_text(
+                "self.fetch('https://worker.example.invalid');\n",
+                encoding="utf-8",
+            )
+            (project / "lib" / "local.js").write_text(
+                """
+function injected(self) {
+  self.fetch('/local-parameter');
+}
+function declared() {
+  const self = { fetch() {} };
+  self.fetch('/local-constant');
+}
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project, target_version="0.18.0")
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            quarantines = [
+                entry
+                for entry in report["unmatchedSymbols"]
+                if entry["symbol"] == "self.fetch"
+            ]
+            self.assertEqual(1, len(quarantines))
+            self.assertEqual("workers/network.js", quarantines[0]["path"])
+            self.assertEqual(1, quarantines[0]["line"])
+
+    def test_parameter_destructuring_declares_bindings_not_property_keys(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            sources = {
+                "function-alias.js": """
+function run({ fetch: localFetch }) {
+  localFetch('/local');
+  fetch('https://global.example.invalid');
+}
+""",
+                "function-shorthand.js": """
+function run({ fetch }) {
+  fetch('/local');
+}
+""",
+                "method-alias.js": """
+const handlers = {
+  run({ self: localSelf }) {
+    localSelf.fetch('/local');
+    self.fetch('https://global.example.invalid');
+  }
+};
+""",
+                "method-shorthand.js": """
+const handlers = {
+  run({ self }) {
+    self.fetch('/local');
+  }
+};
+""",
+                "arrow-alias.js": """
+const run = ({ document: localDocument }) =>
+  document.querySelector('global');
+""",
+                "arrow-shorthand.js": """
+const run = ({ document }) => document.querySelector('local');
+""",
+                "function-binding-alias.js": """
+function run({ transport: fetch }) {
+  fetch('/local');
+}
+""",
+                "complex-alias.js": """
+function run({ network: { fetch: localFetch } = defaults, ...rest }) {
+  fetch('https://global.example.invalid');
+}
+""",
+            }
+            for name, source in sources.items():
+                (project / "lib" / name).write_text(
+                    source.strip() + "\n", encoding="utf-8"
+                )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            network_paths = {
+                item["locations"][0]["path"]
+                for item in report["items"]
+                if item["family"] == "network.https"
+            }
+            self.assertEqual(
+                {"lib/function-alias.js", "lib/complex-alias.js"},
+                network_paths,
+            )
+            symbols_by_path = {
+                (entry["symbol"], entry["path"])
+                for entry in report["unmatchedSymbols"]
+            }
+            self.assertIn(("self.fetch", "lib/method-alias.js"), symbols_by_path)
+            self.assertIn(
+                ("document.querySelector", "lib/arrow-alias.js"),
+                symbols_by_path,
+            )
+            self.assertFalse(
+                any(
+                    path in {
+                        "lib/function-shorthand.js",
+                        "lib/method-shorthand.js",
+                        "lib/arrow-shorthand.js",
+                    }
+                    and symbol
+                    in {"REFERENCE:fetch", "self.fetch", "document.querySelector"}
+                    for symbol, path in symbols_by_path
+                )
+            )
+
+    def test_evidence_exclusion_uses_only_the_explicit_repository_root(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory) / "repository"
+            (repository / ".Git").mkdir(parents=True)
+            (repository / ".Git" / "hidden.js").write_text(
+                "fetch('https://metadata.example.invalid');\n",
+                encoding="utf-8",
+            )
+
+            nested_project = repository / "examples" / "agent"
+            (nested_project / ".aiui-evidence").mkdir(parents=True)
+            (nested_project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (nested_project / ".aiui-evidence" / "hidden.js").write_text(
+                "fetch('https://nested.example.invalid');\n", encoding="utf-8"
+            )
+            nested_result = self.run_script(nested_project)
+            self.assertEqual(0, nested_result.returncode, nested_result.stderr)
+            nested_report = json.loads(nested_result.stdout)
+            self.assertIn(
+                ".aiui-evidence/hidden.js",
+                {
+                    item["locations"][0]["path"]
+                    for item in nested_report["items"]
+                    if item["family"] == "network.https"
+                },
+            )
+
+            explicit_nested_result = self.run_script(
+                nested_project, repository_root=repository
+            )
+            self.assertEqual(
+                0, explicit_nested_result.returncode, explicit_nested_result.stderr
+            )
+            self.assertIn(
+                ".aiui-evidence/hidden.js",
+                {
+                    item["locations"][0]["path"]
+                    for item in json.loads(explicit_nested_result.stdout)["items"]
+                    if item["family"] == "network.https"
+                },
+            )
+
+            (repository / "app.json").write_text('{"pages":[]}\n', encoding="utf-8")
+            (repository / ".aiui-evidence").mkdir()
+            (repository / ".aiui-evidence" / "capture.log").write_text(
+                "executed evidence\n", encoding="utf-8"
+            )
+            unbounded_result = self.run_script(repository)
+            self.assertEqual(0, unbounded_result.returncode, unbounded_result.stderr)
+            unbounded_report = json.loads(unbounded_result.stdout)
+
+            repository_result = self.run_script(
+                repository, repository_root=repository
+            )
+            self.assertEqual(
+                0, repository_result.returncode, repository_result.stderr
+            )
+            repository_report = json.loads(repository_result.stdout)
+            self.assertNotEqual(
+                unbounded_report["projectRevision"],
+                repository_report["projectRevision"],
+            )
+            self.assertIn(
+                "examples/agent/.aiui-evidence/hidden.js",
+                {
+                    item["locations"][0]["path"]
+                    for item in repository_report["items"]
+                    if item["family"] == "network.https"
+                },
+            )
+            self.assertFalse(
+                any(
+                    item["locations"][0]["path"].startswith(".Git/")
+                    for item in repository_report["items"]
+                )
+            )
+
+    def test_nested_reserved_name_routes_and_references_remain_source(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory) / "repository"
+            project = repository / "examples" / "agent"
+            nested_source = project / ".aiui-evidence"
+            nested_source.mkdir(parents=True)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[".aiui-evidence/index"]}\n', encoding="utf-8"
+            )
+            (nested_source / "index.ink").write_text(
+                "<page><text>Nested</text></page>\n"
+                "<script setup>fetch('/nested-source'); "
+                "export default {};</script>\n",
+                encoding="utf-8",
+            )
+            (project / "lib" / "reference.js").write_text(
+                "const config = '../.aiui-evidence/config.json';\n",
+                encoding="utf-8",
+            )
+            (nested_source / "config.json").write_text(
+                '{"enabled":true}\n', encoding="utf-8"
+            )
+
+            result = self.run_script(project, repository_root=repository)
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            by_path = {
+                (item["family"], item["locations"][0]["path"])
+                for item in report["items"]
+            }
+            self.assertIn(
+                ("network.https", ".aiui-evidence/index.ink"), by_path
+            )
+            self.assertIn(
+                (
+                    "project.unregistered",
+                    ".aiui-evidence/config.json",
+                ),
+                by_path,
+            )
+
+    def test_absolute_repository_metadata_references_are_rejected(self) -> None:
+        for kind in ("manifest", "runtime"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                repository = Path(directory) / "repository"
+                project = repository / "examples" / "agent"
+                (project / "lib").mkdir(parents=True)
+                reserved_path = repository / ".aiui-evidence" / "secret.json"
+                manifest = {"pages": []}
+                if kind == "manifest":
+                    manifest["configuration"] = str(reserved_path)
+                (project / "app.json").write_text(
+                    json.dumps(manifest) + "\n", encoding="utf-8"
+                )
+                if kind == "runtime":
+                    (project / "lib" / "path.js").write_text(
+                        f"const hidden = {str(reserved_path)!r};\n",
+                        encoding="utf-8",
+                    )
+
+                result = self.run_script(project, repository_root=repository)
+
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn("RESERVED_PATH_REFERENCE", result.stderr)
+
+    def test_explicit_repository_root_rejects_runtime_source_in_evidence(
+        self,
+    ) -> None:
+        for evidence_name in (".aiui-evidence", ".AiUi-EvIdEnCe"):
+            with self.subTest(evidence_name=evidence_name):
+                with tempfile.TemporaryDirectory() as directory:
+                    repository = Path(directory)
+                    (repository / evidence_name).mkdir()
+                    (repository / "app.json").write_text(
+                        '{"pages":[]}\n', encoding="utf-8"
+                    )
+                    (repository / evidence_name / "hidden.js").write_text(
+                        "export default { onLoad() {} };\n",
+                        encoding="utf-8",
+                    )
+
+                    result = self.run_script(
+                        repository, repository_root=repository
+                    )
+                    self.assertNotEqual(0, result.returncode)
+                    self.assertIn("RESERVED_AUDIT_SOURCE", result.stderr)
+                    self.assertIn(f"{evidence_name}/hidden.js", result.stderr)
+
+    def test_nested_import_rejects_symlinked_repository_evidence_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            repository = temporary / "repository"
+            project = repository / "examples" / "agent"
+            project.mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            external_evidence = temporary / "external-evidence"
+            external_evidence.mkdir()
+            (repository / ".aiui-evidence").symlink_to(
+                external_evidence, target_is_directory=True
+            )
+
+            result = self.run_script(project, repository_root=repository)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("RESERVED_AUDIT_SOURCE", result.stderr)
+            self.assertIn(".aiui-evidence", result.stderr)
+
+    def test_explicit_repository_root_rejects_file_evidence_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            (repository / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (repository / ".aiui-evidence").write_text(
+                "not a directory\n", encoding="utf-8"
+            )
+
+            result = self.run_script(repository, repository_root=repository)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("RESERVED_AUDIT_SOURCE", result.stderr)
+            self.assertIn(".aiui-evidence", result.stderr)
+
+    def test_import_root_inside_reserved_repository_directory_is_rejected(self) -> None:
+        for reserved in (".git", ".Git", ".aiui-evidence", ".AiUi-EvIdEnCe"):
+            with self.subTest(reserved=reserved), tempfile.TemporaryDirectory() as directory:
+                repository = Path(directory) / "repository"
+                project = repository / reserved / "project"
+                project.mkdir(parents=True)
+                (project / "app.json").write_text(
+                    '{"pages":[]}\n', encoding="utf-8"
+                )
+
+                result = self.run_script(project, repository_root=repository)
+
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn("reserved", result.stderr.lower())
+
+    def test_reserved_path_references_fail_closed_while_comments_are_ignored(
+        self,
+    ) -> None:
+        for reserved in (".git", ".Git", ".aiui-evidence", ".AiUi-EvIdEnCe"):
+            with self.subTest(kind="manifest", reserved=reserved):
+                with tempfile.TemporaryDirectory() as directory:
+                    project = Path(directory)
+                    (project / "app.json").write_text(
+                        json.dumps({"pages": [f"pages/{reserved}/secret"]})
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                    result = self.run_script(project)
+                    self.assertNotEqual(0, result.returncode)
+                    self.assertIn("RESERVED_PATH_REFERENCE", result.stderr)
+                    self.assertIn(reserved, result.stderr)
+
+            with self.subTest(kind="runtime", reserved=reserved):
+                with tempfile.TemporaryDirectory() as directory:
+                    project = Path(directory)
+                    (project / "lib").mkdir()
+                    (project / "app.json").write_text(
+                        '{"pages":[]}\n', encoding="utf-8"
+                    )
+                    (project / "lib" / "paths.js").write_text(
+                        f"const forbidden = '../{reserved}/secret';\n",
+                        encoding="utf-8",
+                    )
+                    result = self.run_script(project)
+                    self.assertNotEqual(0, result.returncode)
+                    self.assertIn("RESERVED_PATH_REFERENCE", result.stderr)
+                    self.assertIn(reserved, result.stderr)
+
+        escaped_references = (
+            "const path = './.aiui\\x2devidence/config.json';\n",
+            "const path = './.aiui\\u002devidence/config.json';\n",
+            "const path = './.aiui\\u{2d}evidence/config.json';\n",
+            "const path = './.aiui-\\\nevidence/config.json';\n",
+            "const path = '.aiui-' + 'evidence/config.json';\n",
+            "const path = '.aiui-' + ('evidence/config.json');\n",
+            "const path = `.aiui-${'evidence'}/config.json`;\n",
+        )
+        for source in escaped_references:
+            with self.subTest(kind="escaped-runtime", source=source):
+                with tempfile.TemporaryDirectory() as directory:
+                    project = Path(directory)
+                    (project / "lib").mkdir()
+                    (project / "app.json").write_text(
+                        '{"pages":[]}\n', encoding="utf-8"
+                    )
+                    (project / "lib" / "paths.js").write_text(
+                        source, encoding="utf-8"
+                    )
+                    result = self.run_script(project)
+                    self.assertNotEqual(0, result.returncode)
+                    self.assertIn("RESERVED_PATH_REFERENCE", result.stderr)
+
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "lib").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":[]}\n', encoding="utf-8"
+            )
+            (project / "lib" / "comments.js").write_text(
+                "// .git/config is documentation only\n"
+                "/* .aiui-evidence/capture.json is documentation only */\n"
+                "// './.aiui\\x2devidence/config.json' is documentation only\n"
+                "const reservedPattern = /\\.git\\/|\\.aiui-evidence\\//;\n"
+                "const workflow = '.github/workflows/check.yml';\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_project_json_configuration_is_never_silently_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "config").mkdir()
+            (project / "app.json").write_text(
+                '{"pages":["pages/index/index"]}\n', encoding="utf-8"
+            )
+            (project / "pages" / "index" / "index.json").write_text(
+                '{"navigationBarTitleText":"Inventory"}\n', encoding="utf-8"
+            )
+            (project / "config" / "runtime.json").write_text(
+                '{"feature":"dynamic"}\n', encoding="utf-8"
+            )
+            (project / "aiui-audit-scope.json").write_text(
+                '{}\n', encoding="utf-8"
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            symbols = {
+                entry["symbol"]
+                for entry in json.loads(result.stdout)["unmatchedSymbols"]
+            }
+            self.assertEqual(
+                {
+                    "CONFIGURATION:config/runtime.json",
+                    "CONFIGURATION:pages/index/index.json",
+                },
+                {symbol for symbol in symbols if symbol.startswith("CONFIGURATION:")},
+            )
+            self.assertFalse(
+                any("aiui-audit-scope.json" in symbol for symbol in symbols)
             )
 
     def test_claims_ledger_reports_missing_and_closed_content_hash(self) -> None:
@@ -1448,7 +2859,9 @@ export default {
             self.assertTrue(
                 any("@_blank:" in item["mechanism"] for item in unresolved_routes)
             )
-            self.assertEqual(["_blank", "_current"], report["supportedSurfaces"])
+            self.assertEqual(
+                ["Page", "_blank", "_current"], report["supportedSurfaces"]
+            )
 
     def test_inventory_emits_supported_surfaces_and_distinct_input_gates(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1506,7 +2919,9 @@ export default {
             result = self.run_script(project)
             self.assertEqual(0, result.returncode, result.stderr)
             report = json.loads(result.stdout)
-            self.assertEqual(["_blank", "_current"], report["supportedSurfaces"])
+            self.assertEqual(
+                ["Page", "_blank", "_current"], report["supportedSurfaces"]
+            )
             input_gates = report["inputGates"]
             self.assertEqual(
                 input_gates,
@@ -1534,6 +2949,157 @@ export default {
                 }.issubset(by_family)
             )
             self.assertEqual(len(input_gates), len({entry["gate"] for entry in input_gates}))
+
+    def test_indirect_world_awareness_calls_are_quarantined(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            page_sources = {
+                "direct": "this.enableWorldAwareness();",
+                "optional": "this.enableWorldAwareness?.();",
+                "call": "this.enableWorldAwareness.call(this);",
+                "comma": "(0, this.enableWorldAwareness)();",
+                "local": (
+                    "const enableWorldAwareness = () => {}; "
+                    "enableWorldAwareness?.();"
+                ),
+            }
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": [
+                            f"pages/{name}/index" for name in sorted(page_sources)
+                        ]
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            for name, body in page_sources.items():
+                page = project / "pages" / name
+                page.mkdir(parents=True)
+                (page / "index.ink").write_text(
+                    "<page><text>World</text></page>\n"
+                    "<script setup>export default { onLoad() { "
+                    f"{body}"
+                    " } };</script>\n",
+                    encoding="utf-8",
+                )
+
+            result = self.run_script(project)
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            world_paths = [
+                item["locations"][0]["path"]
+                for item in report["items"]
+                if item["family"] == "page.world-awareness"
+            ]
+            self.assertEqual(["pages/direct/index.ink"], world_paths)
+            unresolved_paths = {
+                entry["path"]
+                for entry in report["unmatchedSymbols"]
+                if entry["symbol"] == "REFERENCE:enableWorldAwareness"
+            }
+            self.assertEqual(
+                {
+                    "pages/call/index.ink",
+                    "pages/comma/index.ink",
+                    "pages/optional/index.ink",
+                },
+                unresolved_paths,
+            )
+
+    def test_page_and_worker_surfaces_are_supported_without_target_media(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "workers").mkdir()
+            (project / "app.json").write_text(
+                json.dumps(
+                    {
+                        "pages": ["pages/index/index"],
+                        "agentWorkers": [
+                            {
+                                "name": "sync",
+                                "script": "workers/sync.js",
+                                "trigger": {"type": "open"},
+                                "lifetime": "instant",
+                            }
+                        ],
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "index" / "index.ink").write_text(
+                "<page><text>Ready</text></page>\n"
+                "<script setup>export default { onLoad() {} };</script>\n",
+                encoding="utf-8",
+            )
+            (project / "workers" / "sync.js").write_text(
+                "export default { onOpen() {} };\n", encoding="utf-8"
+            )
+
+            result = self.run_script(project, target_version="0.18.0")
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertTrue(
+                {"Page", "Agent Worker"}.issubset(report["supportedSurfaces"])
+            )
+
+    def test_css_motion_syntax_creates_explicit_inventory_gates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages" / "index").mkdir(parents=True)
+            (project / "app.json").write_text(
+                '{"pages":["pages/index/index"]}\n', encoding="utf-8"
+            )
+            (project / "pages" / "index" / "index.ink").write_text(
+                """
+<page><view style="animation-delay: 50ms"><text>Motion</text></view></page>
+<style>
+.surface {
+  transition: opacity 200ms;
+  animation-duration: 400ms;
+  content: "animation: ignored";
+}
+/* transition-property: transform; */
+@keyframes reveal { from { opacity: 0; } to { opacity: 1; } }
+</style>
+<script setup>export default {};</script>
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "index" / "index.wxss").write_text(
+                ".surface { -webkit-animation-name: reveal; }\n",
+                encoding="utf-8",
+            )
+            (project / "pages" / "index" / "index.wxml").write_text(
+                '<view style="anim\\61tion-play-state: paused">Motion</view>\n'
+                '<view style="transition-property: opacity">Motion</view>\n',
+                encoding="utf-8",
+            )
+
+            result = self.run_script(project)
+            self.assertEqual(0, result.returncode, result.stderr)
+            motion_symbols = {
+                entry["symbol"]
+                for entry in json.loads(result.stdout)["unmatchedSymbols"]
+                if entry["symbol"].startswith("MOTION:")
+            }
+            self.assertEqual(
+                {
+                    "MOTION:-webkit-animation-name",
+                    "MOTION:@keyframes",
+                    "MOTION:animation-play-state",
+                    "MOTION:animation-delay",
+                    "MOTION:animation-duration",
+                    "MOTION:transition",
+                    "MOTION:transition-property",
+                },
+                motion_symbols,
+            )
 
     def test_const_fetch_alias_and_switch_key_cases_are_inventoried(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

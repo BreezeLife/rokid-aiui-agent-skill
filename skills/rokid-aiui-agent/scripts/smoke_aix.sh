@@ -107,11 +107,34 @@ listing_has_entry() {
   return 1
 }
 
+listing_has_reserved_entry() {
+  local line
+  local entry
+  local normalized_entry
+  while IFS= read -r line; do
+    entry="${line%%: *}"
+    while [[ "$entry" == ./* ]]; do
+      entry="${entry#./}"
+    done
+    entry="${entry%/}"
+    normalized_entry="$(LC_ALL=C printf '%s' "$entry" | tr '[:upper:]' '[:lower:]')"
+    case "$normalized_entry" in
+      .aiui-evidence|.aiui-evidence/*|.git|.git/*)
+        return 0
+        ;;
+    esac
+  done <<<"$listing"
+  return 1
+}
+
 listing_has_entry "META-INF/aix/manifest.json" \
   || fail "AIX listing does not contain META-INF/aix/manifest.json"
 listing_has_entry "app.json" || fail "AIX listing does not contain app.json"
 listing_has_entry "$expected_entry" \
   || fail "AIX listing does not contain $expected_entry"
+if listing_has_reserved_entry; then
+  fail "AIX listing contains reserved .aiui-evidence or .git content"
+fi
 
 printf '%s\n' "$listing"
 printf 'AIX smoke passed: pack + %s verified app.json and %s\n' \

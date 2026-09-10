@@ -289,6 +289,18 @@ CAPABILITY_CONTRACTS = {
         pass_api_pattern=r"onKey(?:Down|Up)\(event\.code=Backspace\)",
         pass_declaration_pattern=r"NONE REQUIRED",
     ),
+    "key": contract(
+        "input.key.unknown",
+        {"SOURCE", "STATIC", "LOGIC", "STUDIO", "DEVICE"},
+        {("DOC", PAGE_EVENTS_DOC)},
+        provisional=True,
+        provisional_cells=(
+            "Unresolved key input",
+            "The intended key input performs exactly one owned action",
+            "Unknown, ignored, or repeated key delivery preserves host defaults and a non-key fallback",
+            "Hide/show and unload do not retain stale key handling",
+        ),
+    ),
     "scroll": contract(
         "input.scroll.unknown",
         {"SOURCE", "STATIC", "LOGIC", "STUDIO", "DEVICE"},
@@ -541,6 +553,7 @@ CAPABILITY_BASE_IDS = {
     "bindtap": "CAP-BINDTAP",
     "enter": "CAP-INPUT-ENTER",
     "back": "CAP-INPUT-BACK",
+    "key": "CAP-INPUT-KEY",
     "scroll": "CAP-INPUT-SCROLL",
     "voice": "CAP-VOICE",
     "voice_declaration": "CAP-VOICE-DECLARATION",
@@ -755,6 +768,8 @@ class UxCapabilityContractTests(unittest.TestCase):
                     str(self.resolve_import_root(metadata_fields["Import root"])),
                     "--target-version",
                     canonical_version.removeprefix("AIUI "),
+                    "--repository-root",
+                    str(ROOT),
                 ],
                 cwd=ROOT,
                 capture_output=True,
@@ -1662,7 +1677,13 @@ class UxCapabilityContractTests(unittest.TestCase):
         root_path = self.resolve_import_root(import_root)
         if revision.startswith("WORKTREE:"):
             fingerprint = subprocess.run(
-                [sys.executable, str(FINGERPRINT_SCRIPT), str(root_path)],
+                [
+                    sys.executable,
+                    str(FINGERPRINT_SCRIPT),
+                    str(root_path),
+                    "--repository-root",
+                    str(ROOT),
+                ],
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
@@ -2349,6 +2370,8 @@ class UxCapabilityContractTests(unittest.TestCase):
                     sys.executable,
                     str(FINGERPRINT_SCRIPT),
                     str(self.resolve_import_root(project_import_root)),
+                    "--repository-root",
+                    str(ROOT),
                 ],
                 cwd=ROOT,
                 capture_output=True,
@@ -3662,7 +3685,13 @@ class UxCapabilityContractTests(unittest.TestCase):
             ignored_extra.unlink(missing_ok=True)
 
         fingerprint = subprocess.run(
-            [sys.executable, str(FINGERPRINT_SCRIPT), import_root],
+            [
+                sys.executable,
+                str(FINGERPRINT_SCRIPT),
+                import_root,
+                "--repository-root",
+                str(ROOT),
+            ],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -3701,6 +3730,18 @@ class UxCapabilityContractTests(unittest.TestCase):
             self.skill,
             r"(?is)(?:FAIL|BLOCKED).*(?:forbid|must not).*(?:complete|release-ready)",
         )
+
+    def test_public_fingerprint_and_inventory_commands_bind_repository_root(self) -> None:
+        for document in (self.skill, self.reference):
+            with self.subTest(document=document[:40]):
+                self.assertRegex(
+                    document,
+                    r"fingerprint_aiui_project\.py[^\n]*--repository-root",
+                )
+                self.assertRegex(
+                    document,
+                    r"inventory_aiui_capabilities\.py[^\n]*--repository-root",
+                )
 
     def test_reference_defines_separate_ux_and_capability_matrices(self) -> None:
         self.assertTrue(REFERENCE_PATH.is_file(), f"missing {REFERENCE_PATH}")
@@ -4068,6 +4109,7 @@ class UxCapabilityContractTests(unittest.TestCase):
             "named provisional `blocked` row",
             "directory/index is allowed only as `search-scope`",
             "project-binding:unresolved",
+            "stable instance or surface suffix before the final `-provisional`",
             "cap-unregistered-<key>",
         ):
             self.assertIn(phrase, capability_section)
@@ -4199,6 +4241,33 @@ class UxCapabilityContractTests(unittest.TestCase):
                         f"{description}`",
                         self.reference,
                     )
+
+    def test_scanner_and_audit_validator_policy_registries_stay_in_lockstep(self) -> None:
+        scripts_directory = str(SKILL_ROOT / "scripts")
+        sys.path.insert(0, scripts_directory)
+        try:
+            scanner = runpy.run_path(str(INVENTORY_SCRIPT))
+        finally:
+            sys.path.remove(scripts_directory)
+        validator = runpy.run_path(str(AUDIT_VALIDATOR_SCRIPT))
+
+        self.assertEqual(
+            set(scanner["REGISTERED_POLICY_FAMILIES"]) | {"project.unregistered"},
+            set(validator["CAPABILITY_POLICIES"]),
+        )
+        self.assertEqual(
+            scanner["INPUT_KIND_BY_FAMILY"],
+            validator["INPUT_KIND_BY_FAMILY"],
+        )
+        self.assertEqual(
+            set(validator["INPUT_KIND_BY_FAMILY"]),
+            set(validator["INPUT_FAMILIES"]),
+        )
+        self.assertTrue(
+            set(validator["INPUT_KIND_BY_FAMILY"].values()).issubset(
+                validator["INPUT_KINDS"]
+            )
+        )
 
     def test_reference_exposes_closed_ux_and_trust_contracts(self) -> None:
         for family in UX_FAMILIES:

@@ -176,7 +176,8 @@ class NextStepAgentContractTests(unittest.TestCase):
         )
         self.assertIn(
             "python skills/rokid-aiui-agent/scripts/validate_aiui_project.py "
-            "examples/next-step-agent --target-version 0.17.0 --strict",
+            "examples/next-step-agent --target-version 0.17.0 "
+            "--repository-root . --strict",
             validate_step["run"].splitlines(),
         )
 
