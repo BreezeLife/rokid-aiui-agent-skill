@@ -433,6 +433,80 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 prose_lines.append(line)
             return False, " ".join(prose_lines)
 
+        def h3_subsections(markdown: str) -> list[tuple[str, str]]:
+            lines = markdown.splitlines()
+            headings = []
+            fence = None
+            for index, raw_line in enumerate(lines):
+                fence_match = re.match(r"^\s*(`{3,}|~{3,})(.*)$", raw_line)
+                if fence_match:
+                    marker = fence_match.group(1)
+                    if fence is None:
+                        fence = (marker[0], len(marker))
+                    elif (
+                        marker[0] == fence[0]
+                        and len(marker) >= fence[1]
+                        and not fence_match.group(2).strip()
+                    ):
+                        fence = None
+                    continue
+                if fence is not None:
+                    continue
+                heading_match = re.match(
+                    r"^ {0,3}###(?!#)(?:[ \t]+|$)(.*)$", raw_line
+                )
+                if heading_match:
+                    heading = re.sub(
+                        r"[ \t]+#+[ \t]*$", "", heading_match.group(1)
+                    ).strip()
+                    headings.append((index, heading))
+
+            return [
+                (
+                    heading,
+                    "\n".join(
+                        lines[start : headings[index + 1][0]]
+                        if index + 1 < len(headings)
+                        else lines[start:]
+                    ),
+                )
+                for index, (start, heading) in enumerate(headings)
+            ]
+
+        def numbered_actions(markdown: str) -> list[tuple[int, str]]:
+            actions = []
+            current_number = None
+            current_lines = []
+            fence = None
+            for raw_line in markdown.splitlines():
+                fence_match = re.match(r"^\s*(`{3,}|~{3,})(.*)$", raw_line)
+                if fence_match:
+                    marker = fence_match.group(1)
+                    if fence is None:
+                        fence = (marker[0], len(marker))
+                    elif (
+                        marker[0] == fence[0]
+                        and len(marker) >= fence[1]
+                        and not fence_match.group(2).strip()
+                    ):
+                        fence = None
+                    continue
+                if fence is not None:
+                    continue
+                item_match = re.match(r"^ {0,3}(\d+)[.)]\s+(.*)$", raw_line)
+                if item_match:
+                    if current_number is not None:
+                        actions.append(
+                            (current_number, " ".join(current_lines).strip())
+                        )
+                    current_number = int(item_match.group(1))
+                    current_lines = [item_match.group(2).strip()]
+                elif current_number is not None and raw_line.strip():
+                    current_lines.append(raw_line.strip())
+            if current_number is not None:
+                actions.append((current_number, " ".join(current_lines).strip()))
+            return actions
+
         self.assertTrue(
             section_has_all(
                 "- 创建完整、可编辑的 AIUI\n  项目",
@@ -472,6 +546,104 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 )
 
         quickstart = sections["## 快速开始"]
+        routes = h3_subsections(quickstart)
+        self.assertEqual(
+            2,
+            len(routes),
+            "README quickstart must contain exactly two real H3 route subsections",
+        )
+        (studio_heading, studio_route), (vibe_heading, vibe_route) = routes
+        self.assertRegex(studio_heading, r"AIUI\s*Studio")
+        self.assertRegex(vibe_heading, r"Codex")
+        self.assertRegex(vibe_heading, r"Vibe\s*Coding")
+
+        self.assertIn("AIUI Studio", studio_route)
+        self.assertRegex(
+            studio_route,
+            r"(?:(?:导入|打开)[^。\n]*(?:项目|工程)|"
+            r"(?:项目|工程)[^。\n]*(?:导入|打开))",
+        )
+        self.assertRegex(
+            studio_route,
+            r"(?:(?:继续|接着|后续)[^。\n]*(?:编辑|开发)|"
+            r"(?:编辑|开发)[^。\n]*(?:继续|接着|后续))",
+        )
+        self.assertRegex(studio_route, r"\[[^\]\n]+\]\(#导入-aiui-studio\)")
+
+        self.assertIn("Codex", vibe_route)
+        self.assertTrue(
+            section_has_all(
+                vibe_route,
+                (
+                    r"(?:其他|其它|任何|任意)",
+                    r"Agent Skills",
+                    r"(?:编码|开发)[^ 。\n]*(?:工具|环境)",
+                ),
+            ),
+            "Codex must be presented alongside other Agent Skills-compatible "
+            "coding tools",
+        )
+        for command in README_STABLE_LITERALS[:2]:
+            with self.subTest(vibe_route_install=command):
+                self.assertIn(command, vibe_route)
+        self.assertIn("$rokid-aiui-agent", vibe_route)
+        self.assertTrue(
+            section_has_all(
+                vibe_route,
+                (r"(?:独立|单独|分开)", r"(?:输出目录|目录|路径)"),
+            ),
+            "Vibe Coding output must use a separate directory",
+        )
+        self.assertTrue(
+            section_has_all(
+                vibe_route,
+                (r"完整", r"可编辑", r"AIUI", r"(?:项目|工程)"),
+            ),
+            "Vibe Coding must deliver a complete editable AIUI project",
+        )
+        self.assertTrue(
+            section_has_all(
+                vibe_route,
+                (
+                    r"(?:已运行|已执行|实际运行|实际执行|执行结果|检查结果|验证结果)",
+                    r"(?:验证|检查|校验)",
+                ),
+            ),
+            "Vibe Coding must inspect checks that were actually run",
+        )
+        self.assertTrue(
+            section_has_all(vibe_route, (r"(?:导入|交付|交接)", r"AIUI Studio")),
+            "Vibe Coding must hand the project off to AIUI Studio",
+        )
+
+        actions = numbered_actions(vibe_route)
+        self.assertEqual(
+            [1, 2, 3, 4, 5],
+            [number for number, _ in actions],
+            "Vibe Coding route must contain exactly five ordered numbered actions",
+        )
+        action_patterns = (
+            (r"(?:安装|添加)", r"(?:Skill|rokid-aiui-agent)"),
+            (
+                r"(?:打开|新建|创建|选择)",
+                r"(?:工作区|workspace)",
+                r"(?:独立|单独|新|另一个|仓库之外|仓库外)",
+            ),
+            (r"(?:调用|使用|运行|invoke)", r"\$rokid-aiui-agent"),
+            (
+                r"(?:检查|查看|核对|审查)",
+                r"(?:交付|输出|项目|工程)",
+                r"(?:检查|验证|校验|执行)[^。\n]*(?:结果|记录)",
+            ),
+            (r"(?:导入|交付|交接)", r"AIUI Studio"),
+        )
+        for (number, action), patterns in zip(actions, action_patterns):
+            with self.subTest(vibe_route_action=number):
+                self.assertTrue(
+                    section_has_all(action, patterns),
+                    f"Vibe Coding numbered action {number} has wrong semantics",
+                )
+
         self.assertRegex(
             quickstart,
             r"支持\s*Agent Skills[^。\n]*编码环境[^。\n]*终端",
