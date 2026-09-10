@@ -16,15 +16,15 @@
 
 - Modify: `tests/test_multilingual_usage_docs.py`
 
-- [ ] **Step 1: Add the new headings to reader-task order**
+- [x] **Step 1: Add the new headings to reader-task order**
 
 Require `## 这个 Skill 能做什么` after the opener and `## 仓库内容` before `## 深入指南`.
 
-- [ ] **Step 2: Add semantic capability checks**
+- [x] **Step 2: Add semantic capability checks**
 
 Within the capability section, require creation of a complete AIUI project, modification of an existing project, AIUI-specific review or debugging, and verified Studio handoff without requiring exact paragraph wording.
 
-- [ ] **Step 3: Add Focus Timer operation checks**
+- [x] **Step 3: Add Focus Timer operation checks**
 
 Require these stable mappings inside the existing timer section:
 
@@ -37,11 +37,11 @@ Require these stable mappings inside the existing timer section:
 
 Keep the existing Studio, Rokid Glasses, voice, and `BLOCKED` checks. Require nod and touchpad to stay inside the same device-verification boundary.
 
-- [ ] **Step 4: Add repository-map link checks**
+- [x] **Step 4: Add repository-map link checks**
 
 Require links to `SKILL.md`, `references/`, `scripts/`, `studio-importable-minimal/`, `focus-timer-agent/`, and all three localized guides. Require prose that distinguishes the minimal skeleton from the sole bundled product Agent.
 
-- [ ] **Step 5: Run the focused test and observe RED**
+- [x] **Step 5: Run the focused test and observe RED**
 
 Run:
 
@@ -57,19 +57,19 @@ Expected: FAIL because the current README lacks the new sections and operation m
 
 - Modify: `README.md`
 
-- [ ] **Step 1: Add the capability overview**
+- [x] **Step 1: Add the capability overview**
 
 Use four concise bullets for creating, modifying, reviewing/debugging, and validating/handoff. Each bullet names the developer outcome rather than listing APIs.
 
-- [ ] **Step 2: Add the Focus Timer operation table**
+- [x] **Step 2: Add the Focus Timer operation table**
 
 Use a two-column state-to-primary-action table. State that source and local callback tests cover the mapping, while nod, touchpad, voice, Studio, and physical-device behavior still require their matching evidence.
 
-- [ ] **Step 3: Add the repository map**
+- [x] **Step 3: Add the repository map**
 
 Use a compact path-and-purpose table. Keep Focus Timer as the only product Agent and describe the minimal project as a skeleton.
 
-- [ ] **Step 4: Run the focused documentation and timer tests**
+- [x] **Step 4: Run the focused documentation and timer tests**
 
 Run:
 
@@ -86,15 +86,15 @@ Expected: all tests pass.
 - Modify: `MEMORY.md`
 - Modify: `WORKLOG.md`
 
-- [ ] **Step 1: Review against the current writing guidelines**
+- [x] **Step 1: Review against the current writing guidelines**
 
 Check the opening summary, task-shaped headings, active voice, introduced lists, labeled code blocks, local links, paragraph length, and removal of unsupported external claims.
 
-- [ ] **Step 2: Request independent scope and accuracy review**
+- [x] **Step 2: Request independent scope and accuracy review**
 
 Reject copied private details, unsupported hardware/cloud claims, new product Agents, weakened output contracts, or false Studio/device conclusions.
 
-- [ ] **Step 3: Run the complete local gate**
+- [x] **Step 3: Run the complete local gate**
 
 Run the complete unit suite with the repository-approved Node.js runtime. Then run Skill validation, reference validation, four strict import-root validations, the release-ready audit black box, three AIX pack/list flows, the Focus Timer preview, and `git diff --check`.
 
@@ -107,7 +107,7 @@ Expected: every local gate passes.
 - Modify: `TASKS.md`
 - Modify: `WORKLOG.md`
 
-- [ ] **Step 1: Commit the implementation**
+- [x] **Step 1: Commit the implementation**
 
 Commit the README, test, plan, and continuity changes without rewriting published history.
 
@@ -118,4 +118,3 @@ Confirm that public `main` still matches the local base, then fast-forward it ov
 - [ ] **Step 3: Verify the public result**
 
 Wait for both GitHub Actions jobs. Read the published README and Focus Timer path through the GitHub API, and confirm the public commit matches local `HEAD`.
-

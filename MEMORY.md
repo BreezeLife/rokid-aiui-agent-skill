@@ -42,6 +42,7 @@
 - 2026-09-10: Maintain developer usage as three parallel guides at `docs/usage.zh-CN.md`, `docs/usage.en.md`, and `docs/usage.ja.md`, discoverable from the root README. Keep localized prose natural, but machine-test the shared install commands, explicit `$rokid-aiui-agent` prompts, Studio import coordinates, verification order, AIX boundaries, claims schema, evidence layers, and release-status semantics.
 - 2026-09-10: Keep the product repository focused on the reusable Skill. Bundle only the Focus Timer Agent under `skills/rokid-aiui-agent/assets/focus-timer-agent/`; unrelated application Agents and their product-specific tests/design documents belong in separate repositories.
 - 2026-09-10: Keep the root README as a prompt-first Vibe Coding landing page. Put installation, explicit invocation, editable project output, Studio import, and the bundled Focus Timer in the main flow; route claims schemas, evidence signatures, trust policy, exit-code details, and maintainer commands to the localized guides and focused references.
+- 2026-09-10: The root README may borrow scannable presentation patterns from third-party demo repositories, such as a capability overview, a state-to-action map, and a path-to-purpose repository map. Keep every published claim bound to this repository; private screenshots, recordings, hosted services, performance figures, cloud/security architecture, and license claims are neither reusable content nor AIUI evidence.
 
 ## Source priority
 
