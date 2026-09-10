@@ -436,11 +436,19 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         focus_timer = sections["## 内置 Focus Timer"]
         self.assertNotIn("语音修改时长", focus_timer)
         self.assertRegex(focus_timer, r"对话[^。]*(?:变更|修改)[^。]*新的? Page")
+        timer_mappings = (
+            ("未开始", "开始"),
+            ("进行中", "暂停"),
+            ("已暂停", "继续"),
+            ("已完成", "重新开始"),
+        )
+        for state, action in timer_mappings:
+            with self.subTest(timer_state=state, primary_action=action):
+                self.assertRegex(
+                    focus_timer,
+                    rf"(?m)^\s*\|\s*{state}\s*\|\s*{action}\s*\|\s*$",
+                )
         for literal in (
-            "| 未开始 | 开始 |",
-            "| 进行中 | 暂停 |",
-            "| 已暂停 | 继续 |",
-            "| 已完成 | 重新开始 |",
             "点头",
             "触摸板",
             "语音",
