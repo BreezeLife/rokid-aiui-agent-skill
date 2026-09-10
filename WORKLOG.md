@@ -1,5 +1,16 @@
 # Work Log
 
+## 2026-09-11
+
+- Rebased the pending Focus Timer visual-reference work onto the latest public `main`, retaining the repository's canonical Studio import root at `skills/rokid-aiui-agent/assets/focus-timer-agent/`.
+- Added a deterministic builder, a 2400×1200 GitHub user-journey PNG, and a six-page developer PDF covering voice setup, default 10 minutes, `_current`, `_blank`, nod/touchpad mapping, automated evidence, and manual gates.
+- Added source-alignment and output-contract tests. The new test first failed because the builder was absent, then passed after the builder was added; regenerated outputs matched the checked-in PNG and PDF byte-for-byte.
+- Closed a pre-publication Linux CI gap with pinned Pillow, ReportLab, and pypdf dependencies plus an installed and explicitly discovered Noto CJK font; the corresponding contract failed before the environment fix and passed afterward.
+- Visually inspected the journey PNG and all six rendered PDF pages. Both explicitly identify themselves as illustrations rather than physical-device captures.
+- Ran the final local publication gate on the remote-main-based worktree: 279/279 tests passed, Skill and reference validation passed, all four strict import-root checks passed, and Python/Bash/YAML plus full-tree whitespace checks passed.
+- Probed AIX 0.8.2 help before execution, then ran its advertised preview, pack, and list commands for the Focus Timer. Preview produced 39,180 bytes; pack produced 19,232 bytes with SHA-256 `775a755ec33946fb19b63699ed5e396056d2d112b85ab0da196099514152b9a3`; list contained only the expected Agent, claims ledger, manifest/version, app files, and Page. All three repository AIX smoke flows also passed.
+- The first publication CI run `34504232404` exposed that ReportLab rejects the CFF outlines in Ubuntu's Noto CJK TTC even though Pillow accepts the same font. Added a regression and a ReportLab built-in CJK fallback while retaining Noto for the PNG renderer; the focused suite and fallback PDF text extraction then passed locally.
+
 ## 2026-09-07
 
 - Confirmed the workspace was empty and not yet a Git repository; the expected continuity files did not exist.

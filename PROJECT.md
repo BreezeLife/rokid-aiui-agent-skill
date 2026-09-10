@@ -23,6 +23,7 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 - `skills/rokid-aiui-agent/assets/studio-importable-minimal/`: complete stable-baseline AIUI source project and Studio import fixture.
 - `skills/rokid-aiui-agent/assets/focus-timer-agent/`: the only bundled product-shaped Agent; a Japanese stable-0.17 Page-only focus timer with deterministic absolute-deadline tests.
 - `docs/usage.zh-CN.md`, `docs/usage.en.md`, `docs/usage.ja.md`: parallel developer guides for installation, invocation, validation, Studio import, and mandatory UX/capability acceptance.
+- `docs/assets/focus-timer-user-journey.png` and `output/pdf/focus-timer-developer-reference.pdf`: reproducible developer visuals for the bundled Focus Timer; they are explanatory material, not Studio or device evidence.
 - `tests/`: validator fixtures, unit tests, behavioral scenarios, and recorded evaluations.
 - `docs/superpowers/`: approved design and executable implementation plan.
 

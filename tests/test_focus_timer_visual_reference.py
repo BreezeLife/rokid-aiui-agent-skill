@@ -11,9 +11,13 @@ from pathlib import Path
 from PIL import Image
 from pypdf import PdfReader
 
+from scripts import build_focus_timer_visual_reference as visual_reference
+
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "scripts" / "build_focus_timer_visual_reference.py"
+REQUIREMENTS = ROOT / "requirements-dev.txt"
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 INK = (
     ROOT
     / "skills"
@@ -27,6 +31,32 @@ INK = (
 
 
 class FocusTimerVisualReferenceTests(unittest.TestCase):
+    def test_pdf_font_registration_falls_back_for_unsupported_outlines(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="focus-timer-font-") as directory:
+            unsupported = Path(directory) / "unsupported.ttc"
+            unsupported.write_bytes(b"unsupported-font")
+            try:
+                registered = visual_reference.register_pdf_fonts(
+                    unsupported, unsupported
+                )
+            except Exception as error:  # pragma: no cover - RED-path diagnostic
+                self.fail(f"unsupported outlines must fall back: {error}")
+            self.assertEqual(
+                registered,
+                ("STSong-Light", "STSong-Light"),
+            )
+
+    def test_ci_installs_visual_dependencies_and_linux_cjk_font(self) -> None:
+        requirements = REQUIREMENTS.read_text(encoding="utf-8")
+        for dependency in ("Pillow==", "pypdf==", "reportlab=="):
+            self.assertIn(dependency, requirements)
+
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("fonts-noto-cjk", workflow)
+
+        builder = BUILDER.read_text(encoding="utf-8")
+        self.assertIn("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", builder)
+
     def test_builder_outputs_github_png_and_six_page_pdf(self) -> None:
         with tempfile.TemporaryDirectory(prefix="focus-timer-visual-") as directory:
             output = Path(directory)

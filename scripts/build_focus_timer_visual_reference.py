@@ -13,8 +13,9 @@ from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.ttfonts import TTFont, TTFError
 from reportlab.pdfgen import canvas
 
 
@@ -32,6 +33,10 @@ BLACK = "#000000"
 RED = "#FF7777"
 
 FONT_CANDIDATES = (
+    (
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
+    ),
     (
         Path("/System/Library/Fonts/STHeiti Medium.ttc"),
         Path("/System/Library/Fonts/STHeiti Medium.ttc"),
@@ -323,8 +328,13 @@ def render_journey_png(path: Path, regular_path: Path, bold_path: Path) -> None:
 def register_pdf_fonts(regular_path: Path, bold_path: Path) -> tuple[str, str]:
     regular = "FocusCJK"
     bold = "FocusCJKBold"
-    pdfmetrics.registerFont(TTFont(regular, str(regular_path), subfontIndex=0))
-    pdfmetrics.registerFont(TTFont(bold, str(bold_path), subfontIndex=0))
+    try:
+        pdfmetrics.registerFont(TTFont(regular, str(regular_path), subfontIndex=0))
+        pdfmetrics.registerFont(TTFont(bold, str(bold_path), subfontIndex=0))
+    except TTFError:
+        fallback = "STSong-Light"
+        pdfmetrics.registerFont(UnicodeCIDFont(fallback))
+        return fallback, fallback
     return regular, bold
 
 
