@@ -360,17 +360,35 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         }
 
         def section_has_all(section: str, patterns: tuple[str, ...]) -> bool:
-            lines_and_paragraphs = [
-                re.sub(r"\s+", " ", unit).strip()
-                for unit in (
-                    section.splitlines()
-                    + re.split(r"\n\s*\n", section)
+            semantic_units = []
+            prose_lines = []
+
+            def flush_prose() -> None:
+                if prose_lines:
+                    semantic_units.append(" ".join(prose_lines))
+                    prose_lines.clear()
+
+            for raw_line in section.splitlines():
+                line = re.sub(r"\s+", " ", raw_line).strip()
+                if not line:
+                    flush_prose()
+                    continue
+                is_structured_line = line.startswith("|") or bool(
+                    re.match(r"^(?:[-+*]|\d+[.)])\s+", line)
                 )
-                if unit.strip()
-            ]
+                is_block_marker = bool(
+                    re.match(r"^(?:#{1,6}\s|```|~~~|>)", line)
+                )
+                if is_structured_line or is_block_marker:
+                    flush_prose()
+                    semantic_units.append(line)
+                    continue
+                prose_lines.append(line)
+            flush_prose()
+
             return any(
                 all(re.search(pattern, unit, re.IGNORECASE) for pattern in patterns)
-                for unit in lines_and_paragraphs
+                for unit in semantic_units
             )
 
         capabilities = sections["## 这个 Skill 能做什么"]
