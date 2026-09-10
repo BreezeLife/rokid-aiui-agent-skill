@@ -122,6 +122,14 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 
 该计时器不承诺后台持续运行、系统通知或持久化恢复。
 
+### Focus Timer 开发者视觉参考
+
+![Focus Timer User Journey](docs/assets/focus-timer-user-journey.png)
+
+上图展示语音设时、默认 10 分钟、点头/触摸板开始、暂停、继续和完成流程。它是基于当前源码与 AIX 模拟器行为绘制的 Rokid Glasses 视野效果示意，不是真机实拍，也不替代 AIUI Studio 或物理眼镜验证。
+
+[下载六页开发者 PDF](output/pdf/focus-timer-developer-reference.pdf)
+
 ## 自动检查
 
 Skill 会根据当前工程运行结构验证、确定性业务逻辑测试，以及本机 AIX 实际支持的 preview、pack 和 list 流程。它还要求项目级 UX 表与逐能力表，避免用一次浏览器预览代替 Studio 或真机结论。
