@@ -6,6 +6,7 @@
 
 ## Done
 
+- [x] Published a reproducible Focus Timer user-journey PNG and six-page developer PDF, linked them from the root README, and bound their interaction copy to the canonical packaged Agent with automated tests.
 - [x] Taught the two supported README workflows: open an AIUI project in Studio, or build one with Codex and other Agent Skills-compatible Vibe Coding tools; verified and published the revision.
 - [x] Expanded the root README with a demo-inspired capability overview, Focus Timer control map, and repository map; verified and published the revision.
 - [x] Reorganized the root README as a prompt-first Vibe Coding quickstart, retained advanced audit mechanics in the routed guides, verified the complete repository, and published the revision.

@@ -33,6 +33,10 @@ RED = "#FF7777"
 
 FONT_CANDIDATES = (
     (
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
+    ),
+    (
         Path("/System/Library/Fonts/STHeiti Medium.ttc"),
         Path("/System/Library/Fonts/STHeiti Medium.ttc"),
     ),

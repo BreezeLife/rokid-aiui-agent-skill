@@ -14,6 +14,8 @@ from pypdf import PdfReader
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "scripts" / "build_focus_timer_visual_reference.py"
+REQUIREMENTS = ROOT / "requirements-dev.txt"
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 INK = (
     ROOT
     / "skills"
@@ -27,6 +29,17 @@ INK = (
 
 
 class FocusTimerVisualReferenceTests(unittest.TestCase):
+    def test_ci_installs_visual_dependencies_and_linux_cjk_font(self) -> None:
+        requirements = REQUIREMENTS.read_text(encoding="utf-8")
+        for dependency in ("Pillow==", "pypdf==", "reportlab=="):
+            self.assertIn(dependency, requirements)
+
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("fonts-noto-cjk", workflow)
+
+        builder = BUILDER.read_text(encoding="utf-8")
+        self.assertIn("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", builder)
+
     def test_builder_outputs_github_png_and_six_page_pdf(self) -> None:
         with tempfile.TemporaryDirectory(prefix="focus-timer-visual-") as directory:
             output = Path(directory)
