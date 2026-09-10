@@ -519,9 +519,19 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             flush_prose()
             return blocks
 
-        def has_guarded_gh_install(markdown: str) -> bool:
-            blocks = semantic_blocks(markdown)
-            fallback_command = README_STABLE_LITERALS[1]
+        def strip_action_lead(markdown: str) -> str:
+            lead = markdown.strip().lstrip("*_`").lstrip()
+            lead = re.sub(
+                r"^(?:(?:第\s*(?:[一二三四五六七八九十]|\d+)\s*步|"
+                r"步骤\s*(?:[一二三四五六七八九十]|\d+)|"
+                r"step\s*\d+)\s*[:：、.)-]?\s*)",
+                "",
+                lead,
+                flags=re.IGNORECASE,
+            )
+            return lead.lstrip("*_`").lstrip()
+
+        def is_affirmative_gh_guard(block: str) -> bool:
             positive_guard = re.compile(
                 r"`gh skill --help`[^。\n]*(?:可用|正常(?:运行|工作))",
                 re.IGNORECASE,
@@ -531,24 +541,51 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 r"[^，。；\n]{0,16}(?:可用|正常(?:运行|工作)|使用|运行|用)",
                 re.IGNORECASE,
             )
+            return bool(
+                positive_guard.search(block)
+                and not negative_guard.search(block)
+            )
 
-            def is_affirmative_guard(block: str) -> bool:
-                return bool(
-                    positive_guard.search(block)
-                    and not negative_guard.search(block)
-                )
+        def has_guarded_gh_install(markdown: str) -> bool:
+            blocks = semantic_blocks(markdown)
+            fallback_command = README_STABLE_LITERALS[1]
 
             for index, (kind, block) in enumerate(blocks):
                 if fallback_command not in block:
                     continue
-                if kind == "prose" and is_affirmative_guard(block):
+                if kind == "prose" and is_affirmative_gh_guard(block):
                     return True
                 if (
                     index
                     and blocks[index - 1][0] == "prose"
-                    and is_affirmative_guard(blocks[index - 1][1])
+                    and is_affirmative_gh_guard(blocks[index - 1][1])
                 ):
                     return True
+            return False
+
+        def has_affirmative_cue(
+            prose: str,
+            cue: re.Pattern[str],
+            *,
+            allow_after_gh_guard: bool = False,
+        ) -> bool:
+            for statement in re.split(r"[。；\n]+", prose):
+                lead = strip_action_lead(statement)
+                if cue.match(lead):
+                    return True
+                if re.match(
+                    rf"^[^：:，,]{{1,24}}\s+(?:是|为|作为)\s*{cue.pattern}",
+                    lead,
+                    re.IGNORECASE,
+                ):
+                    return True
+                if allow_after_gh_guard and is_affirmative_gh_guard(lead):
+                    suffixes = re.split(r"(?:[，,]|时[，,]?)", lead)[1:]
+                    if any(
+                        cue.match(strip_action_lead(suffix))
+                        for suffix in suffixes
+                    ):
+                        return True
             return False
 
         def has_primary_npx_then_guarded_gh_install(markdown: str) -> bool:
@@ -582,8 +619,14 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             ]
             return any(
                 primary_index < fallback_index
-                and primary_cue.search(adjacent_prose(primary_index))
-                and fallback_cue.search(adjacent_prose(fallback_index))
+                and has_affirmative_cue(
+                    adjacent_prose(primary_index), primary_cue
+                )
+                and has_affirmative_cue(
+                    adjacent_prose(fallback_index),
+                    fallback_cue,
+                    allow_after_gh_guard=True,
+                )
                 and has_guarded_gh_install(
                     "\n\n".join(
                         block
@@ -624,6 +667,10 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         def action_has_affirmative_semantics(
             action: str, patterns: tuple[str, ...]
         ) -> bool:
+            if not re.match(
+                patterns[0], strip_action_lead(action), re.IGNORECASE
+            ):
+                return False
             non_affirmative = re.compile(
                 r"(?:不要|无需|不必|禁止|不得|不应|切勿|未|没有|没|"
                 r"不能|无法|不可|如果|假如|假设|倘若|若)"
@@ -788,7 +835,13 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         for invalid_install_order in (
             ordered_install_example.replace("主安装路径", "安装命令"),
             ordered_install_example.replace(
+                "主安装路径", "不是主安装路径"
+            ),
+            ordered_install_example.replace(
                 "也可以使用备用路径", "请运行以下命令"
+            ),
+            ordered_install_example.replace(
+                "也可以使用备用路径", "并非备用路径"
             ),
             "\n\n".join(reversed(ordered_install_example.split("\n\n"))),
         ):
@@ -838,11 +891,11 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             )
         )
         affirmative_actions = (
-            "安装 Skill",
-            "打开另一个独立工作区",
-            "调用 Skill，使用 $rokid-aiui-agent",
-            "查看交付项目与实际执行后报告的检查结果",
-            "导入 AIUI Studio",
+            "**安装 Skill。**",
+            "步骤二：**打开另一个独立工作区。**",
+            "第 3 步：**调用 Skill。** 使用 $rokid-aiui-agent",
+            "step 4: **查看交付项目与实际执行后报告的检查结果。**",
+            "**导入 AIUI Studio。**",
         )
         for action, patterns in zip(affirmative_actions, action_patterns):
             with self.subTest(affirmative_action=action):
@@ -856,6 +909,11 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             ("禁止调用 $rokid-aiui-agent", action_patterns[2]),
             ("未检查交付项目和验证结果", action_patterns[3]),
             ("没有导入 AIUI Studio", action_patterns[4]),
+            ("跳过安装 Skill", action_patterns[0]),
+            ("避免打开独立工作区", action_patterns[1]),
+            ("拒绝调用 $rokid-aiui-agent", action_patterns[2]),
+            ("省略检查交付项目和验证结果", action_patterns[3]),
+            ("取消导入 AIUI Studio", action_patterns[4]),
         )
         for action, patterns in negated_actions:
             with self.subTest(negated_action=action):
