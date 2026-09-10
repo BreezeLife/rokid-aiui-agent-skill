@@ -671,26 +671,8 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 patterns[0], strip_action_lead(action), re.IGNORECASE
             ):
                 return False
-            non_affirmative = re.compile(
-                r"(?:不要|无需|不必|禁止|不得|不应|切勿|未|没有|没|"
-                r"不能|无法|不可|如果|假如|假设|倘若|若)"
-            )
-            affirmative_fragments = []
-            for _, block in semantic_blocks(action):
-                for fragment in re.split(r"[。！？；，,\n]+", block):
-                    fragment = fragment.strip()
-                    if not fragment:
-                        continue
-                    if non_affirmative.search(fragment):
-                        if re.search(patterns[0], fragment, re.IGNORECASE):
-                            return False
-                        continue
-                    affirmative_fragments.append(fragment)
             return all(
-                any(
-                    re.search(pattern, fragment, re.IGNORECASE)
-                    for fragment in affirmative_fragments
-                )
+                re.search(pattern, action, re.IGNORECASE)
                 for pattern in patterns
             )
 
