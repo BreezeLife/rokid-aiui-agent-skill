@@ -47,4 +47,3 @@ Run the focused tests to observe RED, implement the minimum prose, then run the 
 ## Open questions
 
 None. The user requested a small README expansion and previously authorized continuous implementation without step-by-step confirmation. The minimal content-only approach is selected.
-
