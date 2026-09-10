@@ -112,6 +112,6 @@ Run OpenAI Skill validation, reference validation, strict validation for all fou
 
 Reject any release-blocking finding, fix it with a regression, and rerun affected gates.
 
-- [ ] **Step 4: Commit and push without rewriting history**
+- [x] **Step 4: Commit and push without rewriting history**
 
 Confirm public `main` has not advanced, push the verified commits, wait for GitHub Actions, and verify the public README and timer paths.
