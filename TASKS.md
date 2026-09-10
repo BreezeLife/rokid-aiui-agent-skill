@@ -2,7 +2,7 @@
 
 ## In progress
 
-- None.
+- [ ] Add a small demo-inspired capability overview, Focus Timer control map, and repository map to the root README; verify and publish the revision.
 
 ## Done
 
