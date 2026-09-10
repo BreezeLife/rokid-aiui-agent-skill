@@ -114,12 +114,14 @@ Skill 会先检查当前环境实际提供的 AIX 命令，不会假设不存在
 
 仓库将 Skill、参考资料、检查工具和可导入示例分开存放：
 
-- [`skills/rokid-aiui-agent/SKILL.md`](skills/rokid-aiui-agent/SKILL.md)：Skill 入口和任务流程
-- [`skills/rokid-aiui-agent/references/`](skills/rokid-aiui-agent/references/)：按需读取的 AIUI 开发参考
-- [`skills/rokid-aiui-agent/scripts/`](skills/rokid-aiui-agent/scripts/)：项目结构、能力和审计检查工具
-- [`skills/rokid-aiui-agent/assets/studio-importable-minimal/`](skills/rokid-aiui-agent/assets/studio-importable-minimal/)：可导入 AIUI Studio 的最小工程模板
-- [`skills/rokid-aiui-agent/assets/focus-timer-agent/`](skills/rokid-aiui-agent/assets/focus-timer-agent/)：仓库中唯一的产品化示例 Agent
-- [`docs/usage.zh-CN.md`](docs/usage.zh-CN.md)、[`docs/usage.en.md`](docs/usage.en.md) 和 [`docs/usage.ja.md`](docs/usage.ja.md)：中文、英文和日文完整指南
+| 路径 | 用途 |
+| --- | --- |
+| [`skills/rokid-aiui-agent/SKILL.md`](skills/rokid-aiui-agent/SKILL.md) | Skill 入口和任务流程 |
+| [`skills/rokid-aiui-agent/references/`](skills/rokid-aiui-agent/references/) | 按需读取的 AIUI 开发参考 |
+| [`skills/rokid-aiui-agent/scripts/`](skills/rokid-aiui-agent/scripts/) | 项目结构、能力和审计检查工具 |
+| [`skills/rokid-aiui-agent/assets/studio-importable-minimal/`](skills/rokid-aiui-agent/assets/studio-importable-minimal/) | 可导入 AIUI Studio 的最小工程模板 |
+| [`skills/rokid-aiui-agent/assets/focus-timer-agent/`](skills/rokid-aiui-agent/assets/focus-timer-agent/) | 仓库中唯一的产品化示例 Agent |
+| [`docs/usage.zh-CN.md`](docs/usage.zh-CN.md)、[`docs/usage.en.md`](docs/usage.en.md) 和 [`docs/usage.ja.md`](docs/usage.ja.md) | 中文、英文和日文完整指南 |
 
 ## 深入指南
 
