@@ -2,10 +2,9 @@
 
 ## In progress
 
-- [ ] Add a small demo-inspired capability overview, Focus Timer control map, and repository map to the root README; verify and publish the revision.
-
 ## Done
 
+- [x] Expanded the root README with a demo-inspired capability overview, Focus Timer control map, and repository map; verified and published the revision.
 - [x] Reorganized the root README as a prompt-first Vibe Coding quickstart, retained advanced audit mechanics in the routed guides, verified the complete repository, and published the revision.
 - [x] Published complete Chinese, English, and Japanese usage guides and reorganized the repository so Focus Timer is the Skill's sole bundled product Agent.
 - [x] Confirmed repository name and public visibility with the user.
