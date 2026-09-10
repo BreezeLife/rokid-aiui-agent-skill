@@ -2,6 +2,8 @@
 
 ## In progress
 
+- [ ] Teach the two supported README workflows: open an AIUI project in Studio, or build one with Codex and other Agent Skills-compatible Vibe Coding tools; verify and publish the revision.
+
 ## Done
 
 - [x] Expanded the root README with a demo-inspired capability overview, Focus Timer control map, and repository map; verified and published the revision.
