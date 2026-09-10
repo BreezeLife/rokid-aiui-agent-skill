@@ -102,10 +102,10 @@ Expected: every local gate passes.
 
 Commit the test, README, plan, and continuity changes without rewriting published history.
 
-- [ ] **Step 2: Push to public `main`**
+- [x] **Step 2: Push to public `main`**
 
 Confirm that remote `main` still matches the local base, then fast-forward the verified commits over SSH.
 
-- [ ] **Step 3: Verify the public result**
+- [x] **Step 3: Verify the public result**
 
 Wait for both GitHub Actions jobs, read the published README and Focus Timer import root through the GitHub API, and confirm that public `main` matches local `HEAD`.
