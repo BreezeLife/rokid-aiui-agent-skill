@@ -671,8 +671,24 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 patterns[0], strip_action_lead(action), re.IGNORECASE
             ):
                 return False
+            non_affirmative = re.compile(
+                r"(?:不要|无需|不必|禁止|不得|不应|切勿|未|没有|没|"
+                r"不能|无法|不可|如果|假如|假设|倘若|若|"
+                r"跳过|避免|拒绝|省略|取消)"
+            )
+            affirmative_fragments = []
+            for _, block in semantic_blocks(action):
+                affirmative_fragments.extend(
+                    fragment.strip()
+                    for fragment in re.split(r"[。！？；，,\n]+", block)
+                    if fragment.strip()
+                    and not non_affirmative.search(fragment)
+                )
             return all(
-                re.search(pattern, action, re.IGNORECASE)
+                any(
+                    re.search(pattern, fragment, re.IGNORECASE)
+                    for fragment in affirmative_fragments
+                )
                 for pattern in patterns
             )
 
@@ -899,6 +915,21 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         )
         for action, patterns in negated_actions:
             with self.subTest(negated_action=action):
+                self.assertFalse(
+                    action_has_affirmative_semantics(action, patterns)
+                )
+        negated_requirements = (
+            ("安装辅助工具。不要安装 Skill", action_patterns[0]),
+            ("打开编辑器。不要打开独立工作区", action_patterns[1]),
+            ("调用辅助命令。不要使用 $rokid-aiui-agent", action_patterns[2]),
+            (
+                "检查版本号。不要检查交付项目与实际执行的验证结果",
+                action_patterns[3],
+            ),
+            ("导入其他目录。不要导入 AIUI Studio", action_patterns[4]),
+        )
+        for action, patterns in negated_requirements:
+            with self.subTest(negated_requirement=action):
                 self.assertFalse(
                     action_has_affirmative_semantics(action, patterns)
                 )
