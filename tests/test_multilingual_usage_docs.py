@@ -12,6 +12,24 @@ GUIDES = {
     "ja": ROOT / "docs" / "usage.ja.md",
 }
 
+README_STABLE_LITERALS = (
+    "npx skills add BreezeLife/rokid-aiui-agent-skill --skill rokid-aiui-agent",
+    "gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent codex --scope user",
+    "Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill",
+    "Ref: main",
+    "Directory: skills/rokid-aiui-agent/assets/focus-timer-agent",
+    "skills/rokid-aiui-agent/assets/focus-timer-agent",
+    "](skills/rokid-aiui-agent/references/ux-and-capability-testing.md)",
+)
+
+README_FORBIDDEN_LITERALS = (
+    "publicKeySha256",
+    "claimsLedger",
+    "SPKI DER",
+    "attestations",
+    "trust-policy",
+)
+
 SECTION_MARKERS = (
     "scope",
     "install",
@@ -280,6 +298,109 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         for path in GUIDES.values():
             with self.subTest(path=path.name):
                 self.assertIn(f"docs/{path.name}", introduction)
+
+    def test_readme_is_a_prompt_first_quickstart(self) -> None:
+        self.assertIn(
+            "[![CI](https://github.com/BreezeLife/rokid-aiui-agent-skill/"
+            "actions/workflows/ci.yml/badge.svg)]",
+            self.readme,
+        )
+        for literal in README_STABLE_LITERALS:
+            with self.subTest(required=literal):
+                self.assertIn(literal, self.readme)
+
+        text_blocks = re.findall(r"```text\s*\n([\s\S]*?)\n```", self.readme)
+        prompts = [
+            block
+            for block in text_blocks
+            if "使用 $rokid-aiui-agent" in block
+            and re.search(r"[\u3400-\u4dbf\u4e00-\u9fff]", block)
+        ]
+        self.assertTrue(
+            prompts,
+            "README must include a copyable Chinese text prompt with "
+            "$rokid-aiui-agent",
+        )
+        prompt = prompts[0]
+        self.assertIn("/absolute/path/to/my_focus_timer", prompt)
+        self.assertRegex(prompt, r"(?:独立|单独)[^。]*(?:目录|路径)")
+        self.assertRegex(
+            prompt,
+            r"(?:(?:rokid-aiui-agent-skill|Skill)[^。]*(?:仓库之外|仓库外)|"
+            r"不要[^。]*写入本 Skill 仓库)",
+        )
+
+        expected_headings = (
+            "## 快速开始",
+            "## 你会得到什么",
+            "## 导入 AIUI Studio",
+            "## 内置 Focus Timer",
+            "## 自动检查",
+            "## 版本边界",
+            "## 深入指南",
+            "## 来源与许可证",
+        )
+        positions = []
+        for heading in expected_headings:
+            self.assertEqual(1, self.readme.count(heading), heading)
+            positions.append(self.readme.index(heading))
+        self.assertEqual(sorted(positions), positions)
+
+        sections = {
+            heading: self.readme[
+                self.readme.index(heading) : (
+                    self.readme.index(expected_headings[index + 1])
+                    if index + 1 < len(expected_headings)
+                    else len(self.readme)
+                )
+            ]
+            for index, heading in enumerate(expected_headings)
+        }
+
+        quickstart = sections["## 快速开始"]
+        self.assertRegex(
+            quickstart,
+            r"支持\s*Agent Skills[^。\n]*编码环境[^。\n]*终端",
+        )
+        self.assertRegex(
+            quickstart,
+            r"`gh skill --help`[^。\n]*(?:可用|正常)",
+        )
+
+        output = sections["## 你会得到什么"]
+        for literal in ("完整", "可编辑", "AIUI 项目目录", "AIUI Studio"):
+            self.assertIn(literal, output)
+        self.assertRegex(
+            output,
+            r"app\.json\.pages[^。]*(?:全部|所有)[^。]*页面",
+        )
+        self.assertRegex(
+            output,
+            r"页面[^。]*(?:引用|依赖)[^。]*(?:全部|所有)[^。]*资源",
+        )
+        self.assertNotRegex(output, r"如果[^。]*app\.json\.pages")
+        self.assertRegex(output, r"_current[^。]*(?:嵌入|内嵌)[^。]*对话")
+        self.assertRegex(output, r"_blank[^。]*全屏")
+        self.assertRegex(output, r"BLOCKED[^。]*(?:待验证|等待验证)")
+
+        studio_import = sections["## 导入 AIUI Studio"]
+        for literal in ("本地检查", "AIUI Studio", "Rokid Glasses", "BLOCKED"):
+            self.assertIn(literal, studio_import)
+
+        focus_timer = sections["## 内置 Focus Timer"]
+        self.assertNotIn("语音修改时长", focus_timer)
+        self.assertRegex(focus_timer, r"对话[^。]*(?:变更|修改)[^。]*新的? Page")
+        for literal in ("语音触发", "AIUI Studio", "Rokid Glasses", "BLOCKED"):
+            self.assertIn(literal, focus_timer)
+
+        version = sections["## 版本边界"]
+        for literal in ("默认", "AIUI `0.17.0`", "`0.18`", "明确支持"):
+            self.assertIn(literal, version)
+
+        folded_readme = self.readme.casefold()
+        for literal in README_FORBIDDEN_LITERALS:
+            with self.subTest(forbidden=literal):
+                self.assertNotIn(literal.casefold(), folded_readme)
 
     def test_guides_share_complete_ordered_usage_contract(self) -> None:
         for language, guide in self.guides.items():

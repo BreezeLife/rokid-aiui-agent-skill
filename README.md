@@ -4,79 +4,61 @@
 
 [简体中文使用说明](docs/usage.zh-CN.md) | [English usage guide](docs/usage.en.md) | [日本語の使い方](docs/usage.ja.md)
 
-面向编码智能体的 ROKID AIUI 开发 Skill：从工程识别、`.ink` / WXML / WXSS 编写，到硬件输入、单绿色眼镜设计、AIX 预览与打包，再到真机验收，最终交付可被 AIUI Studio 直接导入的完整源码工程。
+这是面向 ROKID AIUI 的 Vibe Coding 快速开始：和 AI 一起写代码，从一句需求走到可导入、可检查、可继续编辑的完整工程，同时避免把浏览器或微信小程序经验误当成 AIUI 能力。
 
-This repository is a compact, source-traceable development workflow—not a frozen copy of the AIUI manual.
+## 快速开始
 
-## 为什么需要它
-
-本 Skill 直接基于官方 `aiui-dev` 和官方 samples 的高价值规则，但不盲从已经落后的摘要。它会：
-
-- 禁止从浏览器或微信小程序经验推断 AIUI API、组件、事件和 CSS 行为；
-- 先确认设备、runtime、Page / Widget / Agent Worker，以及 `_current` / `_blank` 承载面；
-- 显式处理官方资料内部的版本冲突，例如对话流交互、CSS animation、页面注册和视觉 token；
-- 运行静态验证，按本机 `aix --help` 选择真实存在的命令；
-- 对每次创建、实现、修改或审查强制生成并机器校验项目级 UX 证据矩阵和逐能力证据矩阵；
-- 把浏览器 preview、平台上传和真机验收视为不同证据层级。
-
-## 输出契约
-
-创建或实现类任务必须交付完整、可编辑的 AIUI 项目目录，而不是零散代码片段或只有 `.aix` 包。项目根至少包含 `AGENTS.md`、`app.json`、应用入口，以及 `app.json.pages` 声明的全部页面和引用资源。
-
-- 本地导入：将交付目录本身选为 AIUI Studio 的“本地导入”文件夹。
-- GitHub 导入：仓库根目录或明确给出的子目录必须就是 AIUI 项目根，并同时给出仓库 URL、分支/标签和导入子目录。
-- 示例：本仓库的 [`skills/rokid-aiui-agent/assets/studio-importable-minimal`](skills/rokid-aiui-agent/assets/studio-importable-minimal) 按官方 GitHub 指定目录契约准备，并经过严格结构检查、真实 AIX 打包和浏览器预览。GitHub 导入坐标是仓库 `https://github.com/BreezeLife/rokid-aiui-agent-skill`、ref `main`、指定目录 `skills/rokid-aiui-agent/assets/studio-importable-minimal`。账号侧 Studio 导入仍是单独的人工验收门槛，不能由这些本地证据替代。
-
-当工程和宿主都没有暴露目标版本时，本 Skill 明示假设并默认使用官网标记为稳定版的 AIUI `0.17.0`。Widget、Agent Worker 等 `0.18.0` 新能力只有在目标版本明确支持后才会生成，避免把预览版配置混进稳定版项目。
-
-每个项目还必须交付两张审查表：UX 表逐项覆盖承载面、状态、长文本、焦点、输入、恢复、生命周期、单绿色视觉、真实背景和性能；能力表对每个 API、组件、事件或设备能力记录版本/设备/承载面、权限、固定版本官方来源、成功与失败路径、fallback、清理和证据。结果只允许 `PASS`、`FAIL`、`BLOCKED`、有理由的 `N/A`。缺少相应证据层级时只能记为 `BLOCKED`；关键路径仍有 `FAIL` 或 `BLOCKED` 时，不得称为完整或可发布。
-
-审计前须在准确的导入根创建 `aiui-audit-claims.json`。它使用精确的 schema 1：顶层只有 `schemaVersion`、`scopeClosed`、`claims`，其中 `scopeClosed` 必须为 `true`，即使 `claims` 是空数组也不能省略文件。扫描器输出 schema 2 inventory，并把 claims 文件的路径、存在性、闭合状态、SHA-256 与数量写入 `claimsLedger`；审计中的能力清单、`Supported surfaces` 和 `Inputs` 必须与扫描结果完全一致。声明中的自然语言不能仅凭 family/surface 相同就借用一个无关源码调用；每条非空产品声明都保留独立的未绑定或隔离 gate。已声明并存在的 Page 路由会建立 `Page` 承载面，但只有源码或闭合声明才能进一步建立 `_current` / `_blank` 等具体目标。每条输入路径分别对应一个 `{family,kind,gate}`，不能把 tap、按键、语音或手势合成一个 gate。只有扫描结果的 `inputGates` 确实为空时才写 `Inputs: none`，并使用固定 `no-input` gate。
-
-内容寻址的采集清单和产物统一放进仓库根 `.aiui-evidence/`，采集前后必须绑定同一源码指纹；运行 fingerprint 和 inventory 时必须显式传入仓库根。工具按 ASCII 大小写不敏感规则只排除该仓库根的 `.git/` 与 `.aiui-evidence/`，嵌套导入目录中的同名路径仍按源码扫描，且保留目录不能包含运行时代码、软链接或被项目清单/源码引用。它不会忽略 `.DS_Store` 等 Git 忽略文件。所有记录命令、日志或产物的执行证据以及所有 AIX 执行捕获都需要 `RUNNER` 权威签名；Studio、真机和 `N/A` 范围证明分别需要 `STUDIO`、`DEVICE` 和 `SCOPE` 权威签名。Studio 的 `hostRuntime` 与真机的 `runtimeVersion` 必须精确等于本次审计的 canonical AIUI 版本。签名公钥必须由仓库外的绝对路径 trust policy 按角色固定；路径归属使用实际文件身份而不是大小写敏感的字符串比较。`publicKeySha256` 是 OpenSSL 规范化后的 SPKI DER SHA-256，各角色不能通过复用同一密钥或改写 PEM 格式冒充不同权威。项目仓库自行提供的单个设备公钥不受信任。
-
-## 安装
-
-使用通用 Skills CLI：
+在支持 Agent Skills 的编码环境终端运行以下安装命令：
 
 ```bash
 npx skills add BreezeLife/rokid-aiui-agent-skill --skill rokid-aiui-agent
 ```
 
-或使用支持 Agent Skills 的 GitHub CLI，并显式指定技能名：
+如果 `gh skill --help` 可用，也可以运行 GitHub CLI 安装命令：
 
 ```bash
 gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent codex --scope user
 ```
 
-安装前请审阅 `skills/rokid-aiui-agent/SKILL.md` 和脚本；Agent Skill 会影响编码智能体的行为。
-
-## 使用
-
-完整的安装、显式调用、计时器示例、已有项目审查、验证打包、AIUI Studio 导入，以及强制 UX/能力验收流程见：
-
-- [简体中文使用说明](docs/usage.zh-CN.md)
-- [English usage guide](docs/usage.en.md)
-- [日本語の使い方](docs/usage.ja.md)
-
-显式调用示例：
+然后把下面这段话交给编码智能体：
 
 ```text
-Use $rokid-aiui-agent to build a ROKID AIUI weather agent for Rokid Glasses 2,
-validate the project, preview it when supported, and package an AIX artifact.
+使用 $rokid-aiui-agent，为 Rokid Glasses 创建一个 AIUI 0.17.0 专注计时器。
+在独立输出目录 /absolute/path/to/my_focus_timer 中创建，不要把新 Agent 写入本 Skill 仓库。
+支持语音设置时长，在 _current 和 _blank 中都保持清晰易用；完成后交付可由
+AIUI Studio 导入的完整源码目录，运行可用的自动检查，并明确列出仍需 Studio
+或真机验证的项目。不要把未执行的检查写成已经通过。
 ```
 
-也可直接提出 AIUI 开发、代码审查、调试、AIX 打包或真机验收需求；支持隐式触发的 Agent 会根据 Skill 描述加载它。
+你也可以把“专注计时器”换成天气、清单、导航提示，或直接要求审查和修复现有 AIUI 工程。
 
-## Skill 内置计时器 Agent
+## 你会得到什么
 
-[skills/rokid-aiui-agent/assets/focus-timer-agent](skills/rokid-aiui-agent/assets/focus-timer-agent/) 是面向 Rokid Glasses 的日文专注计时器，同样保持稳定版 AIUI `0.17.0`、Page-only 和零权限边界。Agent 从对话中提取 1～3600 的整数 `durationSeconds` 与可选 `label`；页面提供 `idle`、`running`、`paused`、`finished`、`error`，以及开始、暂停、继续、重新开始和重置。页面启用 World Awareness，显示期间将点头 `nod` 映射为当前主要操作；不使用眼球追踪，触摸板单击通过页面级 `Enter` / `GlobalHook` 执行相同操作，按钮仍提供 `bindtap`、`bindfocus` 和 `bindblur`。
+创建或实现任务会交付完整、可编辑的 AIUI 项目目录，可直接作为 AIUI Studio 的导入根，而不是一组零散代码或只有 `.aix` 包。
 
-未指定时间时默认使用 10 分钟（`600` 秒）。语音设置或修改时间时，Agent 必须把分钟、小时换算为整数秒并重新调用 Page，例如“专注 25 分钟”传入 `{ "durationSeconds": 1500 }`。AIUI 0.17 的 `onLoad(query)` 对每个 Page 实例只执行一次，因此新的时间会显示在新 Page 中，不会原地改写对话里旧的计时卡片。
+`app.json.pages` 声明的所有页面，以及这些页面引用的所有图片、样式和其他资源，都必须包含在交付目录中；缺少任何一项都不算完整工程。
 
-运行期间以绝对截止时间和 `Date.now()` 计算真实剩余时间，刷新定时器不逐秒修改业务时间。页面隐藏时停止刷新，重新显示时校准，卸载时清理定时器。它不承诺后台持续运行、系统闹钟、通知或持久化恢复。
+典型目录如下：
 
-AIUI Studio GitHub 导入坐标：
+```text
+my-agent/
+├── AGENTS.md
+├── aiui-audit-claims.json
+├── app.js
+├── app.json
+└── pages/
+    └── index/
+        └── index.ink
+```
+
+智能体还会说明目标版本、承载面、输入方式、已运行的检查，以及哪些 Studio 或设备项目仍待人工确认。
+
+`_current` 是嵌入对话的承载面，`_blank` 是全屏承载面；`BLOCKED` 表示该项仍待验证，而不是已经通过。
+
+## 导入 AIUI Studio
+
+- 本地导入：选择包含 `app.json` 的交付目录本身，不要只选择其中的页面或打包产物。
+- GitHub 导入：提供仓库、ref 和 AIUI 项目所在的子目录。内置示例可直接使用以下坐标：
 
 ```text
 Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
@@ -84,87 +66,36 @@ Ref: main
 Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 ```
 
-页面文案与 Agent 提示词为日文；字段名和状态名保留英文技术契约。账号登录后的 Studio 导入与 Rokid Glasses 真机操作仍需人工验收。
+本地检查不能替代 AIUI Studio 导入和 Rokid Glasses 真机验证。没有登录 Studio 或连接目标设备时，相应结果应明确保留为 `BLOCKED`。
 
-本仓库只内置这一个产品化示例 Agent；其他应用 Agent 应放在各自独立仓库中。
+## 内置 Focus Timer
 
-## 开发闭环
+[`skills/rokid-aiui-agent/assets/focus-timer-agent`](skills/rokid-aiui-agent/assets/focus-timer-agent/) 是随 Skill 安装的唯一产品化示例 Agent，也是一个完整的 AIUI Studio 导入根。
 
-1. 确定 AIUI Studio 将导入的准确目录，读取其中的项目指引、`app.json`、入口、页面和现有脚本。
-2. 明确 runtime、设备、承载面、输入方式和交付阶段；无法识别版本时采用并声明 `0.17.0` 稳定基线。
-3. 只加载与当前任务有关的 `references/` 指南，并按来源优先级消解冲突。
-4. 在签字前建立 UX 与逐能力矩阵，先把尚未执行的适用项记为 `BLOCKED`。
-5. 小步实现，保留既有 authoring mode，运行静态验证与真实业务逻辑的确定性测试。
-6. 探测 AIX 能力；支持时执行 preview，并用 pack + list 检查产物。
-7. 在登录后的 Studio 和目标眼镜上执行对应矩阵项，包括按键、焦点、语音、手势、权限、光学显示、弱网、生命周期与返回流。
-8. 为每个 `PASS` 附上实际证据，并用随 Skill 发布的审计验证器检查闭合清单、证据和最终结论；任何适用的 `FAIL` / `BLOCKED` 都必须限制最终完成或发布声明。
+它是面向 Rokid Glasses 的日文 Page-only 计时器，未指定时长时默认 10 分钟，也支持 1～3600 秒、可选标签、点头和触摸板操作。对话中修改为新的时长会打开一个新的 Page；语音触发仍需在 AIUI Studio 和 Rokid Glasses 真机验证，因此该项保持 `BLOCKED`。它不承诺后台持续运行、系统通知或持久化恢复。
 
-物理眼镜和 ROKID 平台凭据不属于本仓库，CI 不会伪造这两类证据。
+## 自动检查
 
-### 审计验证与信任边界
+Skill 会根据当前工程运行结构验证、确定性业务逻辑测试，以及本机 AIX 实际支持的 preview、pack 和 list 流程。它还要求项目级 UX 表与逐能力表，避免用一次浏览器预览代替 Studio 或真机结论。
 
-审计验证器把 Markdown、manifest 和记录的 `argv` 全部视为不可信输入。它校验命令来源、输出哈希与所需角色的 `attestations`，但绝不会执行报告或 manifest 中的命令。传入 trust policy 时必须使用仓库外的绝对路径；policy 为 schema 1，`authorities` 只放本次审计实际使用的角色，每个 `RUNNER`、`STUDIO`、`DEVICE` 或 `SCOPE` 条目都以绝对 `publicKeyPath` 和该公钥规范化 SPKI DER 的 `publicKeySha256` 固定对应采集权威，并使用互不复用的密钥。
+完整命令与结果语义见三份语言指南；验收原则见 [UX 与能力测试](skills/rokid-aiui-agent/references/ux-and-capability-testing.md)。
 
-```bash
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_audit.py AUDIT.md \
-  --repository-root /absolute/path/to/repository \
-  --import-root path/to/studio-import-root \
-  --trust-policy /absolute/path/outside/repository/trust-policy.json
-```
+## 版本边界
 
-退出码是发布接口的一部分：
+当工程和宿主没有明确版本时，Skill 默认以稳定版 AIUI `0.17.0` 为目标。`0.18` 能力只有在目标明确支持时才会启用，避免把预览版配置混进稳定版项目。
 
-- `0`：报告结构有效，并且恰好是 `Final status: PASS` 与 `Release-ready: YES`；
-- `2`：报告结构有效，但结果为 `FAIL` 或 `BLOCKED`，因此不可发布；
-- `1`：报告无效、过期、被篡改或缺少受信权威。
+Skill 会先检查当前环境实际提供的 AIX 命令，不会假设不存在的创建、构建或部署流程。
 
-没有可检查源码时，使用精确的 `--import-root UNAVAILABLE` 模式，并在报告中把 `Project revision`、`Import root`、`Device/host` 和 `Supported surfaces` 都写为 `UNAVAILABLE`；所有行必须保持 `BLOCKED`，结构合法时返回 `2`。`N/A` 不是缺设备或缺时间的替代词：生命周期始终适用；没有承载面清单时目标检查只能 `BLOCKED`；结构有效的 Page/Widget UI 所对应的状态、文本、焦点、视觉、环境，以及扫描器发现的每条输入都不能排除。只有经源码与闭合产品范围共同证明无关的条件、可选动效、没有相关风险能力时的恢复，或扫描器确认零输入时的唯一固定 `no-input` gate 可以申请 `N/A`；Agent Worker 必须由有效 Page 或 Widget 打开，不能借 Worker 声明排除其宿主 UI。出现 network、camera、voice、world-awareness、gesture、worker 或未注册能力风险时，恢复检查重新成为必需。每个排除还必须由当前 inventory 与闭合 `aiui-audit-scope.json` 同时证明不在源码和产品范围内，并使用两个不同的 `SCOPE` 签名条目；已盘点能力不能标为 `N/A`，也不能把全部 UX 家族排除掉。
+## 深入指南
 
-## 本地验证
+- [简体中文完整指南](docs/usage.zh-CN.md)：常见提示词、完整验证顺序、打包、Studio 导入与故障排查。
+- [English guide](docs/usage.en.md)：the same end-to-end workflow in English.
+- [日本語ガイド](docs/usage.ja.md)：同じ開発・検証フローの日本語版。
+- [Skill 入口](skills/rokid-aiui-agent/SKILL.md)：任务路由、交付规则和按需参考资料。
+- [来源优先级](skills/rokid-aiui-agent/references/source-of-truth.md)：官方版本、实现与示例发生冲突时的取舍原则。
 
-```bash
-python3 -m pip install --only-binary=:all: -r requirements-dev.txt
-python3 -m unittest discover -s tests -v
-python3 -m unittest -v tests.test_validate_aiui_audit.ValidateAiuiAuditTests.test_full_pass_black_box_is_the_only_release_ready_exit_zero
-python3 skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py skills/rokid-aiui-agent/assets/focus-timer-agent --repository-root .
-python3 skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py skills/rokid-aiui-agent/assets/focus-timer-agent --target-version 0.17.0 --repository-root .
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --repository-root . --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --repository-root . --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/focus-timer-agent --target-version 0.17.0 --repository-root . --strict
-python3 skills/rokid-aiui-agent/scripts/verify_references.py .
-npm ci --ignore-scripts --no-audit --no-fund
-AIX_BIN="$PWD/node_modules/.bin/aix"
-export AIX_BIN
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/focus-timer-agent
-focus_preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/focus-timer-preview.XXXXXX")"
-focus_preview_html="$focus_preview_dir/focus-timer-agent.html"
-"$AIX_BIN" preview skills/rokid-aiui-agent/assets/focus-timer-agent --html-out "$focus_preview_html"
-test -s "$focus_preview_html"
-grep -Fq 'pages/index/index.ink' "$focus_preview_html"
-```
+## 来源与许可证
 
-上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署，并在包清单含 `.git/` 或 `.aiui-evidence/` 时失败，防止审计证据进入交付包。
+本项目以 AIUI 版本匹配的官方文档、实现和可运行示例为主要依据，并明确区分第三方材料。详细归属见 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)。
 
-## 目录
-
-- `skills/rokid-aiui-agent/SKILL.md`：任务路由、证据原则和验证门槛。
-- `skills/rokid-aiui-agent/references/`：工程、`.ink`、交互设计、runtime、强制 UX/能力测试、AIX 与发布指南。
-- `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`：零依赖结构检查器，默认以 `0.17.0` 为目标，支持 `--target-version` / `--repository-root` / `--strict` / `--json`。
-- `skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py`：对准确的 Studio 导入目录生成可复算的 `WORKTREE:SHA-256` 审查版本。
-- `skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py`：确定性盘点闭合 claims、准确承载面、逐路径输入、路由、声明及高风险 API/事件，输出必须逐项对账的 schema-2 inventory。
-- `skills/rokid-aiui-agent/scripts/validate_aiui_audit.py`：对最终 UX/逐能力矩阵、闭合 inventory、证据快照和发布结论执行 fail-closed 校验。
-- `skills/rokid-aiui-agent/scripts/smoke_aix.sh`：真实 AIX pack + list 冒烟流程。
-- `skills/rokid-aiui-agent/assets/studio-importable-minimal/`：按 AIUI Studio 本地/GitHub 指定目录结构准备的最小 `0.17.0` 兼容工程。
-- `skills/rokid-aiui-agent/assets/focus-timer-agent/`：随 Skill 安装的唯一产品化示例 Agent，可直接作为 AIUI Studio 导入根。
-- `tests/`：单元测试、正反 fixtures 和前后行为评估。
-- `PROJECT.md` / `MEMORY.md` / `TASKS.md` / `WORKLOG.md`：跨设备项目连续性。
-
-## 来源与边界
-
-权威顺序、固定提交、已知冲突和第三方边界见 [source-of-truth](skills/rokid-aiui-agent/references/source-of-truth.md) 与 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)。本项目把用户指定的 [AIUI 0.17 快速入门](https://js.rokid.com/AIUI/guide/quickstart/quickstart?version=0.17.0&lang=zh-CN)、[项目结构](https://js.rokid.com/AIUI/guide/structure?version=0.17.0&lang=zh-CN)、[智能体框架](https://js.rokid.com/AIUI/guide/framework?version=0.17.0&lang=zh-CN)和[基础能力](https://js.rokid.com/AIUI/guide/basic?version=0.17.0&lang=zh-CN)作为稳定版入口；详细 API 仍须与选定版本、实现和可运行 samples 对齐。本仓库不会保证未经真机验证的设备行为。
-
-## 许可证
-
-本仓库以 [Apache License 2.0](LICENSE) 发布。外部资料的归属和非再分发说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+代码以 [Apache License 2.0](LICENSE) 发布。未经真实执行的 AIUI Studio、平台或设备行为不会被写成已验证结论。

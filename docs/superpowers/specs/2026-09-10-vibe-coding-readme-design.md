@@ -46,7 +46,7 @@ The README does not explain claims schemas, inventory reconciliation, evidence s
 
 ## Acceptance checks
 
-- The README stays under 130 lines.
+- The README stays concise and follows the reader's task flow from installation and prompting through project handoff, Studio import, verification boundaries, and deeper guides.
 - Language links remain in the first 15 lines.
 - Both supported installation commands and an explicit `$rokid-aiui-agent` prompt are copyable.
 - Low-level audit terms such as `publicKeySha256`, `claimsLedger`, `SPKI DER`, `attestations`, and `trust-policy` are absent.

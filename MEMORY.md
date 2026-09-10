@@ -41,6 +41,7 @@
 - 2026-09-10: Capability registration is lexical and fail-closed. Only an unshadowed global `wx` can register `wx.*`; imported, local, or parameter-bound `wx` is project code. TypeScript type-only references do not create runtime capabilities. Semantically ambiguous World Awareness calls and unconsumed platform-looking references are quarantined rather than silently promoted to official capability bindings.
 - 2026-09-10: Maintain developer usage as three parallel guides at `docs/usage.zh-CN.md`, `docs/usage.en.md`, and `docs/usage.ja.md`, discoverable from the root README. Keep localized prose natural, but machine-test the shared install commands, explicit `$rokid-aiui-agent` prompts, Studio import coordinates, verification order, AIX boundaries, claims schema, evidence layers, and release-status semantics.
 - 2026-09-10: Keep the product repository focused on the reusable Skill. Bundle only the Focus Timer Agent under `skills/rokid-aiui-agent/assets/focus-timer-agent/`; unrelated application Agents and their product-specific tests/design documents belong in separate repositories.
+- 2026-09-10: Keep the root README as a prompt-first Vibe Coding landing page. Put installation, explicit invocation, editable project output, Studio import, and the bundled Focus Timer in the main flow; route claims schemas, evidence signatures, trust policy, exit-code details, and maintainer commands to the localized guides and focused references.
 
 ## Source priority
 

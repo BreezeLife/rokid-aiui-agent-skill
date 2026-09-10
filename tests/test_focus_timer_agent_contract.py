@@ -35,12 +35,25 @@ class FocusTimerAgentContractTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         for fragment in (
             "skills/rokid-aiui-agent/assets/focus-timer-agent",
-            "Skill 内置计时器 Agent",
-            "durationSeconds",
-            "Date.now()",
+            "Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill",
+            "Ref: main",
             "Directory: skills/rokid-aiui-agent/assets/focus-timer-agent",
         ):
             self.assertIn(fragment, readme)
+
+        timer_section = readme.split("## 内置 Focus Timer", 1)[1].split(
+            "## 自动检查", 1
+        )[0]
+        self.assertRegex(
+            timer_section,
+            r"新(?:的)?时长[^。]*(?:新|全新)[^。]*Page",
+        )
+        self.assertRegex(
+            timer_section,
+            r"语音[^。]*(?:AIUI Studio|Studio)[^。]*(?:Rokid Glasses|真机)"
+            r"[^。]*(?:待验证|验证)",
+        )
+        self.assertNotRegex(timer_section, r"支持[^。]*语音(?:设置|修改)时长")
 
         workflow = yaml.safe_load(
             (ROOT / ".github" / "workflows" / "ci.yml").read_text(
