@@ -2,7 +2,7 @@
 
 ## In progress
 
-- None.
+- [ ] Reorganize the root README as a prompt-first Vibe Coding quickstart, keep advanced audit mechanics in the routed guides, verify the complete repository, and publish the revision.
 
 ## Done
 
