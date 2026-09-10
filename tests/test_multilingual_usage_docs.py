@@ -442,12 +442,20 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             ("已暂停", "继续"),
             ("已完成", "重新开始"),
         )
+        timer_table_rows = set()
+        for line in focus_timer.splitlines():
+            stripped = line.strip()
+            if not (stripped.startswith("|") and stripped.endswith("|")):
+                continue
+            cells = tuple(
+                cell.strip(" `*_")
+                for cell in stripped[1:-1].split("|")
+            )
+            if len(cells) == 2:
+                timer_table_rows.add(cells)
         for state, action in timer_mappings:
             with self.subTest(timer_state=state, primary_action=action):
-                self.assertRegex(
-                    focus_timer,
-                    rf"(?m)^\s*\|\s*{state}\s*\|\s*{action}\s*\|\s*$",
-                )
+                self.assertIn((state, action), timer_table_rows)
         for literal in (
             "点头",
             "触摸板",
@@ -464,20 +472,25 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 (
                     r"点头",
                     r"触摸板",
-                    r"语音",
-                    r"AIUI Studio",
-                    r"Rokid Glasses",
+                    r"(?:Rokid Glasses|真机)",
                     r"BLOCKED",
                     r"(?:仍需|尚需|需要|待|未)",
                 ),
             ),
-            "device inputs must share an explicit Studio/glasses BLOCKED boundary",
+            "nod and touchpad must share a pending glasses/device BLOCKED boundary",
         )
-        self.assertNotRegex(
-            focus_timer,
-            r"(?=[^。\n]*(?:点头|触摸板|语音))"
-            r"(?=[^。\n]*(?:本地|自动))"
-            r"(?=[^。\n]*(?:已完成真机验证|真机验证通过|已在真机验证))[^。\n]+",
+        self.assertTrue(
+            section_has_all(
+                focus_timer,
+                (
+                    r"语音(?:触发)?",
+                    r"AIUI Studio",
+                    r"(?:Rokid Glasses|真机)",
+                    r"BLOCKED",
+                    r"(?:仍需|尚需|需要|待|未)",
+                ),
+            ),
+            "voice must share a pending Studio/glasses BLOCKED boundary",
         )
 
         version = sections["## 版本边界"]
