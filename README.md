@@ -17,29 +17,60 @@
 
 ## 快速开始
 
-在支持 Agent Skills 的编码环境终端运行以下安装命令：
+根据你的起点选择一条开发路线。
 
-```bash
-npx skills add BreezeLife/rokid-aiui-agent-skill --skill rokid-aiui-agent
-```
+### 路线 1：在 AIUI Studio 中打开项目
 
-如果 `gh skill --help` 可用，也可以运行 GitHub CLI 安装命令：
+如果你已有完整的 AIUI 项目，无论工程位于本地还是 GitHub，都按
+[导入 AIUI Studio](#导入-aiui-studio)中的说明选择对应方式打开项目。
+导入后可在 Studio 中继续编辑和开发。
 
-```bash
-gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent codex --scope user
-```
+如果想先体验本仓库唯一的产品化示例，可打开
+[内置 Focus Timer](#内置-focus-timer)。导入坐标在后文统一维护，本节不重复列出。
 
-先把示例路径 `/absolute/path/to/my_focus_timer` 替换为你自己的绝对输出目录，再把下面这段话交给编码智能体：
+### 路线 2：用 Codex 等 Vibe Coding 工具开发
 
-```text
-使用 $rokid-aiui-agent，为 Rokid Glasses 创建一个 AIUI 0.17.0 专注计时器。
-在独立输出目录 /absolute/path/to/my_focus_timer 中创建，不要把新 Agent 写入本 Skill 仓库。
-支持语音设置时长，在 _current 和 _blank 中都保持清晰易用；完成后交付可由
-AIUI Studio 导入的完整源码目录，运行可用的自动检查，并明确列出仍需 Studio
-或真机验证的项目。不要把未执行的检查写成已经通过。
-```
+Codex 只是一个示例；其他支持 Agent Skills、能访问项目工作区的编码工具也适用。
+按以下五步创建或修改 AIUI 项目：
 
-你也可以把“专注计时器”换成天气、清单、导航提示，或直接要求审查和修复现有 AIUI 工程。
+1. 安装 Skill。在支持 Agent Skills 的编码环境终端操作：
+
+   主安装命令如下：
+
+   ```bash
+   npx skills add BreezeLife/rokid-aiui-agent-skill --skill rokid-aiui-agent
+   ```
+
+   如果 `gh skill --help` 可用，也可以使用以下备用命令：
+
+   ```bash
+   gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent codex --scope user
+   ```
+
+2. 打开独立工作区。在 Codex 或其他编码工具中，新建或打开一个独立工作区；
+   该目录必须位于本 Skill 仓库之外。
+
+3. 调用 Skill。先把示例路径 `/absolute/path/to/my_focus_timer` 替换为你自己的
+   绝对输出目录，再把下面这段话交给编码智能体：
+
+   ```text
+   使用 $rokid-aiui-agent，为 Rokid Glasses 创建一个 AIUI 0.17.0 专注计时器。
+   在独立输出目录 /absolute/path/to/my_focus_timer 中创建，不要把新 Agent
+   写入本 Skill 仓库。
+   支持语音设置时长，在 _current 和 _blank 中都保持清晰易用；完成后交付可由
+   AIUI Studio 导入的完整源码目录，运行可用的自动检查，并明确列出仍需 Studio
+   或真机验证的项目。不要把未执行的检查写成已经通过。
+   ```
+
+4. 检查交付结果。确认交付物是完整、可编辑的 AIUI 项目目录；查看智能体实际执行后
+   报告的验证或检查结果，并将尚未完成的 AIUI Studio 或 Rokid Glasses 验证明确
+   保留为 `BLOCKED`。
+
+5. 导入 AIUI Studio。将交付目录本身，也就是包含 `app.json` 的准确输出根作为
+   导入目录，并按[导入 AIUI Studio](#导入-aiui-studio)继续验收。
+
+你也可以把“专注计时器”换成其他需求，或要求审查和修复现有 AIUI 工程；
+新 Agent 仍应生成在本 Skill 仓库之外。
 
 ## 你会得到什么
 

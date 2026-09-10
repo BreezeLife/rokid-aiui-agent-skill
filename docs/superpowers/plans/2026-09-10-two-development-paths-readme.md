@@ -16,23 +16,23 @@
 
 - Modify: `tests/test_multilingual_usage_docs.py`
 
-- [ ] **Step 1: Parse route subsections**
+- [x] **Step 1: Parse route subsections**
 
 Add a small helper in `test_readme_is_a_prompt_first_quickstart` that splits the `快速开始` section at `###` headings. Require exactly two route blocks so a summary sentence cannot satisfy both routes.
 
-- [ ] **Step 2: Require the Studio route**
+- [x] **Step 2: Require the Studio route**
 
 Require one route block to contain AIUI Studio, importing or opening an AIUI project, continued editing or development, and a Markdown link to `#导入-aiui-studio`.
 
-- [ ] **Step 3: Require the Vibe Coding route**
+- [x] **Step 3: Require the Vibe Coding route**
 
 Require the other route to contain Codex, another Agent Skills-compatible coding tool, the primary and guarded alternative install commands, explicit `$rokid-aiui-agent` invocation, an independent output directory, a complete editable AIUI project, actual validation, and handoff to Studio.
 
-- [ ] **Step 4: Require ordered developer actions**
+- [x] **Step 4: Require ordered developer actions**
 
 Within the Vibe Coding route, require numbered steps whose semantic order is install Skill, open a separate Agent workspace, invoke the Skill, inspect the delivered project and checks, then import it into AIUI Studio. Do not require exact prose beyond the action families.
 
-- [ ] **Step 5: Observe RED**
+- [x] **Step 5: Observe RED**
 
 Run:
 
@@ -48,23 +48,23 @@ Expected: FAIL because the current `快速开始` section has no two route subse
 
 - Modify: `README.md`
 
-- [ ] **Step 1: Add the route selector**
+- [x] **Step 1: Add the route selector**
 
 Open `快速开始` with one sentence that tells developers to choose by starting point. Add `路线 1：在 AIUI Studio 中打开项目` first and `路线 2：用 Codex 等 Vibe Coding 工具开发` second.
 
-- [ ] **Step 2: Add the Studio route summary**
+- [x] **Step 2: Add the Studio route summary**
 
 Explain that an existing complete project or the bundled Focus Timer can be imported into AIUI Studio and edited there. Link to the existing Studio import and Focus Timer sections instead of repeating their coordinates or claims.
 
-- [ ] **Step 3: Turn the existing prompt into a Codex tutorial**
+- [x] **Step 3: Turn the existing prompt into a Codex tutorial**
 
 Wrap the existing install commands, output-path replacement instruction, and copyable timer prompt in a five-step numbered workflow. State that Codex is an example and the route also works in other coding tools that support Agent Skills and workspace file access.
 
-- [ ] **Step 4: Preserve the evidence boundary**
+- [x] **Step 4: Preserve the evidence boundary**
 
 End the workflow by checking the complete editable source, executed validation, and remaining `BLOCKED` gates before importing the exact output directory into Studio. Do not claim unexecuted Studio, voice, gesture, touchpad, or device success.
 
-- [ ] **Step 5: Observe GREEN**
+- [x] **Step 5: Observe GREEN**
 
 Run:
 
