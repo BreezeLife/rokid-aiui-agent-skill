@@ -331,12 +331,14 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         )
 
         expected_headings = (
+            "## 这个 Skill 能做什么",
             "## 快速开始",
             "## 你会得到什么",
             "## 导入 AIUI Studio",
             "## 内置 Focus Timer",
             "## 自动检查",
             "## 版本边界",
+            "## 仓库内容",
             "## 深入指南",
             "## 来源与许可证",
         )
@@ -356,6 +358,50 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             ]
             for index, heading in enumerate(expected_headings)
         }
+
+        def section_has_all(section: str, patterns: tuple[str, ...]) -> bool:
+            lines_and_paragraphs = [
+                re.sub(r"\s+", " ", unit).strip()
+                for unit in (
+                    section.splitlines()
+                    + re.split(r"\n\s*\n", section)
+                )
+                if unit.strip()
+            ]
+            return any(
+                all(re.search(pattern, unit, re.IGNORECASE) for pattern in patterns)
+                for unit in lines_and_paragraphs
+            )
+
+        capabilities = sections["## 这个 Skill 能做什么"]
+        capability_contracts = {
+            "create a complete AIUI project": (
+                r"(?:创建|新建|生成)",
+                r"(?:完整|可编辑)",
+                r"AIUI",
+                r"(?:项目|工程)",
+            ),
+            "modify an existing project": (
+                r"(?:修改|迭代|扩展|完善)",
+                r"(?:现有|已有)",
+                r"(?:项目|工程)",
+            ),
+            "review or debug AIUI specifically": (
+                r"AIUI",
+                r"(?:审查|评审|检查|review|调试|排查|诊断|debug)",
+            ),
+            "validate and hand off to AIUI Studio": (
+                r"(?:验证|验收|检查)",
+                r"(?:交接|交付|导入)",
+                r"AIUI Studio",
+            ),
+        }
+        for task, patterns in capability_contracts.items():
+            with self.subTest(capability=task):
+                self.assertTrue(
+                    section_has_all(capabilities, patterns),
+                    f"capability overview must cover: {task}",
+                )
 
         quickstart = sections["## 快速开始"]
         self.assertRegex(
@@ -390,12 +436,83 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         focus_timer = sections["## 内置 Focus Timer"]
         self.assertNotIn("语音修改时长", focus_timer)
         self.assertRegex(focus_timer, r"对话[^。]*(?:变更|修改)[^。]*新的? Page")
-        for literal in ("语音触发", "AIUI Studio", "Rokid Glasses", "BLOCKED"):
+        for literal in (
+            "| 未开始 | 开始 |",
+            "| 进行中 | 暂停 |",
+            "| 已暂停 | 继续 |",
+            "| 已完成 | 重新开始 |",
+            "点头",
+            "触摸板",
+            "语音",
+            "语音触发",
+            "AIUI Studio",
+            "Rokid Glasses",
+            "BLOCKED",
+        ):
             self.assertIn(literal, focus_timer)
+        self.assertTrue(
+            section_has_all(
+                focus_timer,
+                (
+                    r"点头",
+                    r"触摸板",
+                    r"语音",
+                    r"AIUI Studio",
+                    r"Rokid Glasses",
+                    r"BLOCKED",
+                    r"(?:仍需|尚需|需要|待|未)",
+                ),
+            ),
+            "device inputs must share an explicit Studio/glasses BLOCKED boundary",
+        )
+        self.assertNotRegex(
+            focus_timer,
+            r"(?=[^。\n]*(?:点头|触摸板|语音))"
+            r"(?=[^。\n]*(?:本地|自动))"
+            r"(?=[^。\n]*(?:已完成真机验证|真机验证通过|已在真机验证))[^。\n]+",
+        )
 
         version = sections["## 版本边界"]
         for literal in ("默认", "AIUI `0.17.0`", "`0.18`", "明确支持"):
             self.assertIn(literal, version)
+
+        repository = sections["## 仓库内容"]
+        repository_paths = (
+            "skills/rokid-aiui-agent/SKILL.md",
+            "skills/rokid-aiui-agent/references/",
+            "skills/rokid-aiui-agent/scripts/",
+            "skills/rokid-aiui-agent/assets/studio-importable-minimal/",
+            "skills/rokid-aiui-agent/assets/focus-timer-agent/",
+            "docs/usage.zh-CN.md",
+            "docs/usage.en.md",
+            "docs/usage.ja.md",
+        )
+        for path in repository_paths:
+            with self.subTest(repository_path=path):
+                self.assertIn(f"]({path})", repository)
+        self.assertTrue(
+            section_has_all(
+                repository,
+                (
+                    r"studio-importable-minimal",
+                    r"(?:最小|基础)",
+                    r"(?:骨架|模板)",
+                ),
+            ),
+            "studio-importable-minimal must be described as the minimal scaffold/template",
+        )
+        self.assertTrue(
+            section_has_all(
+                repository,
+                (
+                    r"focus-timer-agent",
+                    r"(?:唯一|仅有)",
+                    r"(?:产品化|产品形态|产品)",
+                    r"Agent",
+                ),
+            ),
+            "Focus Timer must remain the only productized example Agent",
+        )
 
         folded_readme = self.readme.casefold()
         for literal in README_FORBIDDEN_LITERALS:
