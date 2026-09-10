@@ -29,7 +29,7 @@ npx skills add BreezeLife/rokid-aiui-agent-skill --skill rokid-aiui-agent
 gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent codex --scope user
 ```
 
-然后把下面这段话交给编码智能体：
+先把示例路径 `/absolute/path/to/my_focus_timer` 替换为你自己的绝对输出目录，再把下面这段话交给编码智能体：
 
 ```text
 使用 $rokid-aiui-agent，为 Rokid Glasses 创建一个 AIUI 0.17.0 专注计时器。
@@ -65,6 +65,8 @@ my-agent/
 `_current` 是嵌入对话的承载面，`_blank` 是全屏承载面；`BLOCKED` 表示该项仍待验证，而不是已经通过。
 
 ## 导入 AIUI Studio
+
+根据工程所在位置选择导入方式：
 
 - 本地导入：选择包含 `app.json` 的交付目录本身，不要只选择其中的页面或打包产物。
 - GitHub 导入：提供仓库、ref 和 AIUI 项目所在的子目录。内置示例可直接使用以下坐标：
@@ -124,6 +126,8 @@ Skill 会先检查当前环境实际提供的 AIX 命令，不会假设不存在
 | [`docs/usage.zh-CN.md`](docs/usage.zh-CN.md)、[`docs/usage.en.md`](docs/usage.en.md) 和 [`docs/usage.ja.md`](docs/usage.ja.md) | 中文、英文和日文完整指南 |
 
 ## 深入指南
+
+需要完整提示词、验证命令或规范细节时，按任务选择以下入口：
 
 - [简体中文完整指南](docs/usage.zh-CN.md)：常见提示词、完整验证顺序、打包、Studio 导入与故障排查。
 - [English guide](docs/usage.en.md)：the same end-to-end workflow in English.
