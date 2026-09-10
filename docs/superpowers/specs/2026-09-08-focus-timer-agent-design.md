@@ -2,13 +2,13 @@
 
 ## Product contract
 
-Build a Japanese-language focus timer for Rokid Glasses under `examples/focus-timer-agent/`. The import root targets stable AIUI 0.17.0 and contains one Page, with no Widget or Agent Worker. Conversation input is `durationSeconds`, an integer from 1 through 3600, plus optional `label`, a string of at most 48 Unicode code points.
+Build a Japanese-language focus timer for Rokid Glasses under `skills/rokid-aiui-agent/assets/focus-timer-agent/`. The import root targets stable AIUI 0.17.0 and contains one Page, with no Widget or Agent Worker. Conversation input is `durationSeconds`, an integer from 1 through 3600, plus optional `label`, a string of at most 48 Unicode code points.
 
 The Agent prompt extracts those fields without inventing background execution, alarms, notifications, or persistence. Missing or malformed duration and malformed or oversized labels produce `error`; valid input produces `idle` with the complete configured duration.
 
 ## Architecture
 
-The project follows `examples/next-step-agent/`: `AGENTS.md`, `app.json`, `app.js`, and one `pages/index/index.ink`. The Page owns a five-state machine: `idle`, `running`, `paused`, `finished`, and `error`.
+The project is self-contained under the Skill assets with `AGENTS.md`, `app.json`, `app.js`, and one `pages/index/index.ink`. The Page owns a five-state machine: `idle`, `running`, `paused`, `finished`, and `error`.
 
 `running` stores an absolute `deadlineMs`. Every display refresh computes `remainingMs = max(0, deadlineMs - Date.now())`; `setInterval` only requests refreshes. Pausing captures the current real remaining milliseconds. Continuing creates a new deadline from that value. Restarting immediately begins a full new interval, while resetting preserves the input configuration and returns to full-duration `idle`.
 
@@ -45,5 +45,5 @@ Release evidence consists of the full repository unit suite, strict validator wi
 ```text
 Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
 Ref: main
-Directory: examples/focus-timer-agent
+Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 ```

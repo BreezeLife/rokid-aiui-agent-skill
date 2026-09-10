@@ -8,9 +8,11 @@ license: Apache-2.0
 
 ## Establish the target and output
 
-Inspect the project, runtime, glasses, surfaces, inputs, and repository guidance. If project and host omit a version, disclose stable AIUI `0.17.0`. Record each Page target: embedded (`_current`), full-screen (`_blank`), or both.
+Inspect runtime, device, surfaces, inputs, and guidance. If project and host omit a version, disclose stable AIUI `0.17.0`. Record each Page target: embedded (`_current`), full-screen (`_blank`), or both.
 
-Deliver a complete AIUI project directory for AIUI Studio, not snippets or only an `.aix`: `AGENTS.md`, `app.json`, the application entry, all declared Pages, and referenced files. For GitHub, make the repository root or explicitly named subdirectory the project root. Report path/URL, revision, and import subdirectory. Add `0.18`-only Widgets or Agent Workers only for a confirmed target. AIX never replaces source.
+Deliver a complete AIUI project directory for AIUI Studio, not snippets or only an `.aix`: `AGENTS.md`, `app.json`, the application entry, declared Pages, and resources. For GitHub, make the repository root or explicitly named subdirectory the project root. Report location, revision, and import subdirectory. Add `0.18`-only Widgets/Workers only for confirmed targets. AIX never replaces source.
+
+Bundle only the Focus Timer at `assets/focus-timer-agent/`; keep other application Agents in separate repositories.
 
 ## Load only relevant guidance
 

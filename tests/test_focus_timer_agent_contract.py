@@ -12,7 +12,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE = ROOT / "examples" / "focus-timer-agent"
+EXAMPLE = ROOT / "skills" / "rokid-aiui-agent" / "assets" / "focus-timer-agent"
 INK = EXAMPLE / "pages" / "index" / "index.ink"
 
 
@@ -34,11 +34,11 @@ class FocusTimerAgentContractTests(unittest.TestCase):
     def test_readme_and_ci_cover_delivery_flow(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         for fragment in (
-            "examples/focus-timer-agent",
-            "Japanese Focus Timer Agent",
+            "skills/rokid-aiui-agent/assets/focus-timer-agent",
+            "Skill 内置计时器 Agent",
             "durationSeconds",
             "Date.now()",
-            "Directory: examples/focus-timer-agent",
+            "Directory: skills/rokid-aiui-agent/assets/focus-timer-agent",
         ):
             self.assertIn(fragment, readme)
 
@@ -53,7 +53,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             if step.get("name") == "Validate importable AIUI projects strictly"
         )
         self.assertIn(
-            "examples/focus-timer-agent --target-version 0.17.0 "
+            "skills/rokid-aiui-agent/assets/focus-timer-agent --target-version 0.17.0 "
             "--repository-root . --strict",
             validate_run,
         )
@@ -64,7 +64,7 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             if step.get("name") == "Pack and inspect stable AIUI projects"
         )
         self.assertIn(
-            "smoke_aix.sh examples/focus-timer-agent", pack_run
+            "smoke_aix.sh skills/rokid-aiui-agent/assets/focus-timer-agent", pack_run
         )
         preview = next(
             step
@@ -79,7 +79,8 @@ class FocusTimerAgentContractTests(unittest.TestCase):
             '"$AIX_BIN" --help', preview["run"]
         )
         self.assertIn(
-            '"$AIX_BIN" preview examples/focus-timer-agent', preview["run"]
+            '"$AIX_BIN" preview skills/rokid-aiui-agent/assets/focus-timer-agent',
+            preview["run"],
         )
         self.assertIn("test -s", preview["run"])
 

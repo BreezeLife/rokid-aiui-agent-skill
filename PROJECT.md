@@ -21,9 +21,8 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 - `skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py`: schema-2 scanner that reconciles a closed claims ledger with exact declared surfaces and one-path-per-gate inputs.
 - `skills/rokid-aiui-agent/scripts/validate_aiui_audit.py`: fail-closed UX/capability audit validator for source snapshots, signed evidence, scope exclusions, and release status.
 - `skills/rokid-aiui-agent/assets/studio-importable-minimal/`: complete stable-baseline AIUI source project and Studio import fixture.
-- `examples/next-step-agent/`: first product-shaped project generated with the Skill; a stable-0.17, Page-only Studio import root.
-- `examples/focus-timer-agent/`: Japanese stable-0.17 Page-only focus timer with deterministic absolute-deadline tests.
-- `examples/scenequest-agent/`: Japanese SceneQuest / セイチ｜SEICHI stable-0.17 Page-only pilgrimage example with 12 curated Osaka spots and four bounded result states.
+- `skills/rokid-aiui-agent/assets/focus-timer-agent/`: the only bundled product-shaped Agent; a Japanese stable-0.17 Page-only focus timer with deterministic absolute-deadline tests.
+- `docs/usage.zh-CN.md`, `docs/usage.en.md`, `docs/usage.ja.md`: parallel developer guides for installation, invocation, validation, Studio import, and mandatory UX/capability acceptance.
 - `tests/`: validator fixtures, unit tests, behavioral scenarios, and recorded evaluations.
 - `docs/superpowers/`: approved design and executable implementation plan.
 
@@ -53,6 +52,8 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 
 - The Skill passes Codex skill validation.
 - GitHub and generic Skills CLIs discover and install `rokid-aiui-agent` from the standard package path.
+- Chinese, English, and Japanese usage entrypoints expose the same tested commands, prompt recipes, output contract, and evidence boundaries.
+- The installed Skill contains the timer Agent as its sole product example; unrelated application Agents remain in separate repositories.
 - The local validator has positive and negative fixture coverage.
 - A repository example is a complete `0.17.0`-compatible source directory that passes strict validation and real AIX pack/list.
 - Independent forward tests can create or review representative AIUI projects using the correct authoring mode, input model, design constraints, and AIX commands.

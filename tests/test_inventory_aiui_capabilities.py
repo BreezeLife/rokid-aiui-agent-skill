@@ -274,7 +274,9 @@ export default {
         )
 
     def test_inventory_binds_key_and_timer_mechanisms_in_focus_timer(self) -> None:
-        result = self.run_script(ROOT / "examples" / "focus-timer-agent")
+        result = self.run_script(
+            ROOT / "skills" / "rokid-aiui-agent" / "assets" / "focus-timer-agent"
+        )
         self.assertEqual(0, result.returncode, result.stderr)
         report = json.loads(result.stdout)
         items = report["items"]

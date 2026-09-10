@@ -121,7 +121,7 @@ class SkillStructureTests(unittest.TestCase):
             )
 
     def test_every_example_import_root_closes_its_product_claims(self):
-        for app_json in sorted((ROOT / "examples").glob("*/app.json")):
+        for app_json in sorted((SKILL_ROOT / "assets").glob("*/app.json")):
             project = app_json.parent
             with self.subTest(project=project.name):
                 claims_path = project / "aiui-audit-claims.json"
@@ -137,6 +137,23 @@ class SkillStructureTests(unittest.TestCase):
                 self.assertEqual(1, document["schemaVersion"])
                 self.assertIs(document["scopeClosed"], True)
                 self.assertIsInstance(document["claims"], list)
+
+    def test_only_timer_product_agent_is_bundled_with_the_skill(self):
+        allowed = {
+            SKILL_ROOT / "assets" / "studio-importable-minimal",
+            SKILL_ROOT / "assets" / "focus-timer-agent",
+        }
+        product_roots = {
+            app_json.parent
+            for app_json in ROOT.rglob("app.json")
+            if "tests" not in app_json.parts and "node_modules" not in app_json.parts
+        }
+        self.assertEqual(allowed, product_roots)
+        self.assertFalse((ROOT / "examples").exists())
+        self.assertIn("assets/focus-timer-agent/", self.body)
+        self.assertIn(
+            "keep other application Agents in separate repositories.", self.body
+        )
 
     def test_page_definition_example_uses_schema_data_envelope(self):
         reference = (SKILL_ROOT / "references" / "ink-authoring.md").read_text(

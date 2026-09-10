@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/BreezeLife/rokid-aiui-agent-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/BreezeLife/rokid-aiui-agent-skill/actions/workflows/ci.yml)
 
+[简体中文使用说明](docs/usage.zh-CN.md) | [English usage guide](docs/usage.en.md) | [日本語の使い方](docs/usage.ja.md)
+
 面向编码智能体的 ROKID AIUI 开发 Skill：从工程识别、`.ink` / WXML / WXSS 编写，到硬件输入、单绿色眼镜设计、AIX 预览与打包，再到真机验收，最终交付可被 AIUI Studio 直接导入的完整源码工程。
 
 This repository is a compact, source-traceable development workflow—not a frozen copy of the AIUI manual.
@@ -51,6 +53,12 @@ gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent code
 
 ## 使用
 
+完整的安装、显式调用、计时器示例、已有项目审查、验证打包、AIUI Studio 导入，以及强制 UX/能力验收流程见：
+
+- [简体中文使用说明](docs/usage.zh-CN.md)
+- [English usage guide](docs/usage.en.md)
+- [日本語の使い方](docs/usage.ja.md)
+
 显式调用示例：
 
 ```text
@@ -60,25 +68,9 @@ validate the project, preview it when supported, and package an AIX artifact.
 
 也可直接提出 AIUI 开发、代码审查、调试、AIX 打包或真机验收需求；支持隐式触发的 Agent 会根据 Skill 描述加载它。
 
-## 使用 Skill 生成的 Agent
+## Skill 内置计时器 Agent
 
-[examples/next-step-agent](examples/next-step-agent/) 是使用本 Skill 生成的首个完整、可编辑、稳定版 AIUI `0.17.0` 项目。它将 `goal` 收敛为一个 `nextStep`，并在 Page 内呈现 `empty`、`error`、`ready`、`active`、`done` 五种状态；有效行动可依次开始、完成和重新开始。
-
-该项目不使用网络、设备权限、持久化存储、计时器、Widget 或 Agent Worker。`_current` 和 `_blank` 只调整信息密度，不改变业务状态。
-
-AIUI Studio GitHub 导入坐标：
-
-```text
-Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
-Ref: main
-Directory: examples/next-step-agent
-```
-
-自动验证不能替代账号侧 AIUI Studio 导入和 Rokid Glasses 真机验收。
-
-### Japanese Focus Timer Agent
-
-[examples/focus-timer-agent](examples/focus-timer-agent/) 是面向 Rokid Glasses 的日文专注计时器，同样保持稳定版 AIUI `0.17.0`、Page-only 和零权限边界。Agent 从对话中提取 1～3600 的整数 `durationSeconds` 与可选 `label`；页面提供 `idle`、`running`、`paused`、`finished`、`error`，以及开始、暂停、继续、重新开始和重置。页面启用 World Awareness，显示期间将点头 `nod` 映射为当前主要操作；不使用眼球追踪，触摸板单击通过页面级 `Enter` / `GlobalHook` 执行相同操作，按钮仍提供 `bindtap`、`bindfocus` 和 `bindblur`。
+[skills/rokid-aiui-agent/assets/focus-timer-agent](skills/rokid-aiui-agent/assets/focus-timer-agent/) 是面向 Rokid Glasses 的日文专注计时器，同样保持稳定版 AIUI `0.17.0`、Page-only 和零权限边界。Agent 从对话中提取 1～3600 的整数 `durationSeconds` 与可选 `label`；页面提供 `idle`、`running`、`paused`、`finished`、`error`，以及开始、暂停、继续、重新开始和重置。页面启用 World Awareness，显示期间将点头 `nod` 映射为当前主要操作；不使用眼球追踪，触摸板单击通过页面级 `Enter` / `GlobalHook` 执行相同操作，按钮仍提供 `bindtap`、`bindfocus` 和 `bindblur`。
 
 未指定时间时默认使用 10 分钟（`600` 秒）。语音设置或修改时间时，Agent 必须把分钟、小时换算为整数秒并重新调用 Page，例如“专注 25 分钟”传入 `{ "durationSeconds": 1500 }`。AIUI 0.17 的 `onLoad(query)` 对每个 Page 实例只执行一次，因此新的时间会显示在新 Page 中，不会原地改写对话里旧的计时卡片。
 
@@ -89,28 +81,12 @@ AIUI Studio GitHub 导入坐标：
 ```text
 Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
 Ref: main
-Directory: examples/focus-timer-agent
+Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 ```
 
 页面文案与 Agent 提示词为日文；字段名和状态名保留英文技术契约。账号登录后的 Studio 导入与 Rokid Glasses 真机操作仍需人工验收。
 
-### SceneQuest / セイチ｜SEICHI
-
-[examples/scenequest-agent](examples/scenequest-agent/) 是日文优先的动漫圣地识别 MVP，也是完整、可编辑的稳定版 AIUI `0.17.0` Page-only 项目。首版严格限定为 12 个大阪精选圣地；Agent 只在有来源记录的目录中结合地点与视觉特征判断，并将结果收敛为 `matched`、`uncertain`、`no_match`、`invalid` 四种状态。它不声称覆盖全日本，也不会把目录未命中解释为某地点从未出现在其他作品中。
-
-摄像头画面与 GPS / 当前地点由 Agent host 提供，Page 不直接采集摄像头或 GPS；缺少某类宿主上下文时，Agent 必须降级为仍有证据支持的回答或安全恢复状态。项目只携带来源记录、场景说明、可观察构图特征和拍摄建议，不随项目分发动漫截图，也不实现后台地理围栏或自动弹出。
-
-仅当图像、位置、地点/作品约束和可用问题文本全部不可用时才进入 `invalid`。缺图时只能返回预先核实的拍摄位或请求补拍，不做动态视觉微调；缺位置时不输出距离，也不声称按距离排序。`_blank` 的附近点选中后，方向提示直接在该行展开，焦点移入或移出不会清除选中。
-
-AIUI Studio GitHub 导入坐标：
-
-```text
-Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill
-Ref: main
-Directory: examples/scenequest-agent
-```
-
-本地测试、严格验证、AIX 打包/清单与静态 preview 只能证明源码结构和本地工具链行为；尚未验证 AIUI Studio 导入和 Rokid Glasses 真机行为。宿主摄像头/GPS 传递及权限授权、拒绝与撤销，日文语音与 Page 协同，`_current` / `_blank` 切换、焦点、光学可读性和运动场景中的视觉指引均保留为人工门槛。
+本仓库只内置这一个产品化示例 Agent；其他应用 Agent 应放在各自独立仓库中。
 
 ## 开发闭环
 
@@ -150,37 +126,23 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_audit.py AUDIT.md \
 python3 -m pip install --only-binary=:all: -r requirements-dev.txt
 python3 -m unittest discover -s tests -v
 python3 -m unittest -v tests.test_validate_aiui_audit.ValidateAiuiAuditTests.test_full_pass_black_box_is_the_only_release_ready_exit_zero
-python3 skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py examples/focus-timer-agent --repository-root .
-python3 skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py examples/focus-timer-agent --target-version 0.17.0 --repository-root .
+python3 skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py skills/rokid-aiui-agent/assets/focus-timer-agent --repository-root .
+python3 skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py skills/rokid-aiui-agent/assets/focus-timer-agent --target-version 0.17.0 --repository-root .
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --repository-root . --strict
 python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --repository-root . --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/next-step-agent --target-version 0.17.0 --repository-root . --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/focus-timer-agent --target-version 0.17.0 --repository-root . --strict
-python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py examples/scenequest-agent --target-version 0.17.0 --repository-root . --strict
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/focus-timer-agent --target-version 0.17.0 --repository-root . --strict
 python3 skills/rokid-aiui-agent/scripts/verify_references.py .
 npm ci --ignore-scripts --no-audit --no-fund
 AIX_BIN="$PWD/node_modules/.bin/aix"
 export AIX_BIN
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
 bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/next-step-agent
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/focus-timer-agent
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh examples/scenequest-agent
-preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/next-step-preview.XXXXXX")"
-preview_html="$preview_dir/next-step-agent.html"
-"$AIX_BIN" preview examples/next-step-agent --html-out "$preview_html"
-test -s "$preview_html"
-grep -Fq 'pages/index/index.ink' "$preview_html"
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/focus-timer-agent
 focus_preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/focus-timer-preview.XXXXXX")"
 focus_preview_html="$focus_preview_dir/focus-timer-agent.html"
-"$AIX_BIN" preview examples/focus-timer-agent --html-out "$focus_preview_html"
+"$AIX_BIN" preview skills/rokid-aiui-agent/assets/focus-timer-agent --html-out "$focus_preview_html"
 test -s "$focus_preview_html"
 grep -Fq 'pages/index/index.ink' "$focus_preview_html"
-scenequest_preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/scenequest-preview.XXXXXX")"
-scenequest_preview_html="$scenequest_preview_dir/scenequest-agent.html"
-"$AIX_BIN" preview examples/scenequest-agent --html-out "$scenequest_preview_html"
-test -s "$scenequest_preview_html"
-grep -Fq 'pages/index/index.ink' "$scenequest_preview_html"
 ```
 
 上述流程通过 lockfile 安装 `@yodaos-pkg/aix-cli@0.8.2`，再用 `AIX_BIN` 指定同一个可执行文件完成打包和预览。未设置 `AIX_BIN` 时，AIX smoke 默认使用已安装的 `aix`；找不到时通过 pnpm 或 npx 调用已验证的发布版。也可同时设置 `AIX_FORCE_PACKAGE=1` 与 `AIX_PACKAGE` 强制绕过 `PATH` 中的同名 CLI。脚本只打包到自身临时目录，不上传或部署，并在包清单含 `.git/` 或 `.aiui-evidence/` 时失败，防止审计证据进入交付包。
@@ -195,7 +157,7 @@ grep -Fq 'pages/index/index.ink' "$scenequest_preview_html"
 - `skills/rokid-aiui-agent/scripts/validate_aiui_audit.py`：对最终 UX/逐能力矩阵、闭合 inventory、证据快照和发布结论执行 fail-closed 校验。
 - `skills/rokid-aiui-agent/scripts/smoke_aix.sh`：真实 AIX pack + list 冒烟流程。
 - `skills/rokid-aiui-agent/assets/studio-importable-minimal/`：按 AIUI Studio 本地/GitHub 指定目录结构准备的最小 `0.17.0` 兼容工程。
-- `examples/scenequest-agent/`：日文优先、12 个大阪精选圣地、四状态的稳定版 `0.17.0` Page-only SceneQuest 示例。
+- `skills/rokid-aiui-agent/assets/focus-timer-agent/`：随 Skill 安装的唯一产品化示例 Agent，可直接作为 AIUI Studio 导入根。
 - `tests/`：单元测试、正反 fixtures 和前后行为评估。
 - `PROJECT.md` / `MEMORY.md` / `TASKS.md` / `WORKLOG.md`：跨设备项目连续性。
 
