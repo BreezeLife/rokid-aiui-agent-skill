@@ -2,10 +2,11 @@
 
 ## In progress
 
-- [ ] Publish complete Chinese, English, and Japanese usage guides, with the Focus Timer as the Skill's sole bundled product Agent and full local/CI verification.
+- None.
 
 ## Done
 
+- [x] Published complete Chinese, English, and Japanese usage guides and reorganized the repository so Focus Timer is the Skill's sole bundled product Agent.
 - [x] Confirmed repository name and public visibility with the user.
 - [x] Initialized the empty local workspace as a Git repository.
 - [x] Inspected the current canonical AIUI, AIX, Awesome AIUI, and third-party kit repositories.
