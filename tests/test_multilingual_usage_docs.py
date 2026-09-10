@@ -522,32 +522,96 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         def has_guarded_gh_install(markdown: str) -> bool:
             blocks = semantic_blocks(markdown)
             fallback_command = README_STABLE_LITERALS[1]
-            guard = re.compile(
-                r"`gh skill --help`[^。\n]*(?:可用|正常)", re.IGNORECASE
+            positive_guard = re.compile(
+                r"`gh skill --help`[^。\n]*(?:可用|正常(?:运行|工作))",
+                re.IGNORECASE,
             )
+            negative_guard = re.compile(
+                r"(?:不|未|尚未|未能|没有|没能|无法|不能|不可)"
+                r"[^，。；\n]{0,16}(?:可用|正常(?:运行|工作)|使用|运行|用)",
+                re.IGNORECASE,
+            )
+
+            def is_affirmative_guard(block: str) -> bool:
+                return bool(
+                    positive_guard.search(block)
+                    and not negative_guard.search(block)
+                )
+
             for index, (kind, block) in enumerate(blocks):
                 if fallback_command not in block:
                     continue
-                if kind == "prose" and guard.search(block):
+                if kind == "prose" and is_affirmative_guard(block):
                     return True
                 if (
                     index
                     and blocks[index - 1][0] == "prose"
-                    and guard.search(blocks[index - 1][1])
+                    and is_affirmative_guard(blocks[index - 1][1])
                 ):
                     return True
             return False
+
+        def has_primary_npx_then_guarded_gh_install(markdown: str) -> bool:
+            blocks = semantic_blocks(markdown)
+            primary_command, fallback_command = README_STABLE_LITERALS[:2]
+            primary_cue = re.compile(
+                r"(?:主(?:要)?(?:安装)?(?:方式|路径|命令)?|"
+                r"首选|优先|推荐|默认|先(?:运行|使用|安装))"
+            )
+            fallback_cue = re.compile(
+                r"(?:备用|备选|替代|可选|也(?:可以|可)|另一(?:种|个)|或者)"
+            )
+
+            def adjacent_prose(index: int) -> str:
+                candidates = []
+                if blocks[index][0] == "prose":
+                    candidates.append(blocks[index][1])
+                if index and blocks[index - 1][0] == "prose":
+                    candidates.append(blocks[index - 1][1])
+                return " ".join(candidates)
+
+            primary_indexes = [
+                index
+                for index, (_, block) in enumerate(blocks)
+                if primary_command in block
+            ]
+            fallback_indexes = [
+                index
+                for index, (_, block) in enumerate(blocks)
+                if fallback_command in block
+            ]
+            return any(
+                primary_index < fallback_index
+                and primary_cue.search(adjacent_prose(primary_index))
+                and fallback_cue.search(adjacent_prose(fallback_index))
+                and has_guarded_gh_install(
+                    "\n\n".join(
+                        block
+                        for _, block in blocks[
+                            max(0, fallback_index - 1) : fallback_index + 1
+                        ]
+                    )
+                )
+                for primary_index in primary_indexes
+                for fallback_index in fallback_indexes
+            )
 
         def has_executed_check_results(markdown: str) -> bool:
             executed = re.compile(r"(?:已运行|已执行|实际运行|实际执行)")
             negated = re.compile(
                 r"(?:未|尚未|未能|没有|没|不曾)(?:实际)?(?:运行|执行)"
             )
+            prohibited = re.compile(r"(?:不要|无需|不必|禁止|不得|不应|切勿)")
+            conditional = re.compile(r"(?:如果|假如|假设|倘若|若)")
             for kind, block in semantic_blocks(markdown):
                 if kind != "prose":
                     continue
                 for statement in re.split(r"[。！？；]+", block):
-                    if negated.search(statement):
+                    if (
+                        negated.search(statement)
+                        or prohibited.search(statement)
+                        or conditional.search(statement)
+                    ):
                         continue
                     if (
                         executed.search(statement)
@@ -556,6 +620,32 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                     ):
                         return True
             return False
+
+        def action_has_affirmative_semantics(
+            action: str, patterns: tuple[str, ...]
+        ) -> bool:
+            non_affirmative = re.compile(
+                r"(?:不要|无需|不必|禁止|不得|不应|切勿|未|没有|没|"
+                r"不能|无法|不可|如果|假如|假设|倘若|若)"
+            )
+            affirmative_fragments = []
+            for _, block in semantic_blocks(action):
+                for fragment in re.split(r"[。！？；，,\n]+", block):
+                    fragment = fragment.strip()
+                    if not fragment:
+                        continue
+                    if non_affirmative.search(fragment):
+                        if re.search(patterns[0], fragment, re.IGNORECASE):
+                            return False
+                        continue
+                    affirmative_fragments.append(fragment)
+            return all(
+                any(
+                    re.search(pattern, fragment, re.IGNORECASE)
+                    for fragment in affirmative_fragments
+                )
+                for pattern in patterns
+            )
 
         def numbered_actions(markdown: str) -> list[tuple[int, str]]:
             actions = []
@@ -579,8 +669,15 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 if fence_match:
                     marker = fence_match.group(1)
                     if fence is None:
-                        finish_action()
-                        fence = (marker[0], len(marker))
+                        leading_whitespace = raw_line[: fence_match.start(1)]
+                        fence_indent = len(leading_whitespace.expandtabs(4))
+                        nested = bool(
+                            current_number is not None
+                            and fence_indent >= continuation_indent
+                        )
+                        if not nested:
+                            finish_action()
+                        fence = (marker[0], len(marker), nested)
                     elif (
                         marker[0] == fence[0]
                         and len(marker) >= fence[1]
@@ -589,6 +686,8 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                         fence = None
                     continue
                 if fence is not None:
+                    if fence[2] and raw_line.strip():
+                        current_lines.append(raw_line.strip())
                     continue
                 item_match = re.match(
                     r"^( {0,3})(\d+)[.)]([ \t]+)(.*)$", raw_line
@@ -623,27 +722,94 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             finish_action()
             return actions
 
-        guarded_install_example = (
-            "如果 `gh skill --help` 可用，也可以运行：\n\n"
+        action_patterns = (
+            (r"(?:安装|添加)", r"(?:Skill|rokid-aiui-agent)"),
+            (
+                r"(?:打开|新建|创建|选择)",
+                r"(?:工作区|workspace)",
+                r"(?:独立|单独|新|另一个|仓库之外|仓库外)",
+            ),
+            (r"(?:调用|使用|运行|invoke)", r"\$rokid-aiui-agent"),
+            (
+                r"(?:检查|查看|核对|审查)",
+                r"(?:交付|输出|项目|工程)",
+                r"(?:检查|验证|校验|执行)[^。\n]*(?:结果|记录)",
+            ),
+            (r"(?:导入|交付|交接)", r"AIUI Studio"),
+        )
+
+        ordered_install_example = (
+            "主安装路径：\n\n"
+            "```bash\n"
+            f"{README_STABLE_LITERALS[0]}\n"
+            "```\n\n"
+            "如果 `gh skill --help` 可用，也可以使用备用路径：\n\n"
             "```bash\n"
             f"{README_STABLE_LITERALS[1]}\n"
             "```"
         )
-        self.assertTrue(has_guarded_gh_install(guarded_install_example))
+        self.assertTrue(has_guarded_gh_install(ordered_install_example))
+        self.assertTrue(
+            has_primary_npx_then_guarded_gh_install(ordered_install_example)
+        )
         self.assertFalse(
             has_guarded_gh_install(
-                guarded_install_example.replace(
-                    "\n\n```bash", "\n\n这是不相邻的说明。\n\n```bash"
+                ordered_install_example.replace(
+                    "\n\n```bash\n"
+                    f"{README_STABLE_LITERALS[1]}",
+                    "\n\n这是不相邻的说明。\n\n```bash\n"
+                    f"{README_STABLE_LITERALS[1]}",
                 )
             ),
             "an unrelated semantic block must break the gh fallback guard",
         )
+        for negative_guard in (
+            "`gh skill --help` 不可用",
+            "`gh skill --help` 不能用",
+            "`gh skill --help` 未能正常运行",
+        ):
+            with self.subTest(negative_gh_guard=negative_guard):
+                self.assertFalse(
+                    has_guarded_gh_install(
+                        f"{negative_guard}，也可以使用备用路径：\n\n"
+                        "```bash\n"
+                        f"{README_STABLE_LITERALS[1]}\n"
+                        "```"
+                    )
+                )
+        self.assertTrue(
+            has_guarded_gh_install(
+                "`gh skill --help` 正常运行时，也可以使用备用路径：\n\n"
+                "```bash\n"
+                f"{README_STABLE_LITERALS[1]}\n"
+                "```"
+            )
+        )
+        for invalid_install_order in (
+            ordered_install_example.replace("主安装路径", "安装命令"),
+            ordered_install_example.replace(
+                "也可以使用备用路径", "请运行以下命令"
+            ),
+            "\n\n".join(reversed(ordered_install_example.split("\n\n"))),
+        ):
+            with self.subTest(invalid_install_order=invalid_install_order):
+                self.assertFalse(
+                    has_primary_npx_then_guarded_gh_install(
+                        invalid_install_order
+                    )
+                )
 
-        self.assertTrue(has_executed_check_results("查看已运行的验证及其结果。"))
+        self.assertTrue(
+            has_executed_check_results(
+                "查看智能体实际执行后报告的检查结果。"
+            )
+        )
         for negated_check in (
             "查看未执行的检查结果。",
             "没有执行验证，但写了检查结果。",
             "查看尚未执行的校验结果。",
+            "不要声称已执行验证结果。",
+            "如果已执行验证，请查看结果。",
         ):
             with self.subTest(negated_check=negated_check):
                 self.assertFalse(has_executed_check_results(negated_check))
@@ -656,6 +822,46 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 "2. 调用 Skill"
             ),
         )
+        nested_prompt_actions = numbered_actions(
+            "3. 调用 Skill\n"
+            "   ```text\n"
+            "   使用 $rokid-aiui-agent 创建项目。\n"
+            "   ```"
+        )
+        self.assertEqual(
+            [(3, "调用 Skill 使用 $rokid-aiui-agent 创建项目。")],
+            nested_prompt_actions,
+        )
+        self.assertTrue(
+            action_has_affirmative_semantics(
+                nested_prompt_actions[0][1], action_patterns[2]
+            )
+        )
+        affirmative_actions = (
+            "安装 Skill",
+            "打开另一个独立工作区",
+            "调用 Skill，使用 $rokid-aiui-agent",
+            "查看交付项目与实际执行后报告的检查结果",
+            "导入 AIUI Studio",
+        )
+        for action, patterns in zip(affirmative_actions, action_patterns):
+            with self.subTest(affirmative_action=action):
+                self.assertTrue(
+                    action_has_affirmative_semantics(action, patterns)
+                )
+        negated_actions = (
+            ("不要安装 Skill", action_patterns[0]),
+            ("不必安装 Skill", action_patterns[0]),
+            ("无需打开独立工作区", action_patterns[1]),
+            ("禁止调用 $rokid-aiui-agent", action_patterns[2]),
+            ("未检查交付项目和验证结果", action_patterns[3]),
+            ("没有导入 AIUI Studio", action_patterns[4]),
+        )
+        for action, patterns in negated_actions:
+            with self.subTest(negated_action=action):
+                self.assertFalse(
+                    action_has_affirmative_semantics(action, patterns)
+                )
         action_boundaries = (
             "列表外普通段落",
             "### 新路线",
@@ -758,6 +964,11 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             "the gh fallback install must be immediately guarded inside the "
             "Vibe Coding route",
         )
+        self.assertTrue(
+            has_primary_npx_then_guarded_gh_install(vibe_route),
+            "the Vibe Coding route must present npx as the primary installer, "
+            "followed by guarded gh as an alternative",
+        )
         self.assertIn("$rokid-aiui-agent", vibe_route)
         self.assertTrue(
             section_has_all(
@@ -799,25 +1010,10 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             [number for number, _ in actions],
             "Vibe Coding route must contain exactly five ordered numbered actions",
         )
-        action_patterns = (
-            (r"(?:安装|添加)", r"(?:Skill|rokid-aiui-agent)"),
-            (
-                r"(?:打开|新建|创建|选择)",
-                r"(?:工作区|workspace)",
-                r"(?:独立|单独|新|另一个|仓库之外|仓库外)",
-            ),
-            (r"(?:调用|使用|运行|invoke)", r"\$rokid-aiui-agent"),
-            (
-                r"(?:检查|查看|核对|审查)",
-                r"(?:交付|输出|项目|工程)",
-                r"(?:检查|验证|校验|执行)[^。\n]*(?:结果|记录)",
-            ),
-            (r"(?:导入|交付|交接)", r"AIUI Studio"),
-        )
         for (number, action), patterns in zip(actions, action_patterns):
             with self.subTest(vibe_route_action=number):
                 self.assertTrue(
-                    section_has_all(action, patterns),
+                    action_has_affirmative_semantics(action, patterns),
                     f"Vibe Coding numbered action {number} has wrong semantics",
                 )
         self.assertTrue(
