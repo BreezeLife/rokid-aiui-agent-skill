@@ -81,11 +81,11 @@ Expected: all tests pass.
 - Modify: `MEMORY.md`
 - Modify: `WORKLOG.md`
 
-- [ ] **Step 1: Run two-stage review**
+- [x] **Step 1: Run two-stage review**
 
 Request a scope/contract review, then a writing-quality review against the current Writing Guidelines. Fix every Critical or Important finding and repeat the matching review.
 
-- [ ] **Step 2: Run the complete local gate**
+- [x] **Step 2: Run the complete local gate**
 
 Run the complete unit suite with the repository-approved Node.js runtime. Then run Skill validation, reference validation, four strict import-root validations, the release-ready audit black box, three AIX pack/list flows, the Focus Timer preview, and full-tree whitespace validation.
 
@@ -98,7 +98,7 @@ Expected: every local gate passes.
 - Modify: `TASKS.md`
 - Modify: `WORKLOG.md`
 
-- [ ] **Step 1: Commit the implementation**
+- [x] **Step 1: Commit the implementation**
 
 Commit the test, README, plan, and continuity changes without rewriting published history.
 

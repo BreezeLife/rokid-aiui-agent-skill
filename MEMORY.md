@@ -43,6 +43,7 @@
 - 2026-09-10: Keep the product repository focused on the reusable Skill. Bundle only the Focus Timer Agent under `skills/rokid-aiui-agent/assets/focus-timer-agent/`; unrelated application Agents and their product-specific tests/design documents belong in separate repositories.
 - 2026-09-10: Keep the root README as a prompt-first Vibe Coding landing page. Put installation, explicit invocation, editable project output, Studio import, and the bundled Focus Timer in the main flow; route claims schemas, evidence signatures, trust policy, exit-code details, and maintainer commands to the localized guides and focused references.
 - 2026-09-10: The root README may borrow scannable presentation patterns from third-party demo repositories, such as a capability overview, a state-to-action map, and a path-to-purpose repository map. Keep every published claim bound to this repository; private screenshots, recordings, hosted services, performance figures, cloud/security architecture, and license claims are neither reusable content nor AIUI evidence.
+- 2026-09-10: The root quickstart presents two explicit development routes. Developers can open an existing complete project or the bundled Focus Timer in AIUI Studio, or use Codex as one example of an Agent Skills-compatible Vibe Coding host to create or modify a project in a separate workspace. Both routes converge on the same complete editable import root, executed-check reporting, and unresolved Studio/device gates marked `BLOCKED`.
 
 ## Source priority
 
