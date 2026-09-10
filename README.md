@@ -6,6 +6,15 @@
 
 这是面向 ROKID AIUI 的 Vibe Coding 快速开始：和 AI 一起写代码，从一句需求走到可导入、可检查、可继续编辑的完整工程，同时避免把浏览器或微信小程序经验误当成 AIUI 能力。
 
+## 这个 Skill 能做什么
+
+你可以用它完成以下 AIUI 开发任务：
+
+- 创建完整、可编辑的 AIUI 项目
+- 修改或扩展现有 AIUI 工程
+- 审查并调试 AIUI 工程的项目结构、交互和版本兼容性
+- 验证项目并交付可由 AIUI Studio 导入的源码目录；本地检查不代表 AIUI Studio 或 Rokid Glasses 真机已经通过
+
 ## 快速开始
 
 在支持 Agent Skills 的编码环境终端运行以下安装命令：
@@ -72,7 +81,22 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 
 [`skills/rokid-aiui-agent/assets/focus-timer-agent`](skills/rokid-aiui-agent/assets/focus-timer-agent/) 是随 Skill 安装的唯一产品化示例 Agent，也是一个完整的 AIUI Studio 导入根。
 
-它是面向 Rokid Glasses 的日文 Page-only 计时器，未指定时长时默认 10 分钟，也支持 1～3600 秒、可选标签、点头和触摸板操作。对话中修改为新的时长会打开一个新的 Page；语音触发仍需在 AIUI Studio 和 Rokid Glasses 真机验证，因此该项保持 `BLOCKED`。它不承诺后台持续运行、系统通知或持久化恢复。
+它是面向 Rokid Glasses、仅使用 Page 的日文计时器。未指定时长时默认 10 分钟，也接受 1～3600 秒和可选标签。
+
+源码和本地测试只验证收到主要操作事件后的状态映射：
+
+| 计时器状态 | 收到事件后的操作 |
+| --- | --- |
+| 未开始 | 开始 |
+| 进行中 | 暂停 |
+| 已暂停 | 继续 |
+| 已完成 | 重新开始 |
+
+本地证据不能证明眼镜已发出对应事件。点头和触摸板仍需 Rokid Glasses 真机验证，状态为 `BLOCKED`。
+
+对话中修改为新的时长会打开一个新 Page。语音触发仍需 AIUI Studio 和 Rokid Glasses 真机验证，状态同样为 `BLOCKED`。
+
+该计时器不承诺后台持续运行、系统通知或持久化恢复。
 
 ## 自动检查
 
@@ -85,6 +109,17 @@ Skill 会根据当前工程运行结构验证、确定性业务逻辑测试，�
 当工程和宿主没有明确版本时，Skill 默认以稳定版 AIUI `0.17.0` 为目标。`0.18` 能力只有在目标明确支持时才会启用，避免把预览版配置混进稳定版项目。
 
 Skill 会先检查当前环境实际提供的 AIX 命令，不会假设不存在的创建、构建或部署流程。
+
+## 仓库内容
+
+仓库将 Skill、参考资料、检查工具和可导入示例分开存放：
+
+- [`skills/rokid-aiui-agent/SKILL.md`](skills/rokid-aiui-agent/SKILL.md)：Skill 入口和任务流程
+- [`skills/rokid-aiui-agent/references/`](skills/rokid-aiui-agent/references/)：按需读取的 AIUI 开发参考
+- [`skills/rokid-aiui-agent/scripts/`](skills/rokid-aiui-agent/scripts/)：项目结构、能力和审计检查工具
+- [`skills/rokid-aiui-agent/assets/studio-importable-minimal/`](skills/rokid-aiui-agent/assets/studio-importable-minimal/)：可导入 AIUI Studio 的最小工程模板
+- [`skills/rokid-aiui-agent/assets/focus-timer-agent/`](skills/rokid-aiui-agent/assets/focus-timer-agent/)：仓库中唯一的产品化示例 Agent
+- [`docs/usage.zh-CN.md`](docs/usage.zh-CN.md)、[`docs/usage.en.md`](docs/usage.en.md) 和 [`docs/usage.ja.md`](docs/usage.ja.md)：中文、英文和日文完整指南
 
 ## 深入指南
 
