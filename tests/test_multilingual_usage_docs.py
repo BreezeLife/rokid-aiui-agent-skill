@@ -414,6 +414,25 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 for unit in semantic_units
             )
 
+        def prose_before_first_list(section: str) -> tuple[bool, str]:
+            prose_lines = []
+            in_fenced_code = False
+            for raw_line in section.splitlines()[1:]:
+                line = raw_line.strip()
+                if line.startswith(("```", "~~~")):
+                    in_fenced_code = not in_fenced_code
+                    continue
+                if in_fenced_code:
+                    continue
+                if raw_line.startswith(("    ", "\t")):
+                    continue
+                if re.match(r"^(?:[-+*]|\d+[.)])\s+", line):
+                    return True, " ".join(prose_lines)
+                if not line or line.startswith("|"):
+                    continue
+                prose_lines.append(line)
+            return False, " ".join(prose_lines)
+
         self.assertTrue(
             section_has_all(
                 "- 创建完整、可编辑的 AIUI\n  项目",
@@ -461,6 +480,21 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             quickstart,
             r"`gh skill --help`[^。\n]*(?:可用|正常)",
         )
+        with self.subTest(readme_contract="replace the sample output path"):
+            self.assertTrue(
+                section_has_all(
+                    quickstart,
+                    (
+                        re.escape("/absolute/path/to/my_focus_timer"),
+                        r"(?:替换|换成|改为|改成)",
+                        r"(?:你|自己|用户)",
+                        r"绝对",
+                        r"(?:输出目录|目录|路径)",
+                    ),
+                ),
+                "README must tell readers to replace the sample path with "
+                "their own absolute output directory",
+            )
 
         output = sections["## 你会得到什么"]
         for literal in ("完整", "可编辑", "AIUI 项目目录", "AIUI Studio"):
@@ -481,6 +515,16 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         studio_import = sections["## 导入 AIUI Studio"]
         for literal in ("本地检查", "AIUI Studio", "Rokid Glasses", "BLOCKED"):
             self.assertIn(literal, studio_import)
+
+        for heading in ("## 导入 AIUI Studio", "## 深入指南"):
+            with self.subTest(introduced_list=heading):
+                has_list, introduction = prose_before_first_list(sections[heading])
+                self.assertTrue(has_list, f"{heading} must contain a list")
+                self.assertRegex(
+                    introduction,
+                    r"[A-Za-z0-9\u3400-\u4dbf\u4e00-\u9fff]",
+                    f"{heading} must introduce its first list with prose",
+                )
 
         focus_timer = sections["## 内置 Focus Timer"]
         self.assertNotIn("语音修改时长", focus_timer)
