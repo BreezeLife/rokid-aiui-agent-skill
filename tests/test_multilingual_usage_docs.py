@@ -473,16 +473,113 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 for index, (start, heading) in enumerate(headings)
             ]
 
+        def semantic_blocks(markdown: str) -> list[tuple[str, str]]:
+            blocks = []
+            prose_lines = []
+            code_lines = []
+            fence = None
+
+            def flush_prose() -> None:
+                if prose_lines:
+                    blocks.append(("prose", " ".join(prose_lines)))
+                    prose_lines.clear()
+
+            for raw_line in markdown.splitlines():
+                fence_match = re.match(r"^\s*(`{3,}|~{3,})(.*)$", raw_line)
+                if fence is not None:
+                    if (
+                        fence_match
+                        and fence_match.group(1)[0] == fence[0]
+                        and len(fence_match.group(1)) >= fence[1]
+                        and not fence_match.group(2).strip()
+                    ):
+                        blocks.append(("code", "\n".join(code_lines)))
+                        code_lines.clear()
+                        fence = None
+                    else:
+                        code_lines.append(raw_line.strip())
+                    continue
+                if fence_match:
+                    flush_prose()
+                    marker = fence_match.group(1)
+                    fence = (marker[0], len(marker))
+                    continue
+
+                line = raw_line.strip()
+                if not line:
+                    flush_prose()
+                    continue
+                if re.match(
+                    r"^ {0,3}(?:#{1,6}(?:[ \t]+|$)|"
+                    r"[-+*][ \t]+|\d+[.)][ \t]+|>)",
+                    raw_line,
+                ):
+                    flush_prose()
+                prose_lines.append(line)
+            flush_prose()
+            return blocks
+
+        def has_guarded_gh_install(markdown: str) -> bool:
+            blocks = semantic_blocks(markdown)
+            fallback_command = README_STABLE_LITERALS[1]
+            guard = re.compile(
+                r"`gh skill --help`[^。\n]*(?:可用|正常)", re.IGNORECASE
+            )
+            for index, (kind, block) in enumerate(blocks):
+                if fallback_command not in block:
+                    continue
+                if kind == "prose" and guard.search(block):
+                    return True
+                if (
+                    index
+                    and blocks[index - 1][0] == "prose"
+                    and guard.search(blocks[index - 1][1])
+                ):
+                    return True
+            return False
+
+        def has_executed_check_results(markdown: str) -> bool:
+            executed = re.compile(r"(?:已运行|已执行|实际运行|实际执行)")
+            negated = re.compile(
+                r"(?:未|尚未|未能|没有|没|不曾)(?:实际)?(?:运行|执行)"
+            )
+            for kind, block in semantic_blocks(markdown):
+                if kind != "prose":
+                    continue
+                for statement in re.split(r"[。！？；]+", block):
+                    if negated.search(statement):
+                        continue
+                    if (
+                        executed.search(statement)
+                        and re.search(r"(?:验证|检查|校验)", statement)
+                        and "结果" in statement
+                    ):
+                        return True
+            return False
+
         def numbered_actions(markdown: str) -> list[tuple[int, str]]:
             actions = []
             current_number = None
             current_lines = []
+            continuation_indent = None
             fence = None
+
+            def finish_action() -> None:
+                nonlocal current_number, current_lines, continuation_indent
+                if current_number is not None:
+                    actions.append(
+                        (current_number, " ".join(current_lines).strip())
+                    )
+                current_number = None
+                current_lines = []
+                continuation_indent = None
+
             for raw_line in markdown.splitlines():
                 fence_match = re.match(r"^\s*(`{3,}|~{3,})(.*)$", raw_line)
                 if fence_match:
                     marker = fence_match.group(1)
                     if fence is None:
+                        finish_action()
                         fence = (marker[0], len(marker))
                     elif (
                         marker[0] == fence[0]
@@ -493,19 +590,89 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                     continue
                 if fence is not None:
                     continue
-                item_match = re.match(r"^ {0,3}(\d+)[.)]\s+(.*)$", raw_line)
+                item_match = re.match(
+                    r"^( {0,3})(\d+)[.)]([ \t]+)(.*)$", raw_line
+                )
                 if item_match:
-                    if current_number is not None:
-                        actions.append(
-                            (current_number, " ".join(current_lines).strip())
-                        )
-                    current_number = int(item_match.group(1))
-                    current_lines = [item_match.group(2).strip()]
-                elif current_number is not None and raw_line.strip():
+                    finish_action()
+                    current_number = int(item_match.group(2))
+                    current_lines = [item_match.group(4).strip()]
+                    continuation_indent = (
+                        len(item_match.group(1))
+                        + len(item_match.group(2))
+                        + 1
+                        + len(item_match.group(3).expandtabs(4))
+                    )
+                    continue
+                if current_number is None or not raw_line.strip():
+                    continue
+                if re.match(
+                    r"^\s*(?:#{1,6}(?:[ \t]+|$)|[-+*][ \t]+|>|\|)",
+                    raw_line,
+                ) or re.match(r"^\s*(?:[-*_]\s*){3,}$", raw_line):
+                    finish_action()
+                    continue
+                leading_whitespace = raw_line[
+                    : len(raw_line) - len(raw_line.lstrip(" \t"))
+                ]
+                indentation = len(leading_whitespace.expandtabs(4))
+                if indentation >= continuation_indent:
                     current_lines.append(raw_line.strip())
-            if current_number is not None:
-                actions.append((current_number, " ".join(current_lines).strip()))
+                else:
+                    finish_action()
+            finish_action()
             return actions
+
+        guarded_install_example = (
+            "如果 `gh skill --help` 可用，也可以运行：\n\n"
+            "```bash\n"
+            f"{README_STABLE_LITERALS[1]}\n"
+            "```"
+        )
+        self.assertTrue(has_guarded_gh_install(guarded_install_example))
+        self.assertFalse(
+            has_guarded_gh_install(
+                guarded_install_example.replace(
+                    "\n\n```bash", "\n\n这是不相邻的说明。\n\n```bash"
+                )
+            ),
+            "an unrelated semantic block must break the gh fallback guard",
+        )
+
+        self.assertTrue(has_executed_check_results("查看已运行的验证及其结果。"))
+        for negated_check in (
+            "查看未执行的检查结果。",
+            "没有执行验证，但写了检查结果。",
+            "查看尚未执行的校验结果。",
+        ):
+            with self.subTest(negated_check=negated_check):
+                self.assertFalse(has_executed_check_results(negated_check))
+
+        self.assertEqual(
+            [(1, "安装 Skill 真正缩进的续行"), (2, "调用 Skill")],
+            numbered_actions(
+                "1. 安装 Skill\n"
+                "   真正缩进的续行\n"
+                "2. 调用 Skill"
+            ),
+        )
+        action_boundaries = (
+            "列表外普通段落",
+            "### 新路线",
+            "#### 子标题",
+            "- 无序列表",
+            "> 引用块",
+            "```text\n2. 代码围栏中的伪步骤\n```",
+        )
+        for boundary in action_boundaries:
+            with self.subTest(numbered_action_boundary=boundary):
+                self.assertEqual(
+                    [(1, "安装 Skill")],
+                    numbered_actions(
+                        f"1. 安装 Skill\n{boundary}\n"
+                        "   不得从块边界之后补足当前步骤"
+                    ),
+                )
 
         self.assertTrue(
             section_has_all(
@@ -586,6 +753,11 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         for command in README_STABLE_LITERALS[:2]:
             with self.subTest(vibe_route_install=command):
                 self.assertIn(command, vibe_route)
+        self.assertTrue(
+            has_guarded_gh_install(vibe_route),
+            "the gh fallback install must be immediately guarded inside the "
+            "Vibe Coding route",
+        )
         self.assertIn("$rokid-aiui-agent", vibe_route)
         self.assertTrue(
             section_has_all(
@@ -610,6 +782,11 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                 ),
             ),
             "Vibe Coding must inspect checks that were actually run",
+        )
+        self.assertTrue(
+            has_executed_check_results(vibe_route),
+            "Vibe Coding must report results from validation or checks that "
+            "were actually run, not negated or unexecuted checks",
         )
         self.assertTrue(
             section_has_all(vibe_route, (r"(?:导入|交付|交接)", r"AIUI Studio")),
@@ -643,6 +820,10 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                     section_has_all(action, patterns),
                     f"Vibe Coding numbered action {number} has wrong semantics",
                 )
+        self.assertTrue(
+            has_executed_check_results(actions[3][1]),
+            "numbered action 4 must inspect results from checks actually run",
+        )
 
         self.assertRegex(
             quickstart,
