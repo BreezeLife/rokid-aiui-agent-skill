@@ -334,9 +334,25 @@ def cleanup_artifact(output: Path, identity_text: str) -> None:
         parent_fd = os.open(output.parent, flags)
     except OSError:
         return
+    output_fd = -1
     try:
+        output_fd = os.open(
+            output.name,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0),
+            dir_fd=parent_fd,
+        )
+        # Publication has closed its descriptor. An unlinked inode may have
+        # been recycled, so device/inode alone no longer proves ownership.
+        # Keep this descriptor open through unlink to prevent another reuse.
+        if _metadata_from_fd(output_fd) != expected:
+            return
         _unlink_created(parent_fd, output.name, expected)
+    except (OSError, ValueError):
+        # A missing, replaced, unreadable, or changing file is not ours to delete.
+        return
     finally:
+        if output_fd >= 0:
+            os.close(output_fd)
         os.close(parent_fd)
 
 

@@ -553,6 +553,36 @@ class AixSmokeScriptTests(unittest.TestCase):
         self.assertTrue(delivery["exists"])
         self.assertEqual(b"concurrent replacement", delivery["bytes"])
 
+    def test_cleanup_preserves_changed_bytes_when_inode_is_reused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "agent.aix"
+            original = b"original-aix"
+            replacement = b"replaced-aix"
+            self.assertEqual(len(original), len(replacement))
+            output.write_bytes(replacement)
+            reused = output.stat()
+            # Reproduce a recycled Linux inode deterministically on every host:
+            # the old publication identity now names different, same-size bytes.
+            identity = (
+                f"{reused.st_dev}:{reused.st_ino}:{len(original)}:"
+                f"{hashlib.sha256(original).hexdigest()}"
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT.with_name("aix_delivery_guard.py")),
+                    "cleanup",
+                    str(output),
+                    identity,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue(output.exists())
+            self.assertEqual(replacement, output.read_bytes())
+
     def test_final_listing_cannot_validate_replaced_artifact_bytes(self):
         delivery = self.run_delivery(
             replace_destination_with_file_on_final_list=True,

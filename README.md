@@ -44,6 +44,8 @@ Codex 只是一个示例；其他支持 Agent Skills、能访问项目工作区�
    gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent codex --scope user
    ```
 
+   Codex、Claude Code、Cursor 的安装范围、调用方式和当前 0.19 分支安装命令见[在 Vibe Coding 工具中使用](#在-vibe-coding-工具中使用)。
+
 2. 打开独立工作区。在 Codex 或其他编码工具中，新建或打开一个独立工作区。该目录必须位于本 Skill 仓库之外。
 
 3. 调用 Skill。先把示例路径 `/absolute/path/to/my_focus_timer` 替换为你自己的绝对输出目录，再把下面这段话交给编码智能体：
@@ -63,6 +65,42 @@ Codex 只是一个示例；其他支持 Agent Skills、能访问项目工作区�
 5. 导入 AIUI Studio。选择包含 `app.json` 的交付目录本身，也就是准确输出根。按[导入 AIUI Studio](#导入-aiui-studio)继续验收。
 
 你也可以把“专注计时器”换成其他需求，或要求审查和修复现有 AIUI 工程。新 Agent 仍应生成在本 Skill 仓库之外。
+
+## 在 Vibe Coding 工具中使用
+
+在工具中打开你的独立开发工作区，使用能够读写文件、运行终端命令的 Agent 模式。当前 [Skills CLI](https://github.com/vercel-labs/skills#install-a-skill) 要求 Node.js `22.20` 或更高版本；可先运行 `node --version` 检查。
+
+上面的 `owner/repo` 安装命令读取仓库默认分支。当前 AIUI 0.19 更新位于 `feat/aix-deliverable`；试用该版本时使用下面的分支来源。以 Codex 为例，`--global` 安装到当前用户，使多个独立工程都可使用，技能文件也不会混进 Studio 导入根：
+
+```bash
+npx skills add 'BreezeLife/rokid-aiui-agent-skill#feat/aix-deliverable' --skill rokid-aiui-agent --agent codex --global
+npx skills list --agent codex --global
+```
+
+第二条命令应列出 `rokid-aiui-agent`。Claude Code 或 Cursor 用户将两条命令中的 `codex` 替换为表中的安装参数；随后在聊天输入框中调用 Skill，再描述任务：
+
+| 工具 | `--agent` 参数 | 调用与发现 |
+| --- | --- | --- |
+| Codex | `codex` | 在提示词中使用 `$rokid-aiui-agent`；CLI／IDE 扩展也可用 `/skills` 或输入 `$` 选择。[官方说明](https://learn.chatgpt.com/docs/build-skills#how-chatgpt-and-codex-use-skills) |
+| Claude Code | `claude-code` | 输入 `/rokid-aiui-agent`，后接需求；输入 `/` 可查看技能菜单。[官方说明](https://code.claude.com/docs/en/skills) |
+| Cursor | `cursor` | 在 Agent 聊天中输入 `/`，搜索并选择 `rokid-aiui-agent`，再填写需求。[官方说明](https://cursor.com/docs/skills#how-skills-work) |
+
+其他支持 Agent Skills 的工具，使用安装器[支持的 agent 标识](https://github.com/vercel-labs/skills/blob/main/docs/agents.md)，按该工具的技能选择方式调用，也可以明确要求“使用 rokid-aiui-agent Skill”。安装列表中已有技能但工具尚未发现时，重新打开会话或重启工具，并确认安装与开发使用的是同一台机器和用户。
+
+下面是 Codex 中可直接修改后发送的提示词。先将输出目录替换为你自己的绝对路径；Claude Code／Cursor 将第一行改为 `/rokid-aiui-agent` 或通过技能菜单选择后附上其余内容。
+
+```text
+$rokid-aiui-agent
+在独立目录 /absolute/path/to/my_focus_timer 创建 AIUI 0.19.0 专注计时器。
+支持语音设置时长、开始、暂停、继续与重置，覆盖 _current 和 _blank。
+先读取 Skill 入口及相关参考，再实现完整可编辑、可供 AIUI Studio 导入的源码工程。
+验证核心功能、异常恢复、生命周期，以及焦点、触摸和语音交互的 UX。
+执行可用的本地检查；AIX pack/list 与源码指纹校验成功时，在导入根之外交付 .aix。
+交付源码路径、实际执行结果、项目级 UX 表和逐能力表。
+未执行的 Studio、平台或真机验证保留 BLOCKED，不把本地预览当作真机通过。
+```
+
+安装命令在终端运行，以上任务提示词在工具的聊天输入框发送。开始开发时让智能体说明已读取的 `SKILL.md` 路径，并核对其中的默认目标为 `0.19.0`；仅有安装成功提示还不能确认本次任务已加载该版本。
 
 ## 你会得到什么
 

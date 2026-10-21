@@ -6,6 +6,7 @@
 
 ## Done
 
+- [x] Added README onboarding for Codex, Claude Code, Cursor, and other Agent Skills tools, including current-branch installation, discovery/loading checks, and a copyable AIUI 0.19 functional/UX verification prompt.
 - [x] Integrated stable AIUI 0.19.0 as the default with pinned official references, localized guides, a version-specific fixture, functional/UX scenarios, scanner/audit regressions, and independent behavior/review checks. Local verification is complete and the snapshot is prepared for the user-authorized branch commit/push. The 0.19 capability PASS policy and Studio/device evidence remain separate blocked gates.
 - [x] Implemented verified external AIX archives alongside the complete editable Studio import root, including path safety, exact package inspection, trilingual usage, and full local verification.
 - [x] Published a reproducible Focus Timer user-journey PNG and six-page developer PDF, linked them from the root README, and bound their interaction copy to the canonical packaged Agent with automated tests.
