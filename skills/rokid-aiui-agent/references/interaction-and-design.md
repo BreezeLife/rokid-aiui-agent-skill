@@ -2,6 +2,8 @@
 
 Read this when choosing `_current` versus `_blank`, handling hardware/voice/head input, or styling for Rokid Glasses.
 
+New work targets **0.19.0**. Use the [0.19 source map and functional/UX scenarios](aiui-0.19.md) before implementation. Current contracts are pinned in [target](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/1-framework/open-agent-format/target.en-US.md), [focus](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/1-framework/open-agent-format/focus.en-US.md), and [events](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/1-framework/open-agent-format/page-events.en-US.md). Older links below retain explicit compatibility evidence; do not infer target-device behavior from them.
+
 ## Target is a hosting context
 
 `_current` keeps a Page inline in the conversation/card context; `_blank` uses a standalone, fuller hosting space. A host may allow a user to expand an inline page. Target is chosen by the host/invocation, not declared as a fixed Page field. See the [0.17 Page overview](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/1-framework/open-agent-format/page.en-US.md#L26-L43) and [target reference](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/1-framework/open-agent-format/target.en-US.md).
@@ -49,6 +51,8 @@ export default {
 
 Default host actions commonly occur on `keyup`: back/close for `Backspace`, root scrolling for `ArrowUp`/`ArrowDown`, and navigation/activation for `Enter`. Call `preventDefault()` in `onKeyUp` **only when the Page implements a complete replacement behavior**. Otherwise preserve host navigation. Key codes and interception details are host-sensitive; record actual device events instead of inventing codes.
 
+In 0.19, `onVoiceWakeup` covers voice and touch wakeup. Avoid filtering `event.keyword` by default; documented values include `乐奇`, `Hi Rokid`, and `clickAiAssist`. Keep wakeup events separate from microphone speech recognition and its `RECORD_AUDIO` requirement. Test the actual input, fallback, visible focus, and confirmation feedback independently.
+
 ## World awareness and head gestures
 
 For a Page that needs head gestures, explicitly enable awareness before handling them:
@@ -69,6 +73,8 @@ Use only the callbacks documented for the target host, and provide a key/voice f
 ## Two design layers; do not merge their coordinates
 
 ### Current AIUI monochrome-green beta layer
+
+For 0.19, use the pinned [beta design source](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/design/monochrome/design-system-green.md), including its migration and acceptance sections. The same snapshot's [Monochrome overview](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/6-design/visual/monochrome.en-US.md) still summarizes the older 2px/12px/40% card grammar. Resolve that documented conflict in favor of the explicit design-source migration below. This guidance applies to named single-green devices, not automatically to every display.
 
 The official beta design is a **480 × 352** runtime/reference canvas for RokidGlasses1/2, with a transparent black floor and one green luminance channel: [scope and constraints](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/design/monochrome/design-system-green.md#L1-L23).
 
@@ -98,3 +104,9 @@ Treat those as optical/device-composition guidance, not as aliases for the repos
 3. preview both `_current` and `_blank` where relevant;
 4. test bright, dark, and cluttered real backgrounds on physical glasses;
 5. record which device/runtime made the final decision.
+
+## UX verification on 0.19
+
+Apply the official [Web self-test](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/0-guide/debug/web_debug.en-US.md) and [interaction guidance](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/6-design/interaction.en-US.md): verify initial content, main task, return path, speech/camera/temple input, varied lighting, unhandled errors, weak networks, unexpected input, and continuous use. Every interaction needs clear visual or audio feedback, and core controls must remain in the comfortable FOV.
+
+For each claimed surface, exercise long/empty content, loading/failure/retry, focused/unfocused operation, and interruption/re-entry. On glasses verify actual touch/voice/head input and readable status over bright, dark, and cluttered backgrounds. Record startup/interaction latency and memory trends against a project baseline. A browser screenshot or accepted launch command does not prove physical-device experience; missing Studio/device captures remain `BLOCKED` under [ux-and-capability-testing.md](ux-and-capability-testing.md).

@@ -78,6 +78,19 @@ GLOBAL_CALLS_TO_QUARANTINE = frozenset(
         "MediaRecorder",
         "ImageCapture",
         "Worker",
+        "RTCPeerConnection",
+        "RTCDataChannel",
+        "RTCSessionDescription",
+        "RTCIceCandidate",
+        "ReadableStream",
+        "WritableStream",
+        "TransformStream",
+        "TextEncoderStream",
+        "TextDecoderStream",
+        "TextEncoder",
+        "TextDecoder",
+        "Canvas",
+        "createImageBlob",
     }
 )
 REGISTERED_POLICY_FAMILIES = frozenset(
@@ -161,7 +174,7 @@ AUDIT_SURFACE_BY_SOURCE_KIND = {
 }
 REFERENCE_GLOBALS = frozenset(
     set(GLOBAL_CALLS_TO_QUARANTINE)
-    | {"localStorage", "sessionStorage", "SpeechRecognition"}
+    | {"localStorage", "sessionStorage", "SpeechRecognition", "crypto"}
 )
 CLAIMS_FILENAME = "aiui-audit-claims.json"
 SCOPE_FILENAME = "aiui-audit-scope.json"
@@ -3301,7 +3314,7 @@ def add_platform_quarantines(
     global_declarations = declaration_scopes(
         code_text,
         scopes,
-        {
+        set(REFERENCE_GLOBALS) | {
             "Function",
             "SpeechRecognition",
             "document",
@@ -3456,7 +3469,7 @@ def add_platform_quarantines(
         for match in re.finditer(
             rf"(?<![A-Za-z0-9_$.]){re.escape(symbol)}\b", code_text
         ):
-            if symbol == "wx":
+            if symbol != "SpeechRecognition":
                 if any(
                     match.start() in offsets
                     for (_scope_id, name), offsets in global_declarations.items()
@@ -3487,6 +3500,22 @@ def add_platform_quarantines(
                 if symbol in GLOBAL_CALLS_TO_QUARANTINE:
                     quarantine(f"{symbol}(...)", match.start())
                 continue
+            quarantine(f"REFERENCE:{symbol}", match.start())
+
+    # A method name does not prove a Canvas, stream, or encoder receiver.
+    # Preserve calls and extracted references as unresolved candidates, without
+    # assigning a platform binding or an introduction version to shared APIs.
+    for match in re.finditer(
+        r"(?<![A-Za-z0-9_$.])(?P<symbol>[A-Za-z_$][A-Za-z0-9_$]*"
+        r"(?:\s*(?:\.|\?\.)\s*[A-Za-z_$][A-Za-z0-9_$]*)*"
+        r"\s*(?:\.|\?\.)\s*"
+        r"(?:convertToBlob|createImageBlob|encodeInto|tee|getReader|pipeThrough|pipeTo))\b",
+        code_text,
+    ):
+        symbol = re.sub(r"\s+", "", match.group("symbol"))
+        if re.match(r"\s*\(", code_text[match.end() :]):
+            quarantine(f"{symbol}(...)", match.start())
+        else:
             quarantine(f"REFERENCE:{symbol}", match.start())
 
 
@@ -4098,11 +4127,11 @@ def inventory_project(
     return {
         "schemaVersion": 2,
         "targetVersion": target_version,
-        "policyVersion": (
-            "aiui-0.17-policy-v1"
-            if target_version == "0.17.0"
-            else "aiui-0.18-inventory-v1"
-        ),
+        "policyVersion": {
+            "0.17.0": "aiui-0.17-policy-v1",
+            "0.18.0": "aiui-0.18-inventory-v1",
+            "0.19.0": "aiui-0.19-inventory-v1",
+        }[target_version],
         "projectRevision": revision_after,
         "claimsLedger": claims_ledger,
         "supportedSurfaces": sorted(supported_surfaces),
@@ -4128,7 +4157,7 @@ def main() -> int:
     parser.add_argument(
         "--target-version",
         required=True,
-        choices=("0.17.0", "0.18.0"),
+        choices=("0.17.0", "0.18.0", "0.19.0"),
         help="canonical AIUI target version",
     )
     parser.add_argument(

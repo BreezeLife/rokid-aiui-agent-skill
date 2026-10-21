@@ -2,10 +2,12 @@
 
 ## In progress
 
-- None.
+- [ ] Integrate the verified AIX delivery and AIUI 0.19 revision into public `main` after feature-branch validation. The current user-authorized commit/push targets `feat/aix-deliverable`.
 
 ## Done
 
+- [x] Integrated stable AIUI 0.19.0 as the default with pinned official references, localized guides, a version-specific fixture, functional/UX scenarios, scanner/audit regressions, and independent behavior/review checks. Local verification is complete and the snapshot is prepared for the user-authorized branch commit/push. The 0.19 capability PASS policy and Studio/device evidence remain separate blocked gates.
+- [x] Implemented verified external AIX archives alongside the complete editable Studio import root, including path safety, exact package inspection, trilingual usage, and full local verification.
 - [x] Published a reproducible Focus Timer user-journey PNG and six-page developer PDF, linked them from the root README, and bound their interaction copy to the canonical packaged Agent with automated tests.
 - [x] Taught the two supported README workflows: open an AIUI project in Studio, or build one with Codex and other Agent Skills-compatible Vibe Coding tools; verified and published the revision.
 - [x] Expanded the root README with a demo-inspired capability overview, Focus Timer control map, and repository map; verified and published the revision.

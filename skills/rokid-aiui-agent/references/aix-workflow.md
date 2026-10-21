@@ -73,6 +73,57 @@ aix pack ./agent-app -o ./artifacts/agent.aix
 aix list ./artifacts/agent.aix
 ```
 
+For creation and implementation work, source is always the primary output. If
+the selected CLI advertises both operations and they succeed, deliver the
+verified archive as an additional output. Keep that output outside the Studio
+import root; a sibling such as `/work/agent-app.aix` for
+`/work/agent-app/` prevents the archive from changing the source fingerprint or
+being packed into itself.
+
+The packaged script has a backward-compatible delivery mode. Pass only the
+project to run a disposable smoke test. Pass an output and explicit repository
+root to preserve a verified package:
+
+```bash
+AIUI_REPOSITORY_ROOT="/absolute/path/to/repository"
+AIUI_IMPORT_ROOT="$AIUI_REPOSITORY_ROOT/agent-app"
+AIUI_AIX_OUTPUT="${AIUI_IMPORT_ROOT%/}.aix"
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh \
+  "$AIUI_IMPORT_ROOT" "$AIUI_AIX_OUTPUT" "$AIUI_REPOSITORY_ROOT"
+```
+
+The delivery mode refuses to overwrite any file or symlink and rejects an
+output inside the Studio import root. It resolves containment by filesystem identity,
+including case aliases, rather than trusting path spelling. It makes
+a verified source snapshot beside the destination and packages that snapshot,
+so a temporary live-source change cannot create an archive from an unreported
+revision. After inspecting the staged package, it publishes with an exclusive no-clobber copy
+through a fixed parent-directory descriptor, then lists the
+exact final archive. It checks the same artifact identity and SHA-256 before
+and after that listing and cleans a failed output only while its filesystem
+identity still belongs to this run. The live source fingerprint must match the
+snapshot before and after packaging. Successful output includes:
+
+```text
+AIUI source fingerprint: WORKTREE:<sha256>
+AIX artifact: /absolute/path/to/repository/agent-app.aix
+AIX bytes: <integer>
+AIX SHA-256: <sha256>
+AIX inspect command: list
+```
+
+The source fingerprint binds the run to the audited project. The published
+AIX `0.8.2` [CLI reference](https://github.com/yodaos-project/aix/blob/19e6133f1984ee4455e6de9167b582864b528252/packages/cli/README.md#L14-L20)
+defines `VERSION` as a unique UUID v4. This random build ID means two valid
+builds from the same source need not share the same package SHA-256;
+`AIX SHA-256` identifies the exact bytes handed off.
+
+The wrapper output proves the local delivery flow but does not by itself satisfy signed AIX audit evidence.
+To mark the audit's AIX layer `PASS`, capture
+the underlying `aix pack` and `aix list` (or `aix ls`) executions separately as
+schema-2 command evidence signed by the configured `RUNNER` authority; the
+audit validator does not treat a wrapper command as the underlying AIX argv.
+
 Published AIX 0.8.2 does not implicitly exclude the import root's top-level
 `.aiui-evidence/` or `.git/` directories. If the repository root is also the
 Studio import root, a repository-root `.aiui-evidence/` directory will be
@@ -95,14 +146,27 @@ entries do not compensate for reserved content. The packaged
 
 The current AIX specification describes `.aix` as a structured package with entries, metadata, optional signatures, Page definitions, schemas, target hints, and derived tools: [AIX contents](https://github.com/yodaos-project/aix/blob/8e5f5b1ba60691291f99d14ea9516995f2af55e4/README.md#L34-L46). Packing creates package metadata, including `META-INF/aix/manifest.json`; listing should show `app.json` and expected Page/asset entries: [typical shape](https://github.com/yodaos-project/aix/blob/8e5f5b1ba60691291f99d14ea9516995f2af55e4/README.md#L104-L132).
 
-If help advertises `--engine`, select a version/range that matches the target host rather than copying an example blindly. If help advertises `--optimize`, treat it as packaging optimization, not correctness validation. `.aixignore` can keep development-only files out of the artifact.
+If help advertises `--engine`, select a version/range that matches the target host rather than copying an example blindly. If help advertises `--optimize`, treat it as packaging optimization, not correctness validation. `.aixignore` can keep development-only files out of the artifact, but the exact final listing remains the delivery gate.
+
+## Package result semantics
+
+Keep source delivery and AIX delivery as separate results:
+
+- `PASS`: the final archive was packed and listed, required entries and privacy checks passed, the source fingerprint stayed unchanged, and path/bytes/SHA-256 were reported.
+- `BLOCKED`: Node or AIX is unavailable, installation cannot be completed, or help does not advertise `pack` plus `list`/`ls`.
+- `FAIL`: an attempted pack/list failed, the archive was empty, required entries were absent, reserved content appeared, the destination was unsafe, or the source changed during packaging.
+- `N/A`: only for a review or diagnosis whose agreed scope excludes packaging; it is not a fallback for missing tooling.
+
+Do not claim an archive was delivered unless the final-path checks passed. A
+source project can still be delivered when its AIX gate is `BLOCKED` or
+`FAIL`, but the separate package result must remain visible.
 
 ## Safe execution
 
-- Write generated artifacts to a dedicated project `artifacts/` directory or a temporary directory.
-- Never overwrite the only copy of a user-supplied `.aix` file.
+- Write generated deliverables outside the Studio import root or use a temporary directory for disposable checks.
+- Never overwrite an existing `.aix` file; the packaged delivery script refuses to overwrite.
 - Run `list` on the exact artifact that will be handed off.
-- Record CLI version, command, exit code, artifact path, byte size, and relevant listing.
+- Record CLI version, commands, exit codes, source fingerprint, artifact path, byte size, SHA-256, and relevant listing.
 - Keep the importable source project in Git; do not replace it with only the generated archive.
 
 For cloud/device/review steps, continue with [debugging-and-release.md](debugging-and-release.md).

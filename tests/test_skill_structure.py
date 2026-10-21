@@ -12,6 +12,7 @@ STUDIO_EXAMPLE_PATH = SKILL_ROOT / "assets" / "studio-importable-minimal"
 
 REFERENCE_PATHS = (
     "references/source-of-truth.md",
+    "references/aiui-0.19.md",
     "references/project-anatomy.md",
     "references/ink-authoring.md",
     "references/interaction-and-design.md",
@@ -69,8 +70,8 @@ class SkillStructureTests(unittest.TestCase):
         ):
             self.assertIn(term, description)
 
-    def test_routes_to_exactly_the_eight_planned_references(self):
-        discovered = set(re.findall(r"references/[a-z0-9-]+\.md", self.body))
+    def test_routes_to_the_version_and_task_references(self):
+        discovered = set(re.findall(r"references/[a-z0-9.-]+\.md", self.body))
         self.assertEqual(set(REFERENCE_PATHS), discovered)
         for path in REFERENCE_PATHS:
             self.assertIn(f"`{path}`", self.body)
@@ -96,6 +97,7 @@ class SkillStructureTests(unittest.TestCase):
             "repository root or explicitly named subdirectory",
             "0.17.0",
             "0.18",
+            "0.19.0",
         ):
             self.assertIn(phrase, self.body)
         self.assertRegex(

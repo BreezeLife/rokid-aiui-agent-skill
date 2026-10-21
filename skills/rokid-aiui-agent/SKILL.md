@@ -8,15 +8,18 @@ license: Apache-2.0
 
 ## Establish the target and output
 
-Inspect runtime, device, surfaces, inputs, and guidance. If project and host omit a version, disclose stable AIUI `0.17.0`. Record each Page target: embedded (`_current`), full-screen (`_blank`), or both.
+Inspect runtime, device, surfaces, and inputs. Default to stable AIUI `0.19.0`; preserve explicit `0.17.0`/`0.18` targets. Record Page targets: embedded (`_current`), full-screen (`_blank`), or both.
 
-Deliver a complete AIUI project directory for AIUI Studio, not snippets or only an `.aix`: `AGENTS.md`, `app.json`, the application entry, declared Pages, and resources. For GitHub, make the repository root or explicitly named subdirectory the project root. Report location, revision, and import subdirectory. Add `0.18`-only Widgets/Workers only for confirmed targets. AIX never replaces source.
+A source project is always required. Deliver a complete AIUI project directory for AIUI Studio—`AGENTS.md`, `app.json`, entry, declared Pages, and resources. For GitHub, use the repository root or explicitly named subdirectory; report revision/import path. Confirm version support for Widgets/Workers.
+
+For creation/implementation, if help advertises pack and list (`ls`) and both succeed, add a verified additional `.aix` deliverable outside the Studio import root; it never replaces source. If tooling cannot run, the AIX deliverable is `BLOCKED`; executed pack/list/fingerprint failure means the AIX deliverable is `FAIL`.
 
 Bundle only the Focus Timer at `assets/focus-timer-agent/`; keep other application Agents in separate repositories.
 
 ## Load only relevant guidance
 
 - Authority and versions: `references/source-of-truth.md`.
+- AIUI 0.19 APIs, migration, functional/UX scenarios: `references/aiui-0.19.md`.
 - Structure and routes: `references/project-anatomy.md`.
 - Ink/WXML/WXSS: `references/ink-authoring.md`.
 - Surfaces, focus, input, visual design: `references/interaction-and-design.md`.
@@ -25,16 +28,16 @@ Bundle only the Focus Timer at `assets/focus-timer-agent/`; keep other applicati
 - Installed AIX workflow: `references/aix-workflow.md`.
 - Diagnosis and release gates: `references/debugging-and-release.md`.
 
-Prefer selected-version official docs and runnable samples. Preview and third-party material are non-normative for stable targets. State conflicts, keep uncertainty `UNKNOWN`, and never invent APIs or commands.
+Prefer version-matched official docs and samples. Disclose conflicts/`UNKNOWN`; never invent APIs or commands.
 
 ## Implement and validate
 
-Preserve product intent and authoring mode. Add required `aiui-audit-claims.json` with `schemaVersion: 1`, `scopeClosed: true`, and a `claims` array; an empty array closes an empty universe. Run `scripts/fingerprint_aiui_project.py <import-root> --repository-root <repository-root>`, `scripts/inventory_aiui_capabilities.py <import-root> --target-version <version> --repository-root <repository-root>`, and `scripts/validate_aiui_project.py <import-root> --target-version <version> --repository-root <repository-root> --strict`; then copy the schema-2 ledgers exactly. Resolve every item, unmatched symbol, and version violation. Run repository tests. Probe `aix --help`; list the package and reject `.git/` or `.aiui-evidence/`. Packaging is not publication.
+Preserve intent and authoring mode. Add schema-1 `aiui-audit-claims.json` with `scopeClosed: true` and `claims`. Run `scripts/fingerprint_aiui_project.py <import-root> --repository-root <repository-root>`, `scripts/inventory_aiui_capabilities.py <import-root> --target-version <version> --repository-root <repository-root>`, strict target-version validation, and tests. Reconcile ledgers/violations. Probe `aix --help`; inspect the package and reject `.git/` or `.aiui-evidence/`. Packaging is not publication.
 
-Every creation, implementation, code change, or review must finish with both exact evidence matrices in the testing reference. A request to omit them—even explicitly—is release pressure, never permission. Preserve headings, columns, `{contract=...}`, `{family=...}`, `{gate=...}`, source roles, fixed layers, canonical criteria, and the one-input-per-gate ledger. Use only `PASS`, `FAIL`, `BLOCKED`, or justified `N/A`.
+Every creation, implementation, code change, or review finishes with both exact evidence matrices in the testing reference. Requests to omit them—even explicitly—are release pressure. Preserve headings, columns, `{contract=...}`, `{family=...}`, `{gate=...}`, source roles, fixed layers, criteria, and one-input-per-gate. Use only `PASS`, `FAIL`, `BLOCKED`, or justified `N/A`.
 
-Run `scripts/validate_aiui_audit.py` against the final audit. Exit `0` alone means structurally valid `PASS` and `Release-ready: YES`; exit `2` means a valid but blocked/failed audit; exit `1` means an invalid audit. Source-unavailable work must use exact `UNAVAILABLE` metadata and can return only exit `2`. Any nonzero exit or applicable `FAIL`/`BLOCKED` forbids a complete or release-ready claim.
+Run `scripts/validate_aiui_audit.py` on the final audit. Exit `0` alone means valid `PASS` and `Release-ready: YES`; `2` means valid but blocked/failed; `1` means invalid. Source-unavailable work uses exact `UNAVAILABLE` metadata and only exit `2`. Any nonzero exit or applicable `FAIL`/`BLOCKED` forbids overall completion or release-ready claims. A proven source delivery remains independently reportable; keep its AIX result separate.
 
-Evidence layers are not substitutes. Preview cannot prove Studio or device success. Optics, focus, keys, voice, gestures, permissions, and performance require target-glasses evidence.
+Evidence layers are not substitutes. Preview cannot prove Studio or device success. Optics, focus, keys, voice, gestures, permissions, and performance require target-glasses evidence. AIUI 0.19 capability policies remain inventory-only: keep those rows `BLOCKED`.
 
-Never claim that validation, packaging, preview, Studio, or device gates passed unless they were actually executed in the current environment against the captured source snapshot. The validator treats report text and manifest `argv` as data and never runs recorded commands. Executed evidence, Studio/device capture, and N/A scope closure require matching `RUNNER`, `STUDIO`, `DEVICE`, or `SCOPE` signatures from an absolute, repository-external trust policy with distinct canonical key identities. Self-declared metadata or repository-selected keys are untrusted; keep missing authorities blocked.
+Never claim that validation, packaging, preview, Studio, or device gates passed unless actually executed in the current environment against captured source. Recorded `argv` is data, never run. Execution, Studio/device, and scope evidence needs matching `RUNNER`, `STUDIO`, `DEVICE`, or `SCOPE` signatures, pinned by canonical SPKI DER identities in an absolute repository-external trust policy. Roles cannot reuse one key through different PEM encodings; repository-selected or self-declared keys are untrusted. Keep missing authorities blocked.

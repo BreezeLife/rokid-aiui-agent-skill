@@ -2,9 +2,11 @@
 
 Read this before using any component, JavaScript API, permission, device capability, Widget, or Agent Worker.
 
+Default new work to **0.19.0** and open [aiui-0.19.md](aiui-0.19.md) for its narrow source map, compatibility changes, and functional/UX scenarios. The older maps below are retained only for explicitly versioned projects; they do not override the default or authorize newer capability claims.
+
 ## The rule
 
-Never infer AIUI support from a browser, WeChat Mini Program, TypeScript type, or similarly named API. The upstream `aiui-dev` Skill's strongest reusable rule is to route each capability to a narrow official reference and not guess. This reference preserves that discipline while applying a 0.17-stable default and a separately gated 0.18 layer.
+Never infer AIUI support from a browser, WeChat Mini Program, TypeScript type, or similarly named API. Route each capability to a narrow version-matched official reference and do not guess.
 
 For every capability:
 
@@ -17,9 +19,15 @@ For every capability:
 
 If any step is unknown, say so. Do not fabricate an API signature, event, permission name, or polyfill guarantee.
 
-## 0.17 stable lookup map
+## 0.19 capability boundary
 
-Use commit `88e70bb0382525c1a93ef077c2401dcc31a273ce` for default-compatible work:
+Use official commit `7d62c2d9ac1cdc1389ba06ed0651b395903accff` through the [0.19 source map](aiui-0.19.md#find-the-exact-contract). Check API availability, positive/negative behavior, and lifecycle cleanup separately. Network state is a hint; WebRTC needs real device connectivity and application signaling, supports audio/data only, and is unavailable to Agent Workers. `wx.canIUse()` does not prove permission or hardware availability.
+
+The audit's 0.19 policy currently provides inventory only: **all capability rows remain `BLOCKED`** pending an independent version-specific source policy and matching evidence. No 0.17 `PASS` or source-SHA substitution grants 0.19 release readiness.
+
+## Explicit 0.17 lookup map
+
+Use commit `88e70bb0382525c1a93ef077c2401dcc31a273ce` only for explicit 0.17 compatibility:
 
 | Need | Authoritative starting point |
 | --- | --- |
@@ -38,13 +46,15 @@ The upstream bundled component/API summaries are useful indexes, but not exhaust
 
 ## Permissions
 
-Declare only exact, documented permissions and only when inspected code uses them. The stable pinned capabilities manifest shows `CAMERA` on [line 57](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/samples/capabilities/app.json#L57). Use that single line only as CAMERA declaration evidence: the surrounding permission array also contains GEOLOCATION and RECORD_AUDIO, while lines 5–54 contain Widget declarations, so never copy the full array or manifest as a clean 0.17 template. `RECORD_AUDIO` elsewhere in the sample does not prove that an unqualified voice feature uses SpeechRecognition, `onVoiceWakeup`, or any permission; inspect the actual mechanism first.
+For 0.19, the documented declarations for location, camera, and microphone are `GEOLOCATION`, `CAMERA`, and `RECORD_AUDIO`, respectively. The separate `SPEECH_RECOGNITION` permission was removed; external-audio recognition does not itself open a microphone. See the [0.19 compatibility checklist](aiui-0.19.md#compatibility-checks-before-changing-existing-code). Declare only exact permissions used by inspected code and handle platform authorization separately.
+
+For explicit 0.17 work, the pinned capabilities manifest shows `CAMERA` on [line 57](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/samples/capabilities/app.json#L57). Use that single line only as CAMERA declaration evidence: the surrounding permission array also contains GEOLOCATION and RECORD_AUDIO, while lines 5–54 contain Widget declarations, so never copy the full array or manifest as a clean 0.17 template. `RECORD_AUDIO` elsewhere in the sample does not prove that an unqualified voice feature uses SpeechRecognition, `onVoiceWakeup`, or any permission; inspect the actual mechanism first.
 
 At runtime, handle denial/unavailability without hiding the main task. Before platform review, permission declarations, code behavior, and the human-readable purpose must agree; see [debugging-and-release.md](debugging-and-release.md).
 
-## 0.18 preview/additions gate
+## Explicit 0.18 and historical preview sources
 
-Only use these when the user explicitly targets 0.18 or the host capability is proved:
+Widgets and Agent Workers are available to a 0.19 target; for an explicit 0.18 target, confirm its version-matched contract before using:
 
 - Widgets declared in `app.json.widgets`, with `1x1`/`1x2` `.ink` entries
 - Agent Workers declared in `app.json.agentWorkers`

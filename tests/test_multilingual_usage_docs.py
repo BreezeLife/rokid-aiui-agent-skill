@@ -53,7 +53,7 @@ PROMPT_MARKERS = (
 
 PROMPT_REQUIRED_LITERALS = {
     "new-project": (
-        "AIUI 0.17.0",
+        "AIUI 0.19.0",
         "_current",
         "_blank",
         "AIUI Studio",
@@ -62,7 +62,7 @@ PROMPT_REQUIRED_LITERALS = {
         "BLOCKED",
     ),
     "timer": (
-        "AIUI 0.17.0",
+        "AIUI 0.19.0",
         "durationSeconds",
         "idle",
         "running",
@@ -212,6 +212,8 @@ SECTION_REQUIRED_LITERALS = {
         "aiui-audit-claims.json",
         "0.17.0",
         "0.18",
+        "0.19.0",
+        "references/aiui-0.19.md",
     ),
     "install": (
         "npx skills add BreezeLife/rokid-aiui-agent-skill --skill rokid-aiui-agent",
@@ -266,7 +268,7 @@ SECTION_REQUIRED_LITERALS = {
     ),
     "completion": ("FAIL", "BLOCKED", "Release-ready: YES"),
     "examples": ("skills/rokid-aiui-agent/assets/focus-timer-agent",),
-    "troubleshooting": ("--help", "preview", "pack", "BLOCKED", "0.18"),
+    "troubleshooting": ("--help", "preview", "pack", "BLOCKED", "0.19.0"),
 }
 
 
@@ -322,6 +324,7 @@ class MultilingualUsageDocsTests(unittest.TestCase):
             "$rokid-aiui-agent",
         )
         prompt = prompts[0]
+        self.assertIn("AIUI 0.19.0", prompt)
         self.assertIn("/absolute/path/to/my_focus_timer", prompt)
         self.assertRegex(prompt, r"(?:独立|单独)[^。]*(?:目录|路径)")
         self.assertRegex(
@@ -1207,7 +1210,7 @@ class MultilingualUsageDocsTests(unittest.TestCase):
         )
 
         version = sections["## 版本边界"]
-        for literal in ("默认", "AIUI `0.17.0`", "`0.18`", "明确支持"):
+        for literal in ("默认", "AIUI `0.19.0`", "`0.17.0`", "`0.18.0`"):
             self.assertIn(literal, version)
 
         repository = sections["## 仓库内容"]
@@ -1301,6 +1304,7 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                     self.assertIn(literal, guide)
                 self.assertIn("0.17.0", guide)
                 self.assertIn("0.18", guide)
+                self.assertIn("0.19.0", guide)
                 self.assertRegex(guide, r"(?m)^Repository: https://github.com/BreezeLife/rokid-aiui-agent-skill$")
                 self.assertRegex(guide, r"(?m)^Ref: main$")
                 self.assertRegex(
@@ -1308,6 +1312,36 @@ class MultilingualUsageDocsTests(unittest.TestCase):
                     r"(?m)^Directory: skills/rokid-aiui-agent/assets/focus-timer-agent$",
                 )
                 self.assertNotRegex(executable_bash(guide), DANGEROUS_AIX_COMMAND_RE)
+
+    def test_019_default_preserves_explicit_old_targets_and_blocked_policy(self) -> None:
+        default_terms = {"zh-CN": "默认", "en": "default", "ja": "既定"}
+        preserve_terms = {"zh-CN": "保留", "en": "preserve", "ja": "維持"}
+        official_url = (
+            "https://open.rokid.com/aiui/guide/quickstart/intro"
+            "?version=0.19.0&lang=en-US"
+        )
+        for language, guide in self.guides.items():
+            with self.subTest(language=language):
+                scope = self.section(guide, "scope")
+                self.assertIn(default_terms[language].casefold(), scope.casefold())
+                self.assertIn(preserve_terms[language].casefold(), scope.casefold())
+                self.assertIn(official_url, scope)
+                examples = self.section(guide, "examples")
+                self.assertIn("0.17.0", examples)
+                self.assertIn("fixture", examples)
+                verify = self.section(guide, "verify")
+                self.assertEqual(2, verify.count("--target-version 0.17.0"))
+                self.assertIn('AIUI_TARGET_VERSION="0.19.0"', verify)
+                self.assertEqual(2, verify.count('--target-version "$AIUI_TARGET_VERSION"'))
+                audit = self.section(guide, "audit")
+                policy_paragraphs = [
+                    paragraph
+                    for paragraph in audit.split("\n\n")
+                    if "inventory-only" in paragraph
+                ]
+                self.assertTrue(policy_paragraphs)
+                for literal in ("0.19.0", "PASS policy", "BLOCKED"):
+                    self.assertIn(literal, policy_paragraphs[0])
 
     def test_each_semantic_section_carries_its_own_contract(self) -> None:
         for language, guide in self.guides.items():

@@ -20,6 +20,129 @@ SCRIPT = (
 
 
 class InventoryAiuiCapabilitiesTests(unittest.TestCase):
+    def test_aiui_019_inventory_is_deterministic_and_version_specific(self) -> None:
+        project = ROOT / "tests/fixtures/valid-widget-worker"
+        first = self.run_script(project, target_version="0.19.0", repository_root=ROOT)
+        second = self.run_script(project, target_version="0.19.0", repository_root=ROOT)
+        self.assertEqual(0, first.returncode, first.stderr)
+        self.assertEqual(first.stdout, second.stdout)
+        report = json.loads(first.stdout)
+        self.assertEqual("0.19.0", report["targetVersion"])
+        self.assertEqual("aiui-0.19-inventory-v1", report["policyVersion"])
+        self.assertEqual([], report["versionViolations"])
+        self.assertTrue({"Widget", "Agent Worker"}.issubset(report["supportedSurfaces"]))
+
+    def test_new_platform_globals_and_canvas_exports_are_not_silent(self) -> None:
+        snippets = {
+            "rtc": "const peer = new RTCPeerConnection();",
+            "data-channel": "const channelType = RTCDataChannel;",
+            "readable": "const stream = new ReadableStream({});",
+            "writable": "const stream = new WritableStream({});",
+            "transform": "const stream = new TransformStream({});",
+            "encoder": "const encoder = new TextEncoderStream();",
+            "decoder": "const decoder = new TextDecoderStream();",
+            "crypto": "crypto.subtle.digest('SHA-256', bytes);",
+            "crypto-alias": "const digest = crypto.subtle.digest;",
+            "canvas": "const canvas = new Canvas(160, 80);",
+            "canvas-blob": "canvas.convertToBlob();",
+            "canvas-image": "createImageBlob(bitmap);",
+            "canvas-export-alias": "const encode = canvas.convertToBlob;",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages").mkdir()
+            (project / "app.json").write_text('{"pages":["pages/index"]}\n')
+            page = project / "pages/index.ink"
+            for label, body in snippets.items():
+                with self.subTest(api=label):
+                    page.write_text(
+                        "<page><text>Ready</text></page>\n"
+                        "<script setup>export default { onLoad() { " + body + " } };</script>\n"
+                    )
+                    result = self.run_script(project, target_version="0.19.0")
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    report = json.loads(result.stdout)
+                    self.assertTrue(report["unmatchedSymbols"], report)
+                    self.assertTrue(any(item["family"] == "project.unregistered" for item in report["items"]))
+
+            page.write_text(
+                "<page><text>Ready</text></page>\n<script setup>export default { onLoad() { "
+                "const text = 'RTCPeerConnection crypto.subtle.digest canvas.convertToBlob';"
+                "/* new ReadableStream(); canvas.createImageBlob(); */"
+                "} };</script>\n"
+            )
+            ignored = self.run_script(project, target_version="0.19.0")
+            self.assertEqual(0, ignored.returncode, ignored.stderr)
+            self.assertEqual([], json.loads(ignored.stdout)["unmatchedSymbols"])
+
+    def test_stream_encoding_and_rtc_candidates_have_independent_quarantine_gates(self) -> None:
+        snippets = {
+            "text-encoder": "const encoder = new TextEncoder();",
+            "text-decoder": "const decoder = new TextDecoder();",
+            "rtc-description": "new RTCSessionDescription(init);",
+            "rtc-candidate": "new RTCIceCandidate(init);",
+            "encode-into": "encoder.encodeInto('你好', target);",
+            "encode-alias": "const encode = encoder.encodeInto;",
+            "tee": "const stream = response.body; stream.tee();",
+            "tee-chain": "response.body.tee();",
+            "tee-optional": "response.body?.tee();",
+            "tee-spaced": "response . body . tee();",
+            "tee-alias": "const tee = response.body.tee;",
+            "byob": "response.body.getReader({mode: 'byob'});",
+            "pipe-through": "response.body.pipeThrough(transform);",
+            "pipe-to": "response.body.pipeTo(destination);",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "pages").mkdir()
+            (project / "app.json").write_text('{"pages":["pages/index"]}\n')
+            page = project / "pages/index.ink"
+            for label, body in snippets.items():
+                with self.subTest(api=label):
+                    page.write_text(
+                        "<page><text>Ready</text></page>\n"
+                        "<script setup>export default { onLoad() { " + body + " } };</script>\n"
+                    )
+                    result = self.run_script(project, target_version="0.19.0")
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    report = json.loads(result.stdout)
+                    self.assertTrue(report["unmatchedSymbols"], report)
+                    quarantines = [item for item in report["items"] if item["family"] == "project.unregistered"]
+                    self.assertTrue(quarantines, report)
+                    self.assertTrue(all(item["versionFeature"] == "unresolved" for item in quarantines))
+
+            page.write_text(
+                "<page><text>Ready</text></page>\n"
+                "<script setup>export default { async onLoad() { "
+                "const response = await fetch('/api/stream'); "
+                "response.body.tee(); response.body.pipeTo(destination); } };</script>\n"
+            )
+            result = self.run_script(project, target_version="0.17.0")
+            self.assertEqual(0, result.returncode, result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual([], report["versionViolations"])
+            self.assertTrue(any(item["family"] == "network.https" for item in report["items"]))
+            self.assertEqual(2, len(report["unmatchedSymbols"]))
+
+    def test_new_api_quarantine_ignores_literals_and_local_or_imported_globals(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            (project / "app.json").write_text('{"pages":[]}\n')
+            (project / "local.js").write_text(
+                "import { TextDecoder, RTCIceCandidate } from './local-runtime';\n"
+                "new TextDecoder(); new RTCIceCandidate();\n"
+                "function local(TextEncoder, RTCSessionDescription) {\n"
+                "  new TextEncoder(); new RTCSessionDescription();\n"
+                "}\n"
+                "const quoted = 'new TextEncoder(); stream.tee(); encoder.encodeInto();';\n"
+                "const pattern = /response.body.tee\\(\\)/;\n"
+                "// response.body.pipeThrough(transform);\n"
+                "/* response.body.getReader({mode: 'byob'}); */\n"
+            )
+            result = self.run_script(project, target_version="0.19.0")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual([], json.loads(result.stdout)["unmatchedSymbols"])
+
     def run_script(
         self,
         project: Path,

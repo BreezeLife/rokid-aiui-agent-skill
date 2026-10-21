@@ -5,7 +5,7 @@
 <!-- usage:scope -->
 ## 1. この Skill でできること
 
-`rokid-aiui-agent` は、Agent Skills に対応したコーディングエージェントを使って、ROKID AIUI Agent プロジェクトを新規作成、変更、レビュー、デバッグ、検証するための Skill です。標準の成果物は、断片的なコードや `.aix` パッケージだけではなく、編集可能で、そのディレクトリ自体を AIUI Studio のインポートルートとして選択できる完全なソースプロジェクトです。
+`rokid-aiui-agent` は、Agent Skills に対応したコーディングエージェントを使って、ROKID AIUI Agent プロジェクトを新規作成、変更、レビュー、デバッグ、検証するための Skill です。新規作成・実装では、そのディレクトリ自体を AIUI Studio のインポートルートにできる完全で編集可能なソースプロジェクトが常に必須の成果物であり、断片的なコードや `.aix` パッケージだけでは要件を満たしません。選択した AIX CLI のヘルプに `pack` と `list`（または `ls`）が表示され、実際のパッケージ作成と内容一覧の検証に成功した場合、Skill は標準でインポートルート外に `.aix` を追加成果物として出力します。`.aix` は配布用の追加成果物であり、ソースを置き換えず、AIUI Studio のインポートルートとして選択しません。
 
 新規作成または実装を依頼すると、通常は次の成果物が生成されます。
 
@@ -13,11 +13,11 @@
 - 製品として宣言する機能範囲を閉じるための `aiui-audit-claims.json`
 - 正確なインポートルートに結び付いたソースフィンガープリント、機能インベントリ、厳格な構造検証、ビジネスロジックテストの結果
 - 必須の `## Project UX evidence matrix` と `## Per-capability matrix`
-- 使用中の AIX CLI が実際に対応している場合の preview、pack、list の結果
+- 使用中の AIX CLI が対応し、実際の pack/list に成功した場合は、インポートルート外の追加 `.aix` と、そのパス、バイト数、SHA-256、内容一覧の検証結果
 - ローカルパス、または GitHub の Repository、Ref、Directory の3点からなるインポート情報
 - 未実施の AIUI Studio、物理デバイス、署名付きエビデンスのゲートを `BLOCKED` と明記した結果
 
-プロジェクトとホストのどちらにも対象バージョンが指定されていない場合、Skill はその前提を明示し、AIUI `0.17.0` 安定版を基準にします。Widget や Agent Worker などの `0.18` 向け機能は、対象環境での対応が明確に確認された場合にのみ生成します。
+新規プロジェクトでバージョンが未指定の場合、既定の対象は AIUI `0.19.0` です。既存プロジェクトとホストで明示された `0.17.0`、`0.18.0` などの対象は維持し、Skill の更新だけでは移行しません。同梱のタイマーと最小プロジェクトは `0.17.0` 互換性 fixture として残します。バージョンの境界は [AIUI 0.19 ガイド](../skills/rokid-aiui-agent/references/aiui-0.19.md) と[公式 0.19.0 クイックスタート](https://open.rokid.com/aiui/guide/quickstart/intro?version=0.19.0&lang=en-US) を参照してください。
 
 製品固有の機能宣言がないプロジェクトでも、インポートルートに `aiui-audit-claims.json` が必要です。宣言対象が空であることを閉じた範囲として示す最小の schema 1 は次のとおりです。製品固有の機能がある場合は、実際の範囲に合わせて `claims` を追加してください。
 
@@ -69,11 +69,13 @@ Skill の暗黙的な検出に対応するホストでは、AIUI の開発、レ
 
 ```text
 $rokid-aiui-agent を使用して、独立したディレクトリ /absolute/path/to/weather-agent に完全な ROKID AIUI 天気 Agent を作成してください。
-対象は AIUI 0.17.0 とし、会話内の _current と全画面の _blank の両方で Page を表示してください。
+対象は AIUI 0.19.0 とし、会話内の _current と全画面の _blank の両方で Page を表示してください。
 まず対象バージョンに合う公式情報を確認し、ブラウザや WeChat Mini Program の知識から API を推測しないでください。
 AIUI Studio に直接インポートできる完全なソースディレクトリを納品し、決定論的テスト、厳格なプロジェクト検証、
 機能インベントリ、AIX preview/pack/list（CLI のヘルプで対応を確認できたものだけ）を実行してください。
 必須の Project UX evidence matrix と Per-capability matrix も出力し、実行していない Studio と実機の項目は BLOCKED のままにしてください。
+実際の pack/list に成功した場合は、`.aix` をソースディレクトリの外に出力し、AIUI Studio のインポートルートとは分離して標準の追加成果物として納品してください。
+実行できない場合は BLOCKED、実行して失敗した場合は FAIL とし、存在しないパッケージや成功結果を作らないでください。
 ```
 
 <!-- prompt:timer -->
@@ -81,7 +83,7 @@ AIUI Studio に直接インポートできる完全なソースディレクト�
 
 ```text
 $rokid-aiui-agent を使用して、Rokid Glasses 向けのフォーカスタイマーを作成し、独立したディレクトリ /absolute/path/to/my-focus-timer に出力してください。
-AIUI 0.17.0 の Page-only プロジェクトとし、ディレクトリ自体を AIUI Studio に直接インポートできるようにしてください。
+AIUI 0.19.0 の Page-only プロジェクトとし、ディレクトリ自体を AIUI Studio に直接インポートできるようにしてください。
 1～3600 の整数 durationSeconds と任意の label を受け取り、未指定時は 600 秒を使用してください。
 idle、running、paused、finished、error を実装し、絶対終了時刻から残り時間を計算してください。
 hide/show では時間を再同期し、unload ではタイマーを解放してください。
@@ -91,7 +93,8 @@ _current と _blank にはそれぞれ適した情報量を設計し、ボタン
 
 決定論的ロジックテスト、厳格なプロジェクト検証、機能インベントリと、AIX が対応する preview/pack/list を実行してください。
 完全な Project UX evidence matrix と Per-capability matrix を出力し、実施していない Studio と物理デバイスのゲートは必ず BLOCKED のままにしてください。
-最後に、正確なローカルインポートルート、または GitHub の Repository、Ref、Directory を報告してください。
+実際の pack/list に成功した場合は、`.aix` をソースディレクトリの外に出力し、AIUI Studio のインポートルートとは分離して標準の追加成果物として納品してください。
+最後に、正確なローカルインポートルート、または GitHub の Repository、Ref、Directory と、生成に成功した `.aix` の絶対パスおよび検証情報を報告してください。
 ```
 
 <!-- prompt:review -->
@@ -99,7 +102,7 @@ _current と _blank にはそれぞれ適した情報量を設計し、ボタン
 
 ```text
 $rokid-aiui-agent を使用して /absolute/path/to/aiui-project をレビューしてください。ただし、ソースコードは変更しないでください。
-正確な AIUI Studio インポートルート、対象バージョン、Page/Widget/Agent Worker、_current/_blank、すべての入力と権限を確認してください。
+正確な AIUI Studio インポートルートを確認し、対象バージョンを維持して、Page/Widget/Agent Worker、_current/_blank、すべての入力と権限を調べてください。
 ソースフィンガープリント、機能インベントリ、厳格なプロジェクト検証を実行し、リポジトリに既にある安全なテストだけを実行してください。
 問題を重大度順に示し、Project UX evidence matrix と Per-capability matrix を生成してください。
 現在の revision に対する実行エビデンスがない項目を PASS にしないでください。
@@ -121,10 +124,10 @@ $rokid-aiui-agent を使用して、現在の AIUI プロジェクトで「タ�
 ### 検証、プレビュー、パッケージ作成を行う
 
 ```text
-$rokid-aiui-agent を使用して skills/rokid-aiui-agent/assets/focus-timer-agent を検証してください。最初に scripts/fingerprint_aiui_project.py、
+$rokid-aiui-agent を使用して skills/rokid-aiui-agent/assets/focus-timer-agent を既存の AIUI 0.17.0 対象で検証してください。最初に scripts/fingerprint_aiui_project.py、
 scripts/inventory_aiui_capabilities.py、scripts/validate_aiui_project.py による厳格なプロジェクト検証を順に実行してください。
 続けて deterministic tests（決定論的テスト）を実行してください。次に現在の aix --help を確認して、AIX が実際に公開している preview、pack、list だけを実行してください。アップロードやデプロイは行わないでください。
-.aix の内容一覧に .git または .aiui-evidence が含まれていないことを確認し、実行コマンド、終了コード、成果物のパス、現在のソース revision を報告してください。
+.aix を AIUI Studio のインポートルート外に保存し、内容一覧に .git または .aiui-evidence が含まれていないことを確認してください。実行コマンド、終了コード、ソースフィンガープリント、成果物の絶対パス、バイト数、SHA-256、現在のソース revision を報告してください。
 Project UX evidence matrix と Per-capability matrix も完成させ、scripts/validate_aiui_audit.py で最終監査を検証してください。
 AIX のブラウザプレビューを AIUI Studio または実機のエビデンスとして扱わないでください。
 ```
@@ -159,12 +162,15 @@ npm ci --ignore-scripts --no-audit --no-fund
 AIX_BIN="$PWD/node_modules/.bin/aix"
 AIUI_PREVIEW_DIR="$(mktemp -d "${TMPDIR:-/tmp}/focus-timer-preview.XXXXXX")"
 AIUI_PREVIEW_HTML="$AIUI_PREVIEW_DIR/index.html"
+AIUI_AIX_OUTPUT="${AIUI_IMPORT_ROOT%/}.aix"
 export AIX_BIN
 "$AIX_BIN" --help
 "$AIX_BIN" preview "$AIUI_IMPORT_ROOT" --html-out "$AIUI_PREVIEW_HTML"
 test -s "$AIUI_PREVIEW_HTML"
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/focus-timer-agent
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "$AIUI_IMPORT_ROOT" "$AIUI_AIX_OUTPUT" "$AIUI_REPOSITORY_ROOT"
 ```
+
+永続成果物モードは既存パスの上書きと、正確な Studio インポートルート内への出力を拒否します。成功時は最終パッケージを list して検証し、`AIUI source fingerprint`、`AIX artifact`、`AIX bytes`、`AIX SHA-256` を出力します。互換性のある CLI がない、インストールできない、または選択した CLI が `pack` と `list` / `ls` に未対応の場合、AIX 成果物は `BLOCKED` です。実行した `pack` または `list` が失敗した場合、内容一覧が不正な場合、またはソースフィンガープリントが変化した場合、AIX 成果物は `FAIL` です。成功した場合だけ `.aix` を納品済みと報告し、ソースプロジェクトは別の必須成果物として維持します。
 
 監査バリデーターは、レポートと記録された `argv` を実行由来のデータとして検証しますが、記録されたコマンド自体は実行しません。現在の環境で実際に取得され、必要な署名主体の署名が付いた結果だけが実行エビデンスになります。
 
@@ -185,6 +191,21 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_audit.py AUDIT.md \
 | `2` | `valid-not-release-ready` | 構造は有効だが、結果が `FAIL` または `BLOCKED` のためリリース不可 |
 | `1` | `invalid-or-untrusted` | レポートが無効、古い、改ざんされている、または信頼されていない |
 
+新しい AIUI `0.19.0` プロジェクトには、そのプロジェクトのリポジトリとインポートルートを指定します。次は独立した例であり、上記の同梱タイマー向け `0.17.0` コマンドは変更しません。
+
+```bash
+AIUI_REPOSITORY_ROOT="/absolute/path/to/new-agent-repository"
+AIUI_IMPORT_ROOT="$AIUI_REPOSITORY_ROOT/agent-app"
+AIUI_TARGET_VERSION="0.19.0"
+
+python3 skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py \
+  "$AIUI_IMPORT_ROOT" --repository-root "$AIUI_REPOSITORY_ROOT"
+python3 skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py \
+  "$AIUI_IMPORT_ROOT" --target-version "$AIUI_TARGET_VERSION" --repository-root "$AIUI_REPOSITORY_ROOT"
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py \
+  "$AIUI_IMPORT_ROOT" --target-version "$AIUI_TARGET_VERSION" --repository-root "$AIUI_REPOSITORY_ROOT" --strict
+```
+
 <!-- usage:audit -->
 ## 6. 必須の UX・機能検証
 
@@ -192,6 +213,8 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_audit.py AUDIT.md \
 
 - `## Project UX evidence matrix`：target、状態、境界値のテキスト、host/element focus、入力経路ごとの挙動、回復、ライフサイクル、単色グリーン表示、実際の光学環境、動作・性能を項目別に検証します。
 - `## Per-capability matrix`：API、コンポーネント、イベント、route、宣言、権限、fallback、cleanup を機能ごとに検証し、固定されたバージョンの公式情報とスキャナーの gate に結び付けます。
+
+インベントリと監査ツールは AIUI `0.19.0` を受け付けますが、機能は inventory-only です。独立した `0.19.0` PASS policy は未登録のため、機能の行は `BLOCKED` のままです。ソース、ロジック、パッケージの検証に成功しても、この条件は省略できません。Page からの Widget 起動、Toast、Worker は [0.19 リファレンス](../skills/rokid-aiui-agent/references/aiui-0.19.md) に沿って正常系、利用不可や拒否、入力の繰り返し、ライフサイクル終了時の解放を確認し、必要な各レイヤーのエビデンスを取得してください。
 
 結果に使用できる値は次の4つだけです。
 
@@ -205,7 +228,7 @@ python3 skills/rokid-aiui-agent/scripts/validate_aiui_audit.py AUDIT.md \
 <!-- usage:import -->
 ## 7. AIUI Studio にインポートする
 
-ローカルインポートでは、`app.json` が直接含まれる AIUI プロジェクトディレクトリを選択してください。プロジェクトがさらに深い階層にある親リポジトリを選択してはいけません。
+ローカルインポートでは、`app.json` が直接含まれる AIUI ソースプロジェクトのディレクトリを選択してください。プロジェクトがさらに深い階層にある親リポジトリや、追加成果物の `.aix` を選択してはいけません。
 
 GitHub からインポートする場合は、Repository、Ref、Directory を必ずセットで指定します。タイマーサンプルのインポート情報は次のとおりです。
 
@@ -220,15 +243,15 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 <!-- usage:completion -->
 ## 8. 完了と判断できる条件
 
-「ソースの納品が完了」とは、完全なソースプロジェクト、インポート情報、ローカル検証結果がそろっていることを意味します。これは自動的に「リリース可能」を意味しません。監査バリデーターが現在のフィンガープリントと信頼できるエビデンスに対して `0` を返し、適用対象の `FAIL` / `BLOCKED` が1件もない場合にだけ、`Release-ready: YES` と記載できます。
+「ソースの納品が完了」とは、完全なソースプロジェクト、インポート情報、ローカル検証結果がそろっていることを意味します。ソース納品と追加の AIX 納品は別々の結果です。永続パッケージが pack/list、内容一覧、ソースフィンガープリントの各検証に成功した場合だけ「`.aix` 納品済み」と報告できます。どちらの結果も自動的に「リリース可能」を意味しません。監査バリデーターが現在のフィンガープリントと信頼できるエビデンスに対して `0` を返し、適用対象の `FAIL` / `BLOCKED` が1件もない場合にだけ、`Release-ready: YES` と記載できます。
 
 正しい途中経過の例は、「厳格な構造検証、ロジックテスト、AIX pack/list は完了。AIUI Studio へのインポートと物理 Rokid Glasses 上の UX 検証は `BLOCKED`」です。
 
 <!-- usage:examples -->
 ## 9. インポート可能なサンプル
 
-- [`skills/rokid-aiui-agent/assets/studio-importable-minimal`](../skills/rokid-aiui-agent/assets/studio-importable-minimal/)：安定版向けの最小 Page プロジェクト
-- [`skills/rokid-aiui-agent/assets/focus-timer-agent`](../skills/rokid-aiui-agent/assets/focus-timer-agent/)：日本語のフォーカスタイマー
+- [`skills/rokid-aiui-agent/assets/studio-importable-minimal`](../skills/rokid-aiui-agent/assets/studio-importable-minimal/)：AIUI `0.17.0` の最小互換性 fixture
+- [`skills/rokid-aiui-agent/assets/focus-timer-agent`](../skills/rokid-aiui-agent/assets/focus-timer-agent/)：AIUI `0.17.0` 対象を維持した日本語フォーカスタイマー fixture
 
 どちらのディレクトリもインポートルートです。製品仕様を備えたサンプル Agent として、このリポジトリに含めるのはタイマーだけです。リポジトリ内の自動テストは、利用者自身の AIUI Studio と対象デバイスでの検証を代替しません。
 
@@ -237,8 +260,8 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 
 - **Skill が起動しない**：依頼文の先頭に「`$rokid-aiui-agent` を使用してください」と明記します。
 - **Studio にプロジェクトが表示されない**：選択したディレクトリに `app.json` と宣言済み Page が直接含まれていることを確認し、親ディレクトリを選ばないでください。
-- **AIX コマンドが存在しない**：使用する実行ファイルの `--help` を先に確認し、そのバージョンが実際に表示するコマンドだけを使用してください。別のブランチや古い Web サイトのコマンドをそのまま使用しないでください。
+- **AIX がない、または pack/list に未対応**：使用する実行ファイルの `--help` を先に確認し、そのバージョンが実際に表示するコマンドだけを使用してください。別のブランチや古い Web サイトのコマンドをそのまま使用せず、追加の AIX 成果物は `BLOCKED` のままにします。実行した `pack` または `list` が失敗した場合は `FAIL` とします。
 - **preview は成功するが眼鏡上で動作しない**：preview は `AIX` レイヤーのエビデンスにすぎません。Studio host、センサー、ハードウェアキー、フォーカス、権限、光学表示を証明するものではありません。
 - **眼鏡がない場合に N/A と記載できるか**：できません。適用対象となる実機項目は `BLOCKED` です。
 - **pack は公開と同じか**：同じではありません。pack は `.aix` を生成して内容を確認するだけです。アップロード、プラットフォーム審査、デプロイ、実機検証は後続の別工程です。
-- **Widget / Agent Worker を使用できる条件**：対象 runtime が対応する `0.18` の機能を明確にサポートし、そのバージョン向けの情報源とエビデンス方針が確認できた場合に限ります。
+- **Widget / Agent Worker を使用できる条件**：対象 runtime、API、manifest、ライフサイクルの契約を確認してください。新規プロジェクトは `0.19.0` を対象とし、機能のインベントリを生成できます。ただし、独立したバージョン方針の登録と必要なエビデンスがそろうまでは、監査の判定は `BLOCKED` です。

@@ -76,6 +76,8 @@ jobs:
         run: |
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-minimal --target-version 0.17.0 --repository-root . --strict
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-widget-worker --target-version 0.18.0 --repository-root . --strict
+          python skills/rokid-aiui-agent/scripts/validate_aiui_project.py tests/fixtures/valid-aiui-019 --target-version 0.19.0 --repository-root . --strict
+          python skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py tests/fixtures/valid-aiui-019 --target-version 0.19.0 --repository-root . > "$RUNNER_TEMP/aiui-019-inventory.json"
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/studio-importable-minimal --target-version 0.17.0 --repository-root . --strict
           python skills/rokid-aiui-agent/scripts/validate_aiui_project.py skills/rokid-aiui-agent/assets/focus-timer-agent --target-version 0.17.0 --repository-root . --strict
 
@@ -111,8 +113,25 @@ jobs:
           AIX_BIN: ${{ github.workspace }}/node_modules/.bin/aix
         run: |
           bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-minimal
+          bash skills/rokid-aiui-agent/scripts/smoke_aix.sh tests/fixtures/valid-aiui-019
           bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/studio-importable-minimal
           bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/focus-timer-agent
+
+      - name: Preserve and verify an external AIX deliverable
+        shell: bash
+        env:
+          AIX_BIN: ${{ github.workspace }}/node_modules/.bin/aix
+        run: |
+          set -euo pipefail
+          delivery_log="$RUNNER_TEMP/focus-timer-agent-aix-delivery.log"
+          delivery_aix="$RUNNER_TEMP/focus-timer-agent.aix"
+          bash skills/rokid-aiui-agent/scripts/smoke_aix.sh \
+            skills/rokid-aiui-agent/assets/focus-timer-agent \
+            "$delivery_aix" "$GITHUB_WORKSPACE" | tee "$delivery_log"
+          test -s "$delivery_aix"
+          grep -Fq "AIX artifact: $delivery_aix" "$delivery_log"
+          grep -Eq '^AIX bytes: [1-9][0-9]*$' "$delivery_log"
+          grep -Eq '^AIX SHA-256: [0-9a-f]{64}$' "$delivery_log"
 
       - name: Generate the Focus Timer Agent static preview
         shell: bash

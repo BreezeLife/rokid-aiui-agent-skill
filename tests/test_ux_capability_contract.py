@@ -46,6 +46,7 @@ AUDIT_VALIDATOR_SCRIPT = SKILL_ROOT / "scripts" / "validate_aiui_audit.py"
 STABLE_AIUI_REVISION = "88e70bb0382525c1a93ef077c2401dcc31a273ce"
 CHECKLIST_AIUI_REVISION = "63bb5f5efa2f0c11a2defca35bc00777150f43d2"
 PREVIEW_AIUI_REVISION = "8b19a87b4ba8b486c0dd4dd3fd32290d27891069"
+AIUI_019_REVISION = "7d62c2d9ac1cdc1389ba06ed0651b395903accff"
 AUDIT_EVIDENCE_DIRECTORY = ".aiui-evidence"
 UX_FAMILIES = (
     "UX-TARGET",
@@ -719,7 +720,7 @@ class UxCapabilityContractTests(unittest.TestCase):
             metadata_fields["Import root"],
         )
         canonical_version = metadata_fields["Canonical version"]
-        self.assertIn(canonical_version, {"AIUI 0.17.0", "AIUI 0.18.0"})
+        self.assertIn(canonical_version, {"AIUI 0.17.0", "AIUI 0.18.0", "AIUI 0.19.0"})
         device_environment = self.parse_device_host_metadata(
             metadata_fields["Device/host"]
         )
@@ -1070,12 +1071,14 @@ class UxCapabilityContractTests(unittest.TestCase):
             version = canonical_version.removeprefix("AIUI ")
             if version == "0.17.0":
                 expected_revision = STABLE_AIUI_REVISION
-            elif version == "0.18.0":
-                expected_revision = PREVIEW_AIUI_REVISION
+            elif version in {"0.18.0", "0.19.0"}:
+                expected_revision = (
+                    PREVIEW_AIUI_REVISION if version == "0.18.0" else AIUI_019_REVISION
+                )
                 self.assertEqual(
                     "BLOCKED",
                     row[9],
-                    "0.18 capability PASS/FAIL policy is not registered; "
+                    f"{version} capability PASS/FAIL policy is not registered; "
                     "keep the gate blocked until a version-specific contract exists",
                 )
             else:
@@ -1933,7 +1936,7 @@ class UxCapabilityContractTests(unittest.TestCase):
             self.assertIsNotNone(source, f"unverifiable source locator: {locator}")
             self.assertIn(
                 source.group("revision"),
-                {STABLE_AIUI_REVISION, PREVIEW_AIUI_REVISION},
+                {STABLE_AIUI_REVISION, PREVIEW_AIUI_REVISION, AIUI_019_REVISION},
             )
             source_path = source.group("path").rstrip("/")
             self.assertIn(
@@ -4200,6 +4203,9 @@ class UxCapabilityContractTests(unittest.TestCase):
         )
         self.assertIn("88e70bb0382525c1a93ef077c2401dcc31a273ce", authority)
         self.assertIn("63bb5f5efa2f0c11a2defca35bc00777150f43d2", authority)
+        self.assertIn("7d62c2d9ac1cdc1389ba06ed0651b395903accff", authority)
+        self.assertIn("AIUI 0.19.0", authority)
+        self.assertIn("aiui-0.19.md", self.reference)
         self.assertRegex(
             authority,
             r"(?is)reuse its general testing discipline, not its feature availability",

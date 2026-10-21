@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,8 +53,51 @@ class ValidatorFixtureTests(unittest.TestCase):
         self.assertEqual(payload["diagnostics"], [])
         self.assertEqual(payload["targetVersion"], "0.18.0")
 
-    def test_default_stable_target_rejects_preview_only_entries(self) -> None:
-        result = run_validator(FIXTURES / "valid-widget-worker", "--json")
+    def test_default_target_is_aiui_019(self) -> None:
+        result = run_validator(FIXTURES / "valid-aiui-019", "--strict", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout)["targetVersion"], "0.19.0")
+
+    def test_aiui_019_widget_metadata_and_placement_are_version_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "agent"
+            shutil.copytree(FIXTURES / "valid-widget-worker", project)
+            manifest = json.loads((project / "app.json").read_text())
+            widget = manifest["widgets"][0]
+            for field in ("displayName", "description"):
+                for invalid in (None, "", "   ", 12):
+                    with self.subTest(field=field, invalid=invalid):
+                        widget.update(displayName="Status", description="Shows status.")
+                        if invalid is None:
+                            widget.pop(field)
+                        else:
+                            widget[field] = invalid
+                        (project / "app.json").write_text(json.dumps(manifest))
+                        result = run_validator(project, "--target-version", "0.19.0", "--json")
+                        self.assertEqual(1, result.returncode, result.stdout)
+                        self.assertIn("WIDGET_METADATA_INVALID", diagnostic_codes(result))
+            widget.update(displayName="Status", description="Shows status.")
+            widget["placement"] = "floating"
+            (project / "app.json").write_text(json.dumps(manifest))
+            invalid = run_validator(project, "--target-version", "0.19.0", "--json")
+            self.assertIn("WIDGET_PLACEMENT_INVALID", diagnostic_codes(invalid))
+            for placement in (None, "persistent", "overlay"):
+                with self.subTest(placement=placement):
+                    if placement is None:
+                        widget.pop("placement", None)
+                    else:
+                        widget["placement"] = placement
+                    (project / "app.json").write_text(json.dumps(manifest))
+                    valid = run_validator(project, "--strict", "--json")
+                    self.assertEqual(0, valid.returncode, valid.stdout)
+        legacy = run_validator(FIXTURES / "valid-widget-worker", "--target-version", "0.18.0", "--strict", "--json")
+        self.assertEqual(0, legacy.returncode, legacy.stdout)
+
+    def test_explicit_017_target_rejects_newer_entries(self) -> None:
+        result = run_validator(
+            FIXTURES / "valid-widget-worker", "--target-version", "0.17.0", "--json"
+        )
 
         self.assertEqual(result.returncode, 1)
         payload = json.loads(result.stdout)
@@ -64,6 +108,29 @@ class ValidatorFixtureTests(unittest.TestCase):
                 "AGENT_WORKERS_UNSUPPORTED_TARGET",
             }.issubset(set(diagnostic_codes(result)))
         )
+
+    def test_aiui_019_rejects_removed_speech_recognition_permission(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "AGENTS.md").write_text("# Permission fixture\n")
+            (project / "app.js").write_text("export default {};\n")
+            (project / "pages").mkdir()
+            (project / "pages/index.ink").write_text(
+                "<page><text>Ready</text></page>\n"
+            )
+            manifest = {"pages": ["pages/index"], "permissions": ["SPEECH_RECOGNITION"]}
+            (project / "app.json").write_text(json.dumps(manifest))
+
+            removed = run_validator(project, "--target-version", "0.19.0", "--json")
+            self.assertEqual(removed.returncode, 1, removed.stdout + removed.stderr)
+            self.assertIn("REMOVED_SPEECH_RECOGNITION_PERMISSION", diagnostic_codes(removed))
+            legacy = run_validator(project, "--target-version", "0.18.0", "--json")
+            self.assertNotIn("REMOVED_SPEECH_RECOGNITION_PERMISSION", diagnostic_codes(legacy))
+
+            manifest["permissions"] = ["RECORD_AUDIO"]
+            (project / "app.json").write_text(json.dumps(manifest))
+            retained = run_validator(project, "--target-version", "0.19.0", "--json")
+            self.assertEqual(retained.returncode, 0, retained.stdout + retained.stderr)
 
     def test_missing_declared_route_is_an_error(self) -> None:
         result = run_validator(FIXTURES / "invalid-missing-route", "--json")

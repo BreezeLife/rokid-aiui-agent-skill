@@ -33,6 +33,12 @@ PROJECT_VALIDATOR_SCRIPT = SCRIPT_DIRECTORY / "validate_aiui_project.py"
 EVIDENCE_DIRECTORY = ".aiui-evidence"
 STABLE_AIUI_REVISION = "88e70bb0382525c1a93ef077c2401dcc31a273ce"
 PREVIEW_AIUI_REVISION = "8b19a87b4ba8b486c0dd4dd3fd32290d27891069"
+AIUI_019_REVISION = "7d62c2d9ac1cdc1389ba06ed0651b395903accff"
+AIUI_SOURCE_REVISIONS = {
+    "0.17.0": STABLE_AIUI_REVISION,
+    "0.18.0": PREVIEW_AIUI_REVISION,
+    "0.19.0": AIUI_019_REVISION,
+}
 PROJECT_BINDING_UNRESOLVED = "PROJECT-BINDING:UNRESOLVED"
 
 UX_HEADERS = (
@@ -349,8 +355,8 @@ CAPABILITY_POLICIES = {
     "network.websocket": CapabilityPolicy("CAP-NETWORK-WEBSOCKET", ALL_LAYERS),
     "page.lifecycle": CapabilityPolicy("CAP-PAGE-LIFECYCLE", ALL_LAYERS),
     "project.unregistered": CapabilityPolicy("CAP-UNREGISTERED", ALL_LAYERS, True),
-    # AIUI 0.18 is inventory-only until a separate policy is published.  Fixed
-    # IDs still prevent these preview shapes from being relabelled as 0.17 APIs.
+    # Newer targets are inventory-only until separate source and PASS policies
+    # are published. Fixed IDs keep these shapes distinct from 0.17 APIs.
     "widget.declaration": CapabilityPolicy("CAP-WIDGET-DECLARATION", ALL_LAYERS, True),
     "widget.lifecycle": CapabilityPolicy("CAP-WIDGET-LIFECYCLE", ALL_LAYERS, True),
     "agent-worker.declaration": CapabilityPolicy(
@@ -1402,8 +1408,8 @@ class AuditValidator:
             require(match is not None, f"metadata line {index} must be {label!r}")
             metadata[label] = match.group("value")
         require(metadata["Import root"] == self.import_root_value, "Import root metadata disagrees with CLI")
-        version_match = re.fullmatch(r"AIUI (0\.17\.0|0\.18\.0)", metadata["Canonical version"])
-        require(version_match is not None, "Canonical version must be exact AIUI 0.17.0 or AIUI 0.18.0")
+        version_match = re.fullmatch(r"AIUI (0\.17\.0|0\.18\.0|0\.19\.0)", metadata["Canonical version"])
+        require(version_match is not None, "Canonical version must be exact AIUI 0.17.0, AIUI 0.18.0, or AIUI 0.19.0")
         version = version_match.group(1)
         self.canonical_runtime = f"AIUI {version}"
         if self.source_unavailable:
@@ -1848,7 +1854,7 @@ class AuditValidator:
             )
             self._validate_capability_target(row[1], version, item, identifier)
             source_urls = self._parse_source_cell(row[4], version, family)
-            if version == "0.18.0" or item.get("policyState") != "registered" or policy.provisional:
+            if version != "0.17.0" or item.get("policyState") != "registered" or policy.provisional:
                 require(result == "BLOCKED", f"{claim} has no PASS/FAIL policy and must remain BLOCKED")
             signature = tuple(normalized(cell) for cell in row[1:8])
             if key in signatures:
@@ -1998,9 +2004,7 @@ class AuditValidator:
                 (role == "SEARCH-SCOPE") == (source.group("kind") == "tree"),
                 f"source role/path kind mismatch: {entry}",
             )
-            expected_revision = (
-                STABLE_AIUI_REVISION if version == "0.17.0" else PREVIEW_AIUI_REVISION
-            )
+            expected_revision = AIUI_SOURCE_REVISIONS[version]
             require(
                 source.group("revision") == expected_revision,
                 f"AIUI {version} capability source uses the wrong pinned revision",

@@ -307,7 +307,7 @@ class AIUIProjectValidator:
     def __init__(
         self,
         project_dir: Path,
-        target_version: str = "0.17.0",
+        target_version: str = "0.19.0",
         repository_root: Optional[Path] = None,
     ) -> None:
         self.project_dir = project_dir.resolve()
@@ -425,6 +425,18 @@ class AIUIProjectValidator:
         return False
 
     def _validate_target_features(self, manifest: Dict[str, Any]) -> None:
+        permissions = manifest.get("permissions", [])
+        if (
+            self.target_version_tuple >= (0, 19, 0)
+            and isinstance(permissions, list)
+            and "SPEECH_RECOGNITION" in permissions
+        ):
+            self.error(
+                "REMOVED_SPEECH_RECOGNITION_PERMISSION",
+                "app.json",
+                "AIUI 0.19.0 removed SPEECH_RECOGNITION; microphone capture "
+                "still requires RECORD_AUDIO and platform authorization.",
+            )
         if self.target_version_tuple >= (0, 18, 0):
             return
         if "widgets" in manifest:
@@ -730,6 +742,21 @@ class AIUIProjectValidator:
                 continue
             route = widget.get("path")
             family = widget.get("family")
+            if self.target_version_tuple >= (0, 19, 0):
+                for field in ("displayName", "description"):
+                    value = widget.get(field)
+                    if not isinstance(value, str) or not value.strip():
+                        self.error(
+                            "WIDGET_METADATA_INVALID",
+                            "app.json",
+                            f"AIUI 0.19 widgets[{index}].{field} must be a non-empty string.",
+                        )
+                if widget.get("placement", "persistent") not in ("persistent", "overlay"):
+                    self.error(
+                        "WIDGET_PLACEMENT_INVALID",
+                        "app.json",
+                        f"widgets[{index}].placement must be 'persistent' or 'overlay'.",
+                    )
             route_valid = isinstance(route, str) and bool(route)
             if not route_valid:
                 self.error(
@@ -1309,9 +1336,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--target-version",
         type=parse_target_version,
-        default="0.17.0",
+        default="0.19.0",
         metavar="VERSION",
-        help="AIUI compatibility target (default: 0.17.0 stable)",
+        help="AIUI compatibility target (default: 0.19.0)",
     )
     return parser.parse_args(argv)
 

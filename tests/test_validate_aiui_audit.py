@@ -410,11 +410,11 @@ class AuditFixture:
                 if item["policyState"] == "binding-unresolved":
                     identifier += "-PROVISIONAL"
                 layers = CAP_LAYERS[family]
-            source_revision = (
-                "88e70bb0382525c1a93ef077c2401dcc31a273ce"
-                if self.target_version == "0.17.0"
-                else "8b19a87b4ba8b486c0dd4dd3fd32290d27891069"
-            )
+            source_revision = {
+                "0.17.0": "88e70bb0382525c1a93ef077c2401dcc31a273ce",
+                "0.18.0": "8b19a87b4ba8b486c0dd4dd3fd32290d27891069",
+                "0.19.0": "7d62c2d9ac1cdc1389ba06ed0651b395903accff",
+            }[self.target_version]
             if family == "project.unregistered":
                 source_cell = (
                     "SEARCH-SCOPE=[AIUI documentation index](https://github.com/"
@@ -2395,6 +2395,52 @@ class ValidateAiuiAuditTests(unittest.TestCase):
             )
             self.assertNotEqual(0, attempted_pass.returncode)
             self.assertIn("remain BLOCKED", attempted_pass.stderr)
+
+    def test_aiui_019_audit_accepts_only_its_pinned_sources_and_blocked_capabilities(self) -> None:
+        self.fixture = AuditFixture(self.repo / "aiui-019", target_version="0.19.0")
+        self.repo = self.fixture.root
+        baseline = self.fixture.render()
+        blocked = self.validate(baseline)
+        self.assertEqual(2, blocked.returncode, blocked.stderr)
+        self.assertIn("Final status=BLOCKED", blocked.stdout)
+        for old_revision in (
+            "88e70bb0382525c1a93ef077c2401dcc31a273ce",
+            "8b19a87b4ba8b486c0dd4dd3fd32290d27891069",
+        ):
+            with self.subTest(revision=old_revision):
+                mixed = self.validate(baseline.replace(
+                    "7d62c2d9ac1cdc1389ba06ed0651b395903accff", old_revision
+                ))
+                self.assertEqual(1, mixed.returncode, mixed.stderr)
+                self.assertIn("wrong pinned revision", mixed.stderr)
+        self.fixture.cap_rows[0][9] = "PASS"
+        attempted = self.validate(self.fixture.render())
+        self.assertEqual(1, attempted.returncode, attempted.stderr)
+        self.assertIn("remain BLOCKED", attempted.stderr)
+
+    @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
+    def test_aiui_019_ux_rejects_resigned_018_studio_capture(self) -> None:
+        signers, policy = self.authority()
+        self.fixture = AuditFixture(self.repo / "aiui-019", target_version="0.19.0")
+        self.repo = self.fixture.root
+        self.fixture.materialize_full_pass(signers)
+        for row in self.fixture.cap_rows:
+            row[9] = "BLOCKED"
+            row[10] = "; ".join(
+                f"{layer.strip()}=blocked:Version-specific PASS policy is unavailable"
+                for layer in row[8].split(",")
+            )
+        baseline = self.fixture.render()
+        blocked = self.validate(baseline, trust_policy=policy)
+        self.assertEqual(2, blocked.returncode, blocked.stderr)
+        changed, count = self.fixture.rewrite_signed_environments(
+            baseline, layer="STUDIO", signer=signers,
+            mutate=lambda environment: environment.__setitem__("hostRuntime", "AIUI 0.18.0"),
+        )
+        self.assertGreater(count, 0)
+        rejected = self.validate(changed, trust_policy=policy)
+        self.assertEqual(1, rejected.returncode, rejected.stderr)
+        self.assertIn("canonical version", rejected.stderr.lower())
 
     @unittest.skipUnless(shutil.which("openssl"), "OpenSSL is required for trust test")
     def test_repository_self_selected_device_key_is_not_a_trust_policy(self) -> None:

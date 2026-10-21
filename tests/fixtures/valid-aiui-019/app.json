@@ -1,0 +1,27 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "widgets": [
+    {
+      "path": "widgets/status/index",
+      "family": "1x2",
+      "displayName": "Status",
+      "description": "Shows the current worker status.",
+      "placement": "overlay"
+    }
+  ],
+  "agentWorkers": [
+    {
+      "name": "bluetooth",
+      "script": "workers/bluetooth.js",
+      "trigger": {
+        "type": "open"
+      },
+      "lifetime": "foreground",
+      "capabilities": [
+        "bluetooth-peripheral"
+      ]
+    }
+  ]
+}

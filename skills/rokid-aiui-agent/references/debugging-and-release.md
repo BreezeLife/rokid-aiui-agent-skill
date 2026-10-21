@@ -2,6 +2,8 @@
 
 Read this for failures, verification planning, Studio handoff, physical-device testing, or store release preparation.
 
+New work targets AIUI 0.19.0. Apply the version-specific [functional and UX scenarios](aiui-0.19.md) before the generic gates below; explicit older projects retain their own runtime. Current local 0.19 audits validate inventory and UX evidence but keep capability rows `BLOCKED` until an independent 0.19 PASS policy is registered.
+
 ## Evidence ladder
 
 Use the cheapest layer that can prove the claim, then move outward:
@@ -25,7 +27,7 @@ Official 0.17 guidance distinguishes [Web simulation from real-device debugging]
 2. For GitHub import, record repository URL, exact branch/tag, and directory.
 3. Parse `app.json`; resolve every declared Page and version-gated Widget/Worker/component path relative to that directory.
 4. Remove reliance on parent-workspace files, symlinks, secrets, or uncommitted local assets.
-5. State the target version; retry with a conservative 0.17 Page-only project if 0.18 additions are not supported.
+5. Confirm the actual host supports the declared target. If it is older than 0.19, report the mismatch and plan an explicit compatible fallback before changing the project's version or features.
 
 ### Page is blank or fails to load
 
@@ -46,7 +48,8 @@ Official 0.17 guidance distinguishes [Web simulation from real-device debugging]
 
 - Verify the exact capability in the target-version docs; do not infer browser compatibility.
 - Compare `app.json` permissions/capabilities with code and actual host grants.
-- Check whether the implementation is 0.18-only while the host is 0.17 stable.
+- Check the version-specific feature and execution surface: a 0.19 Page API is not automatically available to a Widget or Agent Worker.
+- A positive `wx.canIUse()` result does not prove device availability or permission. Microphone capture needs `RECORD_AUDIO`; 0.19 removed `SPEECH_RECOGNITION`.
 - Add a useful denied/unavailable state, then retest on device.
 
 ### Package or preview command fails
@@ -69,7 +72,7 @@ Record a pass/fail result for every applicable cell; “not tested” is not “
 
 | Dimension | Required cases |
 | --- | --- |
-| Runtime | 0.17 stable baseline; explicit 0.18 host when using Widgets, Agent Workers, or other gated additions |
+| Runtime | AIUI 0.19.0 by default; exact declared version and host for explicitly retained 0.17/0.18 projects |
 | Hosting | `_current`, `_blank`, and target transition if the Page supports both |
 | Focus/input | host focus/blur, element focus, Enter, Backspace, ArrowUp/Down, temple input if exposed, touch where applicable |
 | Voice/perception | `onVoiceWakeup`; head gesture/orientation only after awareness is enabled; non-gesture fallback |

@@ -5,7 +5,7 @@
 <!-- usage:scope -->
 ## 1. What this skill is for
 
-`rokid-aiui-agent` helps coding agents that support Agent Skills create, modify, review, debug, and validate ROKID AIUI agent projects. For creation and implementation work, its default deliverable is a complete, editable source directory that can be selected directly as an AIUI Studio import root—not a collection of snippets or an `.aix` archive by itself.
+`rokid-aiui-agent` helps coding agents that support Agent Skills create, modify, review, debug, and validate ROKID AIUI agent projects. For creation and implementation work, a complete editable source project is always required, and its directory must itself be selectable as the AIUI Studio import root—not a collection of snippets or an `.aix` archive by itself. If the selected AIX CLI advertises `pack` and `list` (or `ls`), and the real pack-and-inventory check succeeds, the skill also delivers a `.aix` archive outside that import root by default. It is an additional distribution artifact: it never replaces the source and must not be selected as the AIUI Studio import root.
 
 A typical creation or implementation task produces:
 
@@ -13,11 +13,11 @@ A typical creation or implementation task produces:
 - `aiui-audit-claims.json`, which closes the project's declared capability scope;
 - a source fingerprint, capability inventory, strict structural validation, and business-logic test results tied to the exact import root;
 - the mandatory `## Project UX evidence matrix` and `## Per-capability matrix`;
-- preview, pack, and list results when the installed AIX CLI actually advertises those commands;
+- when the installed AIX CLI supports them and the real pack/list flow succeeds, an additional `.aix` archive outside the import root, plus its path, byte size, SHA-256, and inventory result;
 - the local path, or all three GitHub import coordinates: repository, ref, and project directory;
 - any unexecuted AIUI Studio, physical-glasses, or signed-evidence gates explicitly marked `BLOCKED`.
 
-If neither the project nor the host identifies a target version, the skill discloses that assumption and uses stable AIUI `0.17.0` as its baseline. It must generate `0.18` capabilities such as Widgets or Agent Workers only when the target explicitly supports them.
+New projects default to AIUI `0.19.0` when no version is specified. Preserve explicit project and host targets, including `0.17.0` and `0.18.0`; updating the skill does not migrate an existing project. The bundled timer and minimal project remain `0.17.0` compatibility fixtures. Consult the [AIUI 0.19 guide](../skills/rokid-aiui-agent/references/aiui-0.19.md) and [official 0.19.0 quickstart](https://open.rokid.com/aiui/guide/quickstart/intro?version=0.19.0&lang=en-US) for version-matched boundaries.
 
 Every import root needs an `aiui-audit-claims.json` file. This minimal schema-1 document closes an empty product-claims universe; `scopeClosed: true` does not mean that runtime behavior has passed testing:
 
@@ -71,7 +71,7 @@ Whenever possible, provide the target directory or existing import root, AIUI ru
 
 ```text
 Use $rokid-aiui-agent to create a complete ROKID AIUI weather agent in the
-standalone directory /absolute/path/to/weather-agent. Target AIUI 0.17.0 and
+standalone directory /absolute/path/to/weather-agent. Target AIUI 0.19.0 and
 support both the conversation-embedded _current Page and the full-screen
 _blank Page. Check version-matched official sources first; do not infer APIs
 from browsers or WeChat Mini Programs. Deliver a complete source directory
@@ -80,6 +80,10 @@ validation, capability inventory, and AIX preview/pack/list only when the CLI
 help confirms those commands. Produce the mandatory Project UX evidence matrix
 and Per-capability matrix. Keep Studio and physical-device items BLOCKED unless
 they were actually executed.
+If real pack/list succeeds, deliver the `.aix` outside the source directory and separately from the AIUI Studio import root by default.
+Keep it BLOCKED when the
+flow cannot run, and mark an attempted failure FAIL; never invent an archive or
+a successful result.
 ```
 
 <!-- prompt:timer -->
@@ -87,7 +91,7 @@ they were actually executed.
 
 ```text
 Use $rokid-aiui-agent to create a focus timer for Rokid Glasses in the standalone
-directory /absolute/path/to/my-focus-timer. Make it a Page-only AIUI 0.17.0 project whose source
+directory /absolute/path/to/my-focus-timer. Make it a Page-only AIUI 0.19.0 project whose source
 directory can be imported directly into AIUI Studio. Accept an integer
 durationSeconds from 1 to 3600 and an optional label, default to 600 seconds,
 and implement idle, running, paused, finished, and error states. Calculate
@@ -101,8 +105,10 @@ system alarms, notifications, or persistent recovery.
 Run deterministic logic tests, strict validation, capability inventory, and the
 preview/pack/list flows supported by AIX. Produce the complete Project UX evidence matrix
 and Per-capability matrix. Keep unexecuted Studio and physical-glasses gates BLOCKED,
-then report the exact local import root or the GitHub Repository, Ref, and
-Directory.
+and, when real pack/list succeeds, deliver the `.aix` outside the source directory and separately from the AIUI Studio import root by default.
+Then report the exact
+local import root or the GitHub Repository, Ref, and Directory, plus the absolute
+path and verification details for any successfully generated `.aix` archive.
 ```
 
 <!-- prompt:review -->
@@ -110,7 +116,7 @@ Directory.
 
 ```text
 Use $rokid-aiui-agent to review /absolute/path/to/aiui-project without changing
-its source. Establish the exact AIUI Studio import root, target version,
+its source. Establish and preserve the exact AIUI Studio import root and target version,
 Page/Widget/Agent Worker surfaces, _current/_blank targets, inputs, and
 permissions. Run the source fingerprint, capability inventory, and strict
 validation, plus only the repository's existing safe tests. Report findings by
@@ -138,14 +144,15 @@ and Per-capability matrix. Do not reuse evidence from an older revision.
 ### Validate, preview, and package
 
 ```text
-Use $rokid-aiui-agent to validate skills/rokid-aiui-agent/assets/focus-timer-agent. Run
+Use $rokid-aiui-agent to validate skills/rokid-aiui-agent/assets/focus-timer-agent at its existing AIUI 0.17.0 target. Run
 scripts/fingerprint_aiui_project.py, scripts/inventory_aiui_capabilities.py,
 and strict project validation with scripts/validate_aiui_project.py first. Run
 the deterministic tests before probing the CLI.
 Then probe the current aix --help and use only the preview, pack, and list commands it actually
 advertises. Do not upload or deploy anything. Confirm that the
-.aix inventory excludes .git and .aiui-evidence, and report executed commands,
-exit codes, artifact paths, and the current source revision. Also complete the
+.aix is preserved outside the AIUI Studio import root, confirm that its inventory
+excludes .git and .aiui-evidence, and report executed commands, exit codes, the
+source fingerprint, absolute artifact path, byte size, SHA-256, and current source revision. Also complete the
 Project UX evidence matrix and Per-capability matrix, then run
 scripts/validate_aiui_audit.py against the final audit. An AIX browser preview
 does not replace AIUI Studio or physical-device evidence.
@@ -181,12 +188,15 @@ npm ci --ignore-scripts --no-audit --no-fund
 AIX_BIN="$PWD/node_modules/.bin/aix"
 AIUI_PREVIEW_DIR="$(mktemp -d "${TMPDIR:-/tmp}/focus-timer-preview.XXXXXX")"
 AIUI_PREVIEW_HTML="$AIUI_PREVIEW_DIR/index.html"
+AIUI_AIX_OUTPUT="${AIUI_IMPORT_ROOT%/}.aix"
 export AIX_BIN
 "$AIX_BIN" --help
 "$AIX_BIN" preview "$AIUI_IMPORT_ROOT" --html-out "$AIUI_PREVIEW_HTML"
 test -s "$AIUI_PREVIEW_HTML"
-bash skills/rokid-aiui-agent/scripts/smoke_aix.sh skills/rokid-aiui-agent/assets/focus-timer-agent
+bash skills/rokid-aiui-agent/scripts/smoke_aix.sh "$AIUI_IMPORT_ROOT" "$AIUI_AIX_OUTPUT" "$AIUI_REPOSITORY_ROOT"
 ```
+
+Persistent delivery mode refuses to overwrite an existing path or place the archive inside the exact Studio import root. On success, the script lists and validates the final archive, then prints `AIUI source fingerprint`, `AIX artifact`, `AIX bytes`, and `AIX SHA-256`. If no compatible CLI is available, installation cannot complete, or the selected CLI leaves `pack` plus `list`/`ls` unsupported, the AIX deliverable is `BLOCKED`. If an attempted `pack` or `list` fails, the inventory is invalid, or the source fingerprint changes, the AIX deliverable is `FAIL`. Claim the `.aix` as delivered only after success; the source project remains a separate required output.
 
 The audit validator checks the report and recorded `argv` as execution-provenance data; it never executes those recorded commands. Only results actually captured in the current environment and signed by the required authorities count as execution evidence.
 
@@ -207,6 +217,21 @@ Audit exit codes have fixed meanings:
 | `2` | `valid-not-release-ready` | Structurally valid, but the result remains `FAIL` or `BLOCKED`. |
 | `1` | `invalid-or-untrusted` | Invalid, stale, tampered with, or untrusted. |
 
+For a new AIUI `0.19.0` project, use its own repository and import root. This separate example leaves the bundled timer's `0.17.0` commands unchanged:
+
+```bash
+AIUI_REPOSITORY_ROOT="/absolute/path/to/new-agent-repository"
+AIUI_IMPORT_ROOT="$AIUI_REPOSITORY_ROOT/agent-app"
+AIUI_TARGET_VERSION="0.19.0"
+
+python3 skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py \
+  "$AIUI_IMPORT_ROOT" --repository-root "$AIUI_REPOSITORY_ROOT"
+python3 skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py \
+  "$AIUI_IMPORT_ROOT" --target-version "$AIUI_TARGET_VERSION" --repository-root "$AIUI_REPOSITORY_ROOT"
+python3 skills/rokid-aiui-agent/scripts/validate_aiui_project.py \
+  "$AIUI_IMPORT_ROOT" --target-version "$AIUI_TARGET_VERSION" --repository-root "$AIUI_REPOSITORY_ROOT" --strict
+```
+
 <!-- usage:audit -->
 ## 6. Mandatory UX and capability acceptance
 
@@ -214,6 +239,8 @@ Every creation, implementation, modification, or review must produce two separat
 
 - `## Project UX evidence matrix` covers targets, states, boundary-length text, host and element focus, every input path, recovery, lifecycle, monochrome-green visuals, real optical conditions, motion, and performance;
 - `## Per-capability matrix` covers every API, component, event, route, declaration, permission, fallback, and cleanup path, with commit-pinned official sources and the matching scanner gate.
+
+Inventory and audit tools accept AIUI `0.19.0`, but its capabilities remain inventory-only: a separate `0.19.0` PASS policy has not been registered, so capability rows remain `BLOCKED`. Passing source, logic, or packaging checks cannot bypass that policy. For Page-to-Widget opening, Toast feedback, and Workers, verify positive behavior, unavailable or rejected operations, repeated input, and lifecycle cleanup against the [0.19 reference](../skills/rokid-aiui-agent/references/aiui-0.19.md), then capture each required evidence layer.
 
 Only these results are valid:
 
@@ -227,7 +254,7 @@ The six evidence layers are not interchangeable. `SOURCE` establishes version-ma
 <!-- usage:import -->
 ## 7. Import into AIUI Studio
 
-For a local import, select the AIUI project directory that directly contains `app.json`. Do not select a parent repository when the project lives in a nested directory.
+For a local import, select the AIUI source-project directory that directly contains `app.json`. Do not select a parent repository when the project lives in a nested directory, and do not select the additional `.aix` archive.
 
 For a GitHub import, provide Repository, Ref, and Directory together. The timer example uses:
 
@@ -242,15 +269,15 @@ Importing through an authenticated AIUI Studio account is a separate execution s
 <!-- usage:completion -->
 ## 8. What counts as complete
 
-“Source delivery complete” means that the complete source project, import coordinates, and local validation results were provided. It does not automatically mean “release-ready.” You may write `Release-ready: YES` only when the audit validator returns `0` for the current fingerprint and trusted evidence, with no applicable `FAIL` or `BLOCKED` rows.
+“Source delivery complete” means that the complete source project, import coordinates, and local validation results were provided; source delivery and the additional AIX delivery are separate results. Claim “`.aix` delivered” only after the persistent archive passes pack/list, inventory, and source-fingerprint checks. Neither result automatically means “release-ready.” You may write `Release-ready: YES` only when the audit validator returns `0` for the current fingerprint and trusted evidence, with no applicable `FAIL` or `BLOCKED` rows.
 
 A typical accurate interim conclusion is: “Strict structural validation, logic tests, and AIX pack/list passed; AIUI Studio import and physical Rokid Glasses UX remain `BLOCKED`.”
 
 <!-- usage:examples -->
 ## 9. Importable examples
 
-- [`skills/rokid-aiui-agent/assets/studio-importable-minimal`](../skills/rokid-aiui-agent/assets/studio-importable-minimal/): minimal stable Page project;
-- [`skills/rokid-aiui-agent/assets/focus-timer-agent`](../skills/rokid-aiui-agent/assets/focus-timer-agent/): Japanese focus timer;
+- [`skills/rokid-aiui-agent/assets/studio-importable-minimal`](../skills/rokid-aiui-agent/assets/studio-importable-minimal/): minimal AIUI `0.17.0` compatibility fixture;
+- [`skills/rokid-aiui-agent/assets/focus-timer-agent`](../skills/rokid-aiui-agent/assets/focus-timer-agent/): Japanese focus timer, retained as an AIUI `0.17.0` fixture;
 
 Both directories are import roots; the timer is the repository's only product-shaped example Agent. Automated repository tests do not replace acceptance testing in your AIUI Studio account and on your target device.
 
@@ -259,8 +286,8 @@ Both directories are import roots; the timer is the repository's only product-sh
 
 - **The skill did not activate:** start the request with “Use `$rokid-aiui-agent`.”
 - **Studio cannot see the project:** confirm that the selected directory directly contains `app.json` and every declared Page; do not select its parent directory.
-- **An AIX command is missing:** run `--help` on the selected executable and use only commands listed by that installed version. Do not copy commands from another branch or an older website.
+- **AIX is missing or pack/list is unsupported:** run `--help` on the selected executable and use only commands listed by that installed version. Do not copy commands from another branch or an older website, and keep the additional AIX delivery `BLOCKED`. If an attempted `pack` or `list` fails, mark it `FAIL`.
 - **Preview works but the glasses do not:** preview supplies only `AIX`-layer evidence. It cannot prove Studio host behavior, sensors, hardware keys, focus, permissions, or optical presentation.
 - **Can missing glasses be marked N/A?** No. Applicable physical-device gates remain `BLOCKED`.
 - **Does pack mean published?** No. Pack only creates and inspects an `.aix` archive. Upload, platform review, deployment, and physical-device acceptance are later steps.
-- **When can I use a Widget or Agent Worker?** Only when the target runtime explicitly supports the corresponding `0.18` capability and that version has an established source and evidence policy.
+- **When can I use a Widget or Agent Worker?** Check the exact target runtime, API, manifest, and lifecycle contract. New projects use `0.19.0`; its capabilities can be inventoried but remain `BLOCKED` for audit sign-off until a separate version policy is registered and the required evidence is captured.

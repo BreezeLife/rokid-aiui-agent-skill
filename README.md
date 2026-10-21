@@ -13,7 +13,7 @@
 - 创建完整、可编辑的 AIUI 项目
 - 修改或扩展现有 AIUI 工程
 - 审查并调试 AIUI 工程的项目结构、交互和版本兼容性
-- 验证项目并交付可由 AIUI Studio 导入的源码目录；本地检查不代表 AIUI Studio 或 Rokid Glasses 真机已经通过
+- 验证项目并交付可由 AIUI Studio 导入的源码目录；AIX 支持且真实打包成功时，额外交付已检查的 `.aix`
 
 ## 快速开始
 
@@ -49,15 +49,16 @@ Codex 只是一个示例；其他支持 Agent Skills、能访问项目工作区�
 3. 调用 Skill。先把示例路径 `/absolute/path/to/my_focus_timer` 替换为你自己的绝对输出目录，再把下面这段话交给编码智能体：
 
    ```text
-   使用 $rokid-aiui-agent，为 Rokid Glasses 创建一个 AIUI 0.17.0 专注计时器。
+   使用 $rokid-aiui-agent，为 Rokid Glasses 创建一个 AIUI 0.19.0 专注计时器。
    在独立输出目录 /absolute/path/to/my_focus_timer 中创建，不要把新 Agent
    写入本 Skill 仓库。
    支持语音设置时长，在 _current 和 _blank 中都保持清晰易用；完成后交付可由
-   AIUI Studio 导入的完整源码目录，运行可用的自动检查，并明确列出仍需 Studio
-   或真机验证的项目。不要把未执行的检查写成已经通过。
+   AIUI Studio 导入的完整源码目录；AIX CLI 支持并实际成功时，另在导入根之外
+   输出 `.aix` 包。运行可用的自动检查，并明确列出仍需 Studio 或真机验证的项目。
+   不要把未执行的检查写成已经通过。
    ```
 
-4. 检查交付结果。确认交付物是完整、可编辑的 AIUI 项目目录。查看智能体实际执行的验证或检查及其结果。尚未完成的 AIUI Studio 或 Rokid Glasses 验证必须保留为 `BLOCKED`。
+4. 检查交付结果。确认主交付物是完整、可编辑的 AIUI 项目目录；若完整 AIX pack/list 与指纹校验成功，还应得到导入根之外的 `.aix` 路径、字节数、SHA-256 和清单结果。查看智能体已实际执行的检查与验证结果。尚未完成的 AIUI Studio 或 Rokid Glasses 验证必须保留为 `BLOCKED`。
 
 5. 导入 AIUI Studio。选择包含 `app.json` 的交付目录本身，也就是准确输出根。按[导入 AIUI Studio](#导入-aiui-studio)继续验收。
 
@@ -65,7 +66,9 @@ Codex 只是一个示例；其他支持 Agent Skills、能访问项目工作区�
 
 ## 你会得到什么
 
-创建或实现任务会交付完整、可编辑的 AIUI 项目目录，可直接作为 AIUI Studio 的导入根，而不是一组零散代码或只有 `.aix` 包。
+创建或实现任务中，完整、可编辑的源码工程始终是必交付物，并以 AIUI 项目目录交付；其目录本身可直接作为 AIUI Studio 导入根，而不是一组零散代码或只有 `.aix` 包。
+
+若选定 AIX CLI 的帮助明确提供 pack 与 list（或 `ls`），且真实打包和清单检查成功，Skill 默认同时在导入根之外交付一个 `.aix` 包。它是附加分发产物，不能取代源码，也不能作为 AIUI Studio 导入根。工具不可用时 AIX 交付保持 `BLOCKED`；已执行的打包或清单检查失败则记为 `FAIL`。
 
 `app.json.pages` 声明的所有页面，以及这些页面引用的所有图片、样式和其他资源，都必须包含在交付目录中；缺少任何一项都不算完整工程。
 
@@ -90,7 +93,7 @@ my-agent/
 
 根据工程所在位置选择导入方式：
 
-- 本地导入：选择包含 `app.json` 的交付目录本身，不要只选择其中的页面或打包产物。
+- 本地导入：选择包含 `app.json` 的源码交付目录本身，不要选择其中的页面或 `.aix` 打包产物。
 - GitHub 导入：提供仓库、ref 和 AIUI 项目所在的子目录。内置示例可直接使用以下坐标：
 
 ```text
@@ -105,7 +108,7 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 
 [`skills/rokid-aiui-agent/assets/focus-timer-agent`](skills/rokid-aiui-agent/assets/focus-timer-agent/) 是随 Skill 安装的唯一产品化示例 Agent，也是一个完整的 AIUI Studio 导入根。
 
-它是面向 Rokid Glasses、仅使用 Page 的日文计时器。未指定时长时默认 10 分钟，也接受 1～3600 秒和可选标签。
+它是保留 AIUI `0.17.0` 兼容性的 Page-only 日文计时器，用于回归验证；新建项目的版本默认值不会自动升级这个示例。未指定时长时默认 10 分钟，也接受 1～3600 秒和可选标签。
 
 源码和本地测试只验证收到主要操作事件后的状态映射：
 
@@ -132,13 +135,15 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 
 ## 自动检查
 
-Skill 会根据当前工程运行结构验证、确定性业务逻辑测试，以及本机 AIX 实际支持的 preview、pack 和 list 流程。它还要求项目级 UX 表与逐能力表，避免用一次浏览器预览代替 Studio 或真机结论。
+Skill 会根据当前工程运行结构验证、确定性业务逻辑测试，以及本机 AIX 实际支持的 preview、pack 和 list 流程。持久打包、最终清单与源码指纹校验全部成功时，会报告绑定的源码指纹、最终 `.aix` 绝对路径、字节数、SHA-256 和清单；它还要求项目级 UX 表与逐能力表，避免用一次浏览器预览代替 Studio 或真机结论。
 
 完整命令与结果语义见三份语言指南；验收原则见 [UX 与能力测试](skills/rokid-aiui-agent/references/ux-and-capability-testing.md)。
 
 ## 版本边界
 
-当工程和宿主没有明确版本时，Skill 默认以稳定版 AIUI `0.17.0` 为目标。`0.18` 能力只有在目标明确支持时才会启用，避免把预览版配置混进稳定版项目。
+新建项目在没有明确版本时，Skill 默认以 AIUI `0.19.0` 为目标。已有工程和宿主明确指定的 `0.17.0`、`0.18.0` 等目标会保留，不自动升级；内置计时器和最小工程仍是 `0.17.0` 兼容性 fixture。
+
+版本匹配的功能与验收边界见 [AIUI 0.19 指南](skills/rokid-aiui-agent/references/aiui-0.19.md) 和[官方 0.19.0 快速开始](https://open.rokid.com/aiui/guide/quickstart/intro?version=0.19.0&lang=en-US)。清单与审计工具接受 `0.19.0`，但该版本尚未注册独立的能力 PASS 策略，能力项仍为 `BLOCKED`；本地检查不能替代 Studio 或真机验收。
 
 Skill 会先检查当前环境实际提供的 AIX 命令，不会假设不存在的创建、构建或部署流程。
 
