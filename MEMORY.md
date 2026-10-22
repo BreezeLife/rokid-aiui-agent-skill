@@ -2,6 +2,7 @@
 
 ## Decisions
 
+- 2026-10-23: Keep README onboarding in one five-step flow with one copyable task prompt. Put per-tool installation/invocation differences beside those steps, summarize deliverables and checks in tables, and state the new-project 0.19 versus bundled-example 0.17 distinction near the top. Detailed validation commands remain in the linked guides.
 - 2026-10-23: AIX preview HTML export is not a rendering result. Record the resolved browser Ink version separately from the CLI lock. Preserve bootstrap failures that occur before application loading; any diagnostic runtime compatibility patch stays outside the import root and cannot establish an unmodified-tool, Studio, or device PASS.
 - 2026-10-23: Agent implementation delivery includes a filled submission handoff outside the Studio import root. Draft listing copy, routes/parameters, permissions/data use, media provenance, source/package identity, review reproduction, and unresolved owner inputs from the shipped source. Use pinned 0.19 publishing requirements and distinguish mandatory limits from recommendations; preparation does not authorize platform upload or submission.
 - 2026-10-23: Validate Skill production ability through a fresh independent Agent generation and executable behavior plus observed preview checks, not only existing fixture tests or a hypothetical audit. Keep all sample-specific results separate from universal AIUI support, 0.19 capability PASS policy registration, and Studio/device release claims.

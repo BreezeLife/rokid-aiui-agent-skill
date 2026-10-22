@@ -2,6 +2,7 @@
 
 ## Done
 
+- [x] Clarified README onboarding with one install flow and task prompt, explicit Codex/Claude Code/Cursor invocation, deliverable and check tables, and early 0.19/0.17 version context; preserved the two routes and all existing delivery/evidence contracts.
 - [x] Completed independent 0.19 Agent generation assessment, functional/UX checks, and submission preparation; committed the results as `bc5c296` and fast-forward merged into local `main` on 2026-10-23. Actual source/logic/packaging success, native preview failure, diagnostic click coverage, and unresolved keyboard/host/device gates are recorded in `tests/evaluations/forward/08-fresh-agent-submission.md`.
 - [x] Added README onboarding for Codex, Claude Code, Cursor, and other Agent Skills tools, including default-branch installation, discovery/loading checks, and a copyable AIUI 0.19 functional/UX verification prompt.
 - [x] Integrated stable AIUI 0.19.0 as the default with pinned official references, localized guides, a version-specific fixture, functional/UX scenarios, scanner/audit regressions, and independent behavior/review checks. Merged the verified feature history into `main`. The 0.19 capability PASS policy and Studio/device evidence remain separate blocked gates.
