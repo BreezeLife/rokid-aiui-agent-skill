@@ -1,13 +1,10 @@
 # Tasks
 
-## In progress
-
-- [ ] Complete fresh 0.19 Agent generation, functional/UX validation and submission-material preparation, then commit and merge the verified revision into public `main` as authorized on 2026-10-23.
-
 ## Done
 
-- [x] Added README onboarding for Codex, Claude Code, Cursor, and other Agent Skills tools, including current-branch installation, discovery/loading checks, and a copyable AIUI 0.19 functional/UX verification prompt.
-- [x] Integrated stable AIUI 0.19.0 as the default with pinned official references, localized guides, a version-specific fixture, functional/UX scenarios, scanner/audit regressions, and independent behavior/review checks. Local verification is complete and the snapshot is prepared for the user-authorized branch commit/push. The 0.19 capability PASS policy and Studio/device evidence remain separate blocked gates.
+- [x] Completed independent 0.19 Agent generation assessment, functional/UX checks, and submission preparation; committed the results as `bc5c296` and fast-forward merged into local `main` on 2026-10-23. Actual source/logic/packaging success, native preview failure, diagnostic click coverage, and unresolved keyboard/host/device gates are recorded in `tests/evaluations/forward/08-fresh-agent-submission.md`.
+- [x] Added README onboarding for Codex, Claude Code, Cursor, and other Agent Skills tools, including default-branch installation, discovery/loading checks, and a copyable AIUI 0.19 functional/UX verification prompt.
+- [x] Integrated stable AIUI 0.19.0 as the default with pinned official references, localized guides, a version-specific fixture, functional/UX scenarios, scanner/audit regressions, and independent behavior/review checks. Merged the verified feature history into `main`. The 0.19 capability PASS policy and Studio/device evidence remain separate blocked gates.
 - [x] Implemented verified external AIX archives alongside the complete editable Studio import root, including path safety, exact package inspection, trilingual usage, and full local verification.
 - [x] Published a reproducible Focus Timer user-journey PNG and six-page developer PDF, linked them from the root README, and bound their interaction copy to the canonical packaged Agent with automated tests.
 - [x] Taught the two supported README workflows: open an AIUI project in Studio, or build one with Codex and other Agent Skills-compatible Vibe Coding tools; verified and published the revision.
@@ -42,6 +39,7 @@
 
 ## External manual gates
 
+- [ ] Re-test unmodified browser preview after the Ink 0.19 constructor mismatch is fixed; resolve the diagnostic keyboard path and obtain authenticated Studio/device evidence for the external fresh Agent before formal submission.
 - [ ] Import the example through an authenticated AIUI Studio account using the published GitHub coordinates.
 - [ ] Verify product-specific agents on the target physical Rokid Glasses before making device-behavior or release-readiness claims.
 - [ ] Import `skills/rokid-aiui-agent/assets/focus-timer-agent/` through an authenticated AIUI Studio account and verify both `_current` and `_blank` on physical Rokid Glasses.
