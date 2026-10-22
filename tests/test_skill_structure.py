@@ -20,6 +20,7 @@ REFERENCE_PATHS = (
     "references/ux-and-capability-testing.md",
     "references/aix-workflow.md",
     "references/debugging-and-release.md",
+    "references/submission-preparation.md",
 )
 
 

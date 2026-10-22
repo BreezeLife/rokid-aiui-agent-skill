@@ -17,7 +17,7 @@ Use the cheapest layer that can prove the claim, then move outward:
 | Physical Rokid Glasses | actual optics, focus, voice/keys/gestures, device APIs, performance | review approval |
 | Studio review flow | metadata, declared permissions, preview assets, platform review | future runtime compatibility |
 
-Official 0.17 guidance distinguishes [Web simulation from real-device debugging](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/0-guide/quickstart/quickstart.md#L76-L90). Physical-device results are the final UX authority.
+Official 0.19 guidance distinguishes [Web simulation from real-device debugging](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/0-guide/quickstart/quickstart.en-US.md#L74-L101). Physical-device results are the final UX authority.
 
 ## Symptom-led triage
 
@@ -85,7 +85,9 @@ Record a pass/fail result for every applicable cell; “not tested” is not “
 
 ## Studio-to-device-to-review flow
 
-The official flow is: build source → Web simulation → package AIX/upload through Studio → download the updated resource in the Rokid AI App → test on glasses → complete review materials → submit. See the pinned [0.17 simulation/device flow](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/0-guide/quickstart/quickstart.md#L76-L90) and [review guidance](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/documentation/0-guide/bundle/publish.en-US.md).
+The official flow is: build source → Web simulation → package AIX/upload through Studio → download the updated resource in the Rokid AI App → test on glasses → complete review materials → submit. See the pinned [0.19 simulation/device flow](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/0-guide/quickstart/quickstart.en-US.md#L74-L101) and [review guidance](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/0-guide/bundle/publish.en-US.md).
+
+Prepare the filled, source-bound `submission.md` and media register using [submission preparation](submission-preparation.md). It separates documented requirements from unobserved Studio fields, records permission/data use and reviewer reproduction, and keeps missing media or device evidence blocked. Local packaging does not establish the cloud package version; verify that correspondence during Studio handoff.
 
 Before review:
 

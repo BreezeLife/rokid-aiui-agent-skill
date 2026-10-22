@@ -14,6 +14,7 @@
 - 修改或扩展现有 AIUI 工程
 - 审查并调试 AIUI 工程的项目结构、交互和版本兼容性
 - 验证项目并交付可由 AIUI Studio 导入的源码目录；AIX 支持且真实打包成功时，额外交付已检查的 `.aix`
+- 执行项目功能与 UX 检查，准备 Agent 介绍、调用示例、权限用途、审核说明和提交材料清单
 
 ## 快速开始
 
@@ -44,7 +45,7 @@ Codex 只是一个示例；其他支持 Agent Skills、能访问项目工作区�
    gh skill install BreezeLife/rokid-aiui-agent-skill rokid-aiui-agent --agent codex --scope user
    ```
 
-   Codex、Claude Code、Cursor 的安装范围、调用方式和当前 0.19 分支安装命令见[在 Vibe Coding 工具中使用](#在-vibe-coding-工具中使用)。
+   Codex、Claude Code、Cursor 的安装范围、调用方式和安装检查见[在 Vibe Coding 工具中使用](#在-vibe-coding-工具中使用)。
 
 2. 打开独立工作区。在 Codex 或其他编码工具中，新建或打开一个独立工作区。该目录必须位于本 Skill 仓库之外。
 
@@ -70,10 +71,10 @@ Codex 只是一个示例；其他支持 Agent Skills、能访问项目工作区�
 
 在工具中打开你的独立开发工作区，使用能够读写文件、运行终端命令的 Agent 模式。当前 [Skills CLI](https://github.com/vercel-labs/skills#install-a-skill) 要求 Node.js `22.20` 或更高版本；可先运行 `node --version` 检查。
 
-上面的 `owner/repo` 安装命令读取仓库默认分支。当前 AIUI 0.19 更新位于 `feat/aix-deliverable`；试用该版本时使用下面的分支来源。以 Codex 为例，`--global` 安装到当前用户，使多个独立工程都可使用，技能文件也不会混进 Studio 导入根：
+上面的 `owner/repo` 安装命令读取仓库默认分支 `main`，其中新建项目默认使用 AIUI 0.19.0。以 Codex 为例，`--global` 安装到当前用户，使多个独立工程都可使用，技能文件也不会混进 Studio 导入根：
 
 ```bash
-npx skills add 'BreezeLife/rokid-aiui-agent-skill#feat/aix-deliverable' --skill rokid-aiui-agent --agent codex --global
+npx skills add BreezeLife/rokid-aiui-agent-skill --skill rokid-aiui-agent --agent codex --global
 npx skills list --agent codex --global
 ```
 
@@ -97,6 +98,7 @@ $rokid-aiui-agent
 验证核心功能、异常恢复、生命周期，以及焦点、触摸和语音交互的 UX。
 执行可用的本地检查；AIX pack/list 与源码指纹校验成功时，在导入根之外交付 .aix。
 交付源码路径、实际执行结果、项目级 UX 表和逐能力表。
+在导入根之外准备 Agent 介绍、调用示例、权限用途、审核说明及提交材料清单。
 未执行的 Studio、平台或真机验证保留 BLOCKED，不把本地预览当作真机通过。
 ```
 
@@ -176,6 +178,8 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 Skill 会根据当前工程运行结构验证、确定性业务逻辑测试，以及本机 AIX 实际支持的 preview、pack 和 list 流程。持久打包、最终清单与源码指纹校验全部成功时，会报告绑定的源码指纹、最终 `.aix` 绝对路径、字节数、SHA-256 和清单；它还要求项目级 UX 表与逐能力表，避免用一次浏览器预览代替 Studio 或真机结论。
 
 完整命令与结果语义见三份语言指南；验收原则见 [UX 与能力测试](skills/rokid-aiui-agent/references/ux-and-capability-testing.md)。
+
+功能检查要覆盖正常流程、边界输入、失败恢复和生命周期；UX 检查要实际操作界面，检查状态反馈、文案、焦点和可恢复性，并记录未执行的承载面或设备条件。创建任务还会按[提交准备指南](skills/rokid-aiui-agent/references/submission-preparation.md)整理可复制的 Agent 文案、调用示例、权限说明、源码与包信息及待补材料。素材来源和测试限制必须如实标注，材料准备不等于已上传或审核通过。
 
 ## 版本边界
 

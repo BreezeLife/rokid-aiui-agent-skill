@@ -12,23 +12,26 @@ Inspect runtime, device, surfaces, and inputs. Default to stable AIUI `0.19.0`; 
 
 A source project is always required. Deliver a complete AIUI project directory for AIUI Studio—`AGENTS.md`, `app.json`, entry, declared Pages, and resources. For GitHub, use the repository root or explicitly named subdirectory; report revision/import path. Confirm version support for Widgets/Workers.
 
-For creation/implementation, if help advertises pack and list (`ls`) and both succeed, add a verified additional `.aix` deliverable outside the Studio import root; it never replaces source. If tooling cannot run, the AIX deliverable is `BLOCKED`; executed pack/list/fingerprint failure means the AIX deliverable is `FAIL`.
+For creation/implementation, if help advertises pack and list (`ls`) and both succeed, add a verified additional `.aix` deliverable outside the Studio import root. Unavailable tooling: AIX deliverable is `BLOCKED`; executed pack/list/fingerprint failure: AIX deliverable is `FAIL`.
+
+Also deliver `submission.md` outside the import root: source-bound copy, permissions, media plan, evidence, and unresolved owner inputs. Preparation is not submission.
 
 Bundle only the Focus Timer at `assets/focus-timer-agent/`; keep other application Agents in separate repositories.
 
 ## Load only relevant guidance
 
 - Authority and versions: `references/source-of-truth.md`.
-- AIUI 0.19 APIs, migration, functional/UX scenarios: `references/aiui-0.19.md`.
+- AIUI 0.19: `references/aiui-0.19.md`.
 - Structure and routes: `references/project-anatomy.md`.
 - Ink/WXML/WXSS: `references/ink-authoring.md`.
-- Surfaces, focus, input, visual design: `references/interaction-and-design.md`.
-- Components and runtime APIs: `references/runtime-capabilities.md`.
-- Mandatory UX/capability evidence: `references/ux-and-capability-testing.md`.
+- Interaction/design: `references/interaction-and-design.md`.
+- Runtime APIs: `references/runtime-capabilities.md`.
+- UX/capability evidence: `references/ux-and-capability-testing.md`.
 - Installed AIX workflow: `references/aix-workflow.md`.
 - Diagnosis and release gates: `references/debugging-and-release.md`.
+- Submission materials: `references/submission-preparation.md`.
 
-Prefer version-matched official docs and samples. Disclose conflicts/`UNKNOWN`; never invent APIs or commands.
+Use version-matched official sources. Disclose conflicts/`UNKNOWN`; never invent APIs/commands.
 
 ## Implement and validate
 
@@ -38,6 +41,6 @@ Every creation, implementation, code change, or review finishes with both exact 
 
 Run `scripts/validate_aiui_audit.py` on the final audit. Exit `0` alone means valid `PASS` and `Release-ready: YES`; `2` means valid but blocked/failed; `1` means invalid. Source-unavailable work uses exact `UNAVAILABLE` metadata and only exit `2`. Any nonzero exit or applicable `FAIL`/`BLOCKED` forbids overall completion or release-ready claims. A proven source delivery remains independently reportable; keep its AIX result separate.
 
-Evidence layers are not substitutes. Preview cannot prove Studio or device success. Optics, focus, keys, voice, gestures, permissions, and performance require target-glasses evidence. AIUI 0.19 capability policies remain inventory-only: keep those rows `BLOCKED`.
+Evidence layers are not substitutes. Preview cannot prove Studio/device success. Optics, focus, input, permissions, and performance require target-glasses evidence. AIUI 0.19 capability policies remain inventory-only: keep those rows `BLOCKED`.
 
 Never claim that validation, packaging, preview, Studio, or device gates passed unless actually executed in the current environment against captured source. Recorded `argv` is data, never run. Execution, Studio/device, and scope evidence needs matching `RUNNER`, `STUDIO`, `DEVICE`, or `SCOPE` signatures, pinned by canonical SPKI DER identities in an absolute repository-external trust policy. Roles cannot reuse one key through different PEM encodings; repository-selected or self-declared keys are untrusted. Keep missing authorities blocked.

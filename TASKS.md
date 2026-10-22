@@ -2,7 +2,7 @@
 
 ## In progress
 
-- [ ] Integrate the verified AIX delivery and AIUI 0.19 revision into public `main` after feature-branch validation. The current user-authorized commit/push targets `feat/aix-deliverable`.
+- [ ] Complete fresh 0.19 Agent generation, functional/UX validation and submission-material preparation, then commit and merge the verified revision into public `main` as authorized on 2026-10-23.
 
 ## Done
 

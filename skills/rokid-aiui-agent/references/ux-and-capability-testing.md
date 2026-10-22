@@ -71,6 +71,21 @@ Any scanner item whose mechanism starts with `MOTION:` makes `UX-MOTION` applica
 
 An AIX/browser preview must not be used as proof of physical focus, keys, voice, gesture, permission, optics, or performance. Likewise, source or static evidence cannot replace execution.
 
+## Executable functional and UX checks
+
+Before implementing, map each requested behavior and each inventoried capability to a concrete test. Use a separate working checklist with `Requirement / Capability gate / Setup and action / Expected observable result / Layer / Command or capture / Actual result / Remaining gate`. It supplements the two exact audit matrices below; it does not rename their fields or replace signed evidence. Separate local test outcomes from release-audit acceptance when the required authority or version policy is unavailable.
+
+- **Positive behavior:** exercise the complete user task, not only importability or handler presence. Assert the displayed value, state transition, output, and number of owned operations. Include default input and both ends of documented input ranges.
+- **Failure and fallback:** exercise missing/malformed inputs, unsupported or denied capabilities, repeated activation, and interrupted work where applicable. Assert visible feedback, preserved host defaults, and an actionable way to recover. Do not silently turn an invalid value into a valid default.
+- **Lifecycle:** test hide/show, unload/reopen, elapsed time while hidden, stale asynchronous results, and repeated mount/unmount. Check that listeners, timers, streams, media tracks, and worker promises have the ownership and cleanup required by the implemented feature.
+- **Observable UX:** run the available preview and inspect actual rendered initial, active, empty/error, and completion states. Operate available controls; inspect focus visibility, labels, clipping, density, and whether feedback matches state. Record viewport, tool/runtime, action, outcome, and capture provenance. A successful HTML export alone does not count as visual or interaction validation.
+- **Layout and retained focus:** specify intended flex direction instead of assuming browser defaults. After state updates, test both replaced controls and retained nodes; do not clear a retained element's focus indicator merely because business state changed. Verify keyboard navigation separately from pointer activation.
+- **Host and device:** keep separate tasks for each supported `_current`/`_blank` surface, host focus, keys, voice, permissions, bright/cluttered backgrounds, and sustained operation. Test only applicable mechanisms, but do not mark unavailable environments `N/A` or infer host event delivery from a mocked callback.
+
+For a new Agent, execute at least one fresh end-to-end path from the generated source: strict validation → deterministic behavior checks → fresh inventory/fingerprint → actual advertised AIX pack/list and preview → manual host/device gates. Keep tests, logs, previews, and [submission materials](submission-preparation.md) outside the Studio import root. Re-run affected tests and regenerate source-bound artifacts after corrections; report the final source fingerprint and any remaining blockers.
+
+When evaluating the Skill itself, use an independent generation run with a concrete product brief and no copied bundled implementation. Record the Skill revision, generated source fingerprint, independently replayable commands, failures and repairs, and final local outcomes. One working sample establishes that sample's tested coverage, not correctness of all AIUI features or target devices.
+
 ## Project UX evidence matrix
 
 Put the completed table under the exact H2 heading `## Project UX evidence matrix`. Copy these rows into the project audit and preserve every column exactly as written. Do not rename, merge, or omit `Risk`, `Evidence layer`, `Result`, `Evidence`, or any other required column. Split a row when surfaces, states, inputs, or evidence layers have different results; never hide a blocked required layer inside a combined `PASS`. Fill every cell and do not collapse applicable rows into prose.

@@ -64,6 +64,8 @@ aix preview ./agent-app --dev --launch
 
 The published 0.8.2 and inspected main documentation differ in preview details; never hard-code a viewport assumption from the wrong CLI version. Preview uses a browser Ink runtime and cannot validate physical optics, actual host focus, hardware keys, sensors, permissions, or continuous device performance.
 
+An exported HTML file is only an export result. Open it, confirm that the runtime starts and loads the intended Page, then operate the controls and capture the visible result. Record the resolved Ink module URL/version as well as the CLI version: an unversioned network import may change independently of the lockfile. If startup fails before the bundle loads, preserve the error and distinguish a tooling bootstrap failure from an application failure. Do not silently downgrade the runtime or patch a preview and call it an unmodified-tool pass. Any diagnostic compatibility patch must remain outside the import root, with its diff, provenance, and narrower evidence limits recorded; the original failure remains visible.
+
 ## Package and inspect
 
 Validate the source tree first, then use commands present in help:
