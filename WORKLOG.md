@@ -15,6 +15,10 @@
 
 - Verified the final README with 323/323 unit tests and all 20 local checks passing, including Skill/reference validation, five strict import roots, the signed audit black box, four real AIX smoke flows, external package delivery, and preview HTML export. Restored the explicit new-duration/new-Page wording after the full suite caught its omission; no tests were weakened. The final README is approximately 18% shorter and all 23 local links resolve. Only README and project continuity files are included in the authorized `main` synchronization.
 
+- Added the user-requested web and desktop App onboarding for both Codex and Claude. README now links a focused guide covering app download/login, Codex's built-in Skill installer, Claude local folders and account ZIP upload, Codex Cloud repository skills, complete ZIP contents, output-root separation, and discovery checks. Checked current OpenAI/Claude official documentation; no account installation or upload was claimed. Shortened the shared Skill description from 266 to 193 characters to meet Claude web's documented 200-character limit while retaining every existing trigger term and the unchanged workflow body.
+
+- Verified web/desktop onboarding with 323/323 unit tests and all 20 local checks passing. Independent source/readability reviews confirmed the installation scopes; clarified Windows versus WSL paths and made the Claude web prompt self-contained. A temporary Skill ZIP contained all 29 tracked package files with byte-for-byte content equality, valid archive integrity, and no system metadata. Real account installation/upload remains untested; unrelated Starter Kit continuity edits are excluded from this publication.
+
 ## 2026-10-21
 
 - Integrated the user's explicit AIUI 0.19.0 upgrade, using official `v0.19.x` snapshot `7d62c2d9ac1cdc1389ba06ed0651b395903accff`. Verified that the website labels 0.19 stable while mutable `latest` is already labeled 0.20 preview; preserved the supplied 0.18/latest links as navigation and pinned repeatable decisions to the exact 0.19 source.

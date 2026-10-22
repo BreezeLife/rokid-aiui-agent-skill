@@ -34,6 +34,8 @@
 <!-- usage:install -->
 ## 2. 安装
 
+使用网页或桌面 App 时，先看[网页与桌面安装指南](web-and-desktop.zh-CN.md)，其中分别说明 Codex Cloud、Claude 网页、Codex 桌面和 Claude 桌面的入口。以下是 CLI / IDE 安装方式。
+
 在支持 Agent Skills 的编码环境中，使用通用 Skills CLI：
 
 ```bash

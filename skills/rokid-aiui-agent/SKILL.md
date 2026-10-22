@@ -1,6 +1,6 @@
 ---
 name: rokid-aiui-agent
-description: Use for ROKID AIUI agent work to create, modify, review, debug, preview, package, or publish complete AIUI Studio-importable projects involving .ink, WXML, WXSS, Pages, Widgets, Agent Workers, hardware input, monochrome design, UX audits, capability testing, or AIX.
+description: "Create, modify, review, debug, preview, package or publish ROKID AIUI projects: .ink/WXML/WXSS, Pages, Widgets, Agent Workers, hardware input, monochrome, UX audits, capability testing and AIX."
 license: Apache-2.0
 ---
 

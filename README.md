@@ -8,7 +8,7 @@
 
 新项目默认使用 **AIUI 0.19.0**。仓库内的日文 Focus Timer 示例保留在 **0.17.0**，用于兼容性回归。
 
-[开始开发](#快速开始) · [查看交付物](#你会得到什么) · [了解验证范围](#自动检查)
+[选择入口](#选择使用入口) · [开始开发](#快速开始) · [查看交付物](#你会得到什么) · [了解验证范围](#自动检查)
 
 ## 这个 Skill 能做什么
 
@@ -19,6 +19,20 @@
 - 审查和调试 AIUI 代码、交互与版本兼容性
 - 验证项目，交付可由 AIUI Studio 导入的源码；满足打包条件时，额外交付 `.aix` 包
 - 检查功能与 UX，准备 Agent 介绍、权限说明和审核材料
+
+## 选择使用入口
+
+可以使用网页、桌面 App 或 CLI（命令行）。先安装或打开工具，再添加本 Skill；安装 App 本身不会自动安装 Skill。
+
+| 使用入口 | 如何开始 | 安装与操作步骤 |
+| --- | --- | --- |
+| Codex 网页端 | 在 ChatGPT 中创建 Codex Cloud 环境，将 Skill 放进云端项目仓库 | [网页与云端配置](docs/web-and-desktop.zh-CN.md#codex-web) |
+| Claude 网页端 | 在 Customize → Skills 上传完整 Skill ZIP 并启用 | [网页上传步骤](docs/web-and-desktop.zh-CN.md#claude-web) |
+| Codex 桌面 App | 下载 ChatGPT 桌面 App，选择 Codex，用内置安装器添加 Skill | [App 下载、安装与调用](docs/web-and-desktop.zh-CN.md#codex-desktop) |
+| Claude 桌面 App | 下载 Claude，选择 Code 打开本地项目，再添加 Skill | [App 下载、安装与调用](docs/web-and-desktop.zh-CN.md#claude-desktop) |
+| CLI / IDE | 在终端用 Skills CLI 安装，再在编码工具中调用 | [下方五步流程](#路线-2用-codex-等-vibe-coding-工具开发) |
+
+不想使用终端，可以按桌面 App 指南操作。只使用浏览器时，分别遵循 Codex Cloud 或 Claude 网页流程；本机安装的 Skill 不会自动变成所有网页任务可用的 Skill。
 
 ## 快速开始
 
@@ -32,7 +46,7 @@
 
 ### 路线 2：用 Codex 等 Vibe Coding 工具开发
 
-以下以 Codex 为例；其他支持 Agent Skills 的编码工具也适用。先准备 Node.js `22.20` 或更高版本，这是 [Skills CLI 的运行要求](https://github.com/vercel-labs/skills#install-a-skill)。
+以下以 Codex 的 CLI / IDE 安装方式为例；其他支持 Agent Skills 的编码工具也适用。运行这里的 Skills CLI 需要 Node.js `22.20` 或更高版本，见[运行要求](https://github.com/vercel-labs/skills#install-a-skill)。桌面 App 用户也可用上方指南中的安装方式，再复用下面的开发需求。
 
 1. 安装 Skill。在支持 Agent Skills 的编码环境终端运行。推荐以下命令，将 Skill 安装到当前用户，并检查安装结果：
 
