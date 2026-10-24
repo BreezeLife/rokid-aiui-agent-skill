@@ -2,6 +2,7 @@
 
 ## Done
 
+- [x] Integrated pinned goriri/sakai community observations into a routed adaptation reference, official camera/model/speech contracts, functional/UX recipes, and conditional Studio import diagnosis; independently reviewed and verified with 323 unit tests, all 20 local gates, and a retained 26-case synthetic ownership probe.
 - [x] Added Codex/Claude web and desktop App installation guidance, including GUI Skill installation, complete ZIP structure, cloud/local scope boundaries, and a Claude-web-compatible Skill description.
 - [x] Clarified README onboarding with one install flow and task prompt, explicit Codex/Claude Code/Cursor invocation, deliverable and check tables, and early 0.19/0.17 version context; preserved the two routes and all existing delivery/evidence contracts.
 - [x] Completed independent 0.19 Agent generation assessment, functional/UX checks, and submission preparation; committed the results as `bc5c296` and fast-forward merged into local `main` on 2026-10-23. Actual source/logic/packaging success, native preview failure, diagnostic click coverage, and unresolved keyboard/host/device gates are recorded in `tests/evaluations/forward/08-fresh-agent-submission.md`.

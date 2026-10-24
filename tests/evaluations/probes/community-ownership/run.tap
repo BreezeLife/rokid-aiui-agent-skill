@@ -1,0 +1,166 @@
+TAP version 13
+# Subtest: normal PNG flow keeps bytes/MIME, releases camera before request, and cleans all handles
+ok 1 - normal PNG flow keeps bytes/MIME, releases camera before request, and cleans all handles
+  ---
+  duration_ms: 2.098166
+  type: 'test'
+  ...
+# Subtest: late camera acquisition after cancel stops once and never captures/uploads
+ok 2 - late camera acquisition after cancel stops once and never captures/uploads
+  ---
+  duration_ms: 0.174792
+  type: 'test'
+  ...
+# Subtest: late camera acquisition after timeout stops once and never captures/uploads
+ok 3 - late camera acquisition after timeout stops once and never captures/uploads
+  ---
+  duration_ms: 0.227125
+  type: 'test'
+  ...
+# Subtest: late camera acquisition after unload stops once and never captures/uploads
+ok 4 - late camera acquisition after unload stops once and never captures/uploads
+  ---
+  duration_ms: 0.1075
+  type: 'test'
+  ...
+# Subtest: late photo after cancel is closed and never uploaded
+ok 5 - late photo after cancel is closed and never uploaded
+  ---
+  duration_ms: 0.144625
+  type: 'test'
+  ...
+# Subtest: A success/finally after cancel and B retry cannot mutate B or its timer
+ok 6 - A success/finally after cancel and B retry cannot mutate B or its timer
+  ---
+  duration_ms: 1.125666
+  type: 'test'
+  ...
+# Subtest: A failure/finally after cancel and B retry cannot mutate B or its timer
+ok 7 - A failure/finally after cancel and B retry cannot mutate B or its timer
+  ---
+  duration_ms: 0.423208
+  type: 'test'
+  ...
+# Subtest: cancel at synthAcquire disposes late speech/player handles without replay or stale UI
+ok 8 - cancel at synthAcquire disposes late speech/player handles without replay or stale UI
+  ---
+  duration_ms: 0.210291
+  type: 'test'
+  ...
+# Subtest: cancel at synth disposes late speech/player handles without replay or stale UI
+ok 9 - cancel at synth disposes late speech/player handles without replay or stale UI
+  ---
+  duration_ms: 0.152375
+  type: 'test'
+  ...
+# Subtest: cancel at playerAcquire disposes late speech/player handles without replay or stale UI
+ok 10 - cancel at playerAcquire disposes late speech/player handles without replay or stale UI
+  ---
+  duration_ms: 0.219625
+  type: 'test'
+  ...
+# Subtest: cancel at play disposes late speech/player handles without replay or stale UI
+ok 11 - cancel at play disposes late speech/player handles without replay or stale UI
+  ---
+  duration_ms: 0.211208
+  type: 'test'
+  ...
+# Subtest: observed capture-overlay hide holds upload until show; show never starts again
+ok 12 - observed capture-overlay hide holds upload until show; show never starts again
+  ---
+  duration_ms: 0.307125
+  type: 'test'
+  ...
+# Subtest: ordinary hide cancels; old rejection after show/retry cannot overwrite new turn
+ok 13 - ordinary hide cancels; old rejection after show/retry cannot overwrite new turn
+  ---
+  duration_ms: 0.267958
+  type: 'test'
+  ...
+# Subtest: synthetic activation identity suppresses key/tap/repeat/completion duplicate but permits deliberate retry/back
+ok 14 - synthetic activation identity suppresses key/tap/repeat/completion duplicate but permits deliberate retry/back
+  ---
+  duration_ms: 0.266917
+  type: 'test'
+  ...
+# Subtest: empty capture produces zero network requests and remains retryable
+ok 15 - empty capture produces zero network requests and remains retryable
+  ---
+  duration_ms: 0.207459
+  type: 'test'
+  ...
+# Subtest: raw capture produces zero network requests and remains retryable
+ok 16 - raw capture produces zero network requests and remains retryable
+  ---
+  duration_ms: 0.191958
+  type: 'test'
+  ...
+# Subtest: oversized capture produces zero network requests and remains retryable
+ok 17 - oversized capture produces zero network requests and remains retryable
+  ---
+  duration_ms: 0.129875
+  type: 'test'
+  ...
+# Subtest: denied capture produces zero network requests and remains retryable
+ok 18 - denied capture produces zero network requests and remains retryable
+  ---
+  duration_ms: 0.126542
+  type: 'test'
+  ...
+# Subtest: offline response never becomes spoken live success
+ok 19 - offline response never becomes spoken live success
+  ---
+  duration_ms: 0.098333
+  type: 'test'
+  ...
+# Subtest: unauthorized response never becomes spoken live success
+ok 20 - unauthorized response never becomes spoken live success
+  ---
+  duration_ms: 0.218208
+  type: 'test'
+  ...
+# Subtest: partial response never becomes spoken live success
+ok 21 - partial response never becomes spoken live success
+  ---
+  duration_ms: 1.065625
+  type: 'test'
+  ...
+# Subtest: malformed response never becomes spoken live success
+ok 22 - malformed response never becomes spoken live success
+  ---
+  duration_ms: 0.065209
+  type: 'test'
+  ...
+# Subtest: missing backend configuration fails visibly before acquiring or uploading
+ok 23 - missing backend configuration fails visibly before acquiring or uploading
+  ---
+  duration_ms: 0.090083
+  type: 'test'
+  ...
+# Subtest: timeout during request invalidates owner and aborts; late success cannot speak
+ok 24 - timeout during request invalidates owner and aborts; late success cannot speak
+  ---
+  duration_ms: 0.07975
+  type: 'test'
+  ...
+# Subtest: playback failure preserves readable result and cleans player
+ok 25 - playback failure preserves readable result and cleans player
+  ---
+  duration_ms: 0.100917
+  type: 'test'
+  ...
+# Subtest: unload while waiting for show releases resources and settles ownership
+ok 26 - unload while waiting for show releases resources and settles ownership
+  ---
+  duration_ms: 0.072083
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 71.74425

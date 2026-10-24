@@ -16,6 +16,7 @@
 
 - 创建完整、可编辑的 AIUI 项目
 - 修改或扩展现有 AIUI 工程
+- 借鉴社区示例构建相机、模型与语音流程，检查取消重试、重复输入及真实数据链路，见[实践指南](skills/rokid-aiui-agent/references/community-patterns.md)
 - 审查和调试 AIUI 代码、交互与版本兼容性
 - 验证项目，交付可由 AIUI Studio 导入的源码；满足打包条件时，额外交付 `.aix` 包
 - 检查功能与 UX，准备 Agent 介绍、权限说明和审核材料

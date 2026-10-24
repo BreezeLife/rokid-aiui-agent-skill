@@ -33,3 +33,12 @@ No redistribution license was identified for the videos, PDF courseware, or dyna
 - Community source inspected: [twinkle10010/dsh-rokid-aiui at `ddf012da7d3b488b5edf5b77faff71a1663f5342`](https://github.com/twinkle10010/dsh-rokid-aiui/commit/ddf012da7d3b488b5edf5b77faff71a1663f5342).
 - Its package metadata declares `MIT`; the inspected Git snapshot and npm package are not reproducibly identical.
 - Only high-level workflow observations informed this project. No toolkit code or bundled Skill file is included here.
+
+## Community AIUI demonstrations
+
+Inspected on 2026-10-24; both repositories were publicly readable:
+
+- [goriri/rokid-aiui-demos at `b808fecbcf037e68da7db16eae33a8bdb7a1ae18`](https://github.com/goriri/rokid-aiui-demos/tree/b808fecbcf037e68da7db16eae33a8bdb7a1ae18). Its package metadata and README declare MIT, but no root license text was identified and GitHub's detected license was empty at inspection.
+- [sakai55/rokid at `6d30ed4367ee60be911d06c5d59f19df5cbde19d`](https://github.com/sakai55/rokid/tree/6d30ed4367ee60be911d06c5d59f19df5cbde19d). No license grant was identified in the inspected tree.
+
+The [community adaptation reference](skills/rokid-aiui-agent/references/community-patterns.md) contains independently written workflow synthesis, official API cross-checks, and original acceptance cases. No source implementation, upstream Skill text, media, credentials, or service configuration is redistributed. Community reports are non-normative observations, not evidence that this Skill's generated projects passed on a device or were approved for release.

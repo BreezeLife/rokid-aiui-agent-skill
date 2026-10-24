@@ -6,7 +6,7 @@ license: Apache-2.0
 
 # ROKID AIUI Agent Developer
 
-## Establish the target and output
+## Target and output
 
 Inspect runtime, device, surfaces, and inputs. Default to stable AIUI `0.19.0`; preserve explicit `0.17.0`/`0.18` targets. Record Page targets: embedded (`_current`), full-screen (`_blank`), or both.
 
@@ -20,15 +20,16 @@ Bundle only the Focus Timer at `assets/focus-timer-agent/`; keep other applicati
 
 ## Load only relevant guidance
 
-- Authority and versions: `references/source-of-truth.md`.
+- Authority: `references/source-of-truth.md`.
 - AIUI 0.19: `references/aiui-0.19.md`.
-- Structure and routes: `references/project-anatomy.md`.
+- Structure: `references/project-anatomy.md`.
 - Ink/WXML/WXSS: `references/ink-authoring.md`.
 - Interaction/design: `references/interaction-and-design.md`.
 - Runtime APIs: `references/runtime-capabilities.md`.
+- Community demos, camera/cloud/speech: `references/community-patterns.md`.
 - UX/capability evidence: `references/ux-and-capability-testing.md`.
-- Installed AIX workflow: `references/aix-workflow.md`.
-- Diagnosis and release gates: `references/debugging-and-release.md`.
+- AIX: `references/aix-workflow.md`.
+- Debugging/release: `references/debugging-and-release.md`.
 - Submission materials: `references/submission-preparation.md`.
 
 Use version-matched official sources. Disclose conflicts/`UNKNOWN`; never invent APIs/commands.

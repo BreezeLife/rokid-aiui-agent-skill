@@ -18,6 +18,7 @@ Build an open-source, source-traceable Agent Skill that helps coding agents and 
 - `skills/rokid-aiui-agent/references/`: focused, on-demand guidance derived from authoritative sources.
 - `skills/rokid-aiui-agent/references/aiui-0.19.md`: pinned 0.19 additions, migration boundaries, and functional/UX regression scenarios.
 - `skills/rokid-aiui-agent/references/submission-preparation.md`: source-bound Agent listing drafts, permission/data-use explanations, review reproduction, media requirements, and unresolved platform inputs.
+- `skills/rokid-aiui-agent/references/community-patterns.md`: attributed demo-adaptation patterns, official camera/model/speech contracts, async/input ownership, conditional Studio import diagnosis, and executable functional/UX case recipes.
 - `skills/rokid-aiui-agent/scripts/validate_aiui_project.py`: dependency-free static project validator.
 - `skills/rokid-aiui-agent/scripts/fingerprint_aiui_project.py`: deterministic revision binding for the exact Studio import root.
 - `skills/rokid-aiui-agent/scripts/inventory_aiui_capabilities.py`: schema-2 scanner that reconciles a closed claims ledger with exact declared surfaces and one-path-per-gate inputs.

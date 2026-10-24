@@ -1,5 +1,11 @@
 # Work Log
 
+## 2026-10-24
+
+- Researched the user-supplied goriri and sakai repositories independently at fixed public snapshots. Inspected source, declared/runtime version boundaries, licensing signals, real/sample data paths, input/lifecycle behavior, media workflows, and import observations; no upstream code was executed or copied and no demo service was accessed. Cross-checked capture, image-model input, HTTPS cancellation, Page lifecycle, and speech ownership against pinned official AIUI 0.19 sources.
+- Added an on-demand community adaptation reference and narrow Skill/runtime/testing/import crosslinks, README discovery, and source notices. The reference provides concrete camera/model/speech contracts, operation ownership and late-result disposal, input arbitration, sample/live separation, per-mode assertions, conditional Studio URL diagnosis, and rendered-state/media checks. Preserved the existing audit schemas and sole bundled product. An independent pre-change evaluation already handled general source/evidence boundaries but identified missing explicit speech cancellation guidance; a fresh post-change evaluation and executable logic probe are in progress.
+- Completed both independent source reviews with no blockers. The forward evaluator selected the documented capture, request-abort, and independent speech contracts and produced a synthetic injected-dependency controller with 26/26 passing cases; the archived copy was inspected and replayed with the same result. Retained its source, tests, TAP output, and Skill hashes under `tests/evaluations/probes/community-ownership/`, explicitly separate from production templates and runtime/device evidence. The full repository gate passed 323/323 unit tests and all 20 checks, including real AIX pack/list and HTML export. No actual browser rendering, live backend, authenticated Studio, physical-device, or platform-submission check occurred. Unrelated Starter Kit records remain excluded from this change.
+
 ## 2026-10-23
 
 - The user authorized committing and merging into `main`, then expanded the request to verify that the Skill can generate a correct AIUI Agent, add capability/UX checks, and prepare submission content. The previously pushed `4d13989` feature snapshot passed GitHub Actions run `39598623260`; a fresh fetch found no newer remote commits.

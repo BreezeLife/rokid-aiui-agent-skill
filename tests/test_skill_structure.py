@@ -17,6 +17,7 @@ REFERENCE_PATHS = (
     "references/ink-authoring.md",
     "references/interaction-and-design.md",
     "references/runtime-capabilities.md",
+    "references/community-patterns.md",
     "references/ux-and-capability-testing.md",
     "references/aix-workflow.md",
     "references/debugging-and-release.md",

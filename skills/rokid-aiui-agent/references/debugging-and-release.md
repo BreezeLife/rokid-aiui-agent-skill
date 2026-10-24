@@ -29,6 +29,8 @@ Official 0.19 guidance distinguishes [Web simulation from real-device debugging]
 4. Remove reliance on parent-workspace files, symlinks, secrets, or uncommitted local assets.
 5. Confirm the actual host supports the declared target. If it is older than 0.19, report the mismatch and plan an explicit compatible fallback before changing the project's version or features.
 
+If a monorepo `/tree/...` URL is rejected, distinguish portal URL parsing from an invalid project. Follow the [conditional import diagnosis](community-patterns.md#import-one-demo-diagnose-the-portal-separately); do not convert a community portal workaround into a universal Studio rule.
+
 ### Page is blank or fails to load
 
 - Check route spelling/case and whether `<route>.ink` shadows same-route multi-file sources.

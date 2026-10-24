@@ -1,0 +1,41 @@
+{
+  "cancelled": 0,
+  "durationMs": 71.74425,
+  "exitCode": 0,
+  "failed": 0,
+  "nodeVersion": "v24.19.0",
+  "passed": 26,
+  "schemaVersion": 1,
+  "scope": "Independent pure injected ownership model; no AIUI or platform PASS",
+  "skillFilesRead": {
+    "SKILL.md": "ce5e92b684b816d082d9ef0cfc51494a5f3a179bfd64e160368d5f78f17977cb",
+    "references/aiui-0.19.md": "d07cfc02bd0764330cfe723a55f7a7d04915e631969fe77620651d341d03a5d7",
+    "references/community-patterns.md": "3ccafc4fd7aef7a572163c0f181102b1f874a625041a5a902918c0394dabc469",
+    "references/debugging-and-release.md": "e3af3548a8ea821473a20ade40137abad7bf044c9cb6ccf87cc823be1dc2fa1f",
+    "references/interaction-and-design.md": "c9106682b99c84e318676dd81dee5ea76c0089ca6c600a376c0216458e0b27e2",
+    "references/project-anatomy.md": "a49ca0fddbd3024564a75f653d8a210b3e86af75ca85d392f1c6059d21d35fb3",
+    "references/runtime-capabilities.md": "8662a65914b334b647a78d7aa6124fdefb5d5f459c7ec01a90f9bcdda72b9f34",
+    "references/source-of-truth.md": "f9ad61813f00190f1290eefcd1c602d989fb40a43301c998ba6da18d589d1ab0",
+    "references/ux-and-capability-testing.md": "790477e830ada4830d35884ee43e37e3e0cfec61bf26cc9d730a5fe66fb0e796"
+  },
+  "skillTreeHashAlgorithm": "SHA-256 of sorted UTF-8 relative-path + NUL + file-sha256 + LF for every regular file in skill root",
+  "skillTreeSha256": "e696a225fbd55a5ed080f02da00ad4c2be1ddf0482b3690cbf6a4e17b5c7f3f5",
+  "skipped": 0,
+  "testOutputSha256": "d04eb46bd92a8a2e707abedb390cc30b5c400592a33238eee651cf99b4016f2c",
+  "tests": 26,
+  "todo": 0,
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "controller.test.mjs"
+  ],
+  "cwd": "tests/evaluations/probes/community-ownership",
+  "date": "2026-10-24",
+  "sourceFilesSha256": {
+    "controller.mjs": "23987e3b703a01ecbb29af42036404ed9e8099bbf0bdd996c610258fa18d5f93",
+    "controller.test.mjs": "d1376ee5a0ba8c8a63897bd3f9597d99cac9891074968e79e1a877696ef42609",
+    "README.md": "778397b57fe0de2ad457ed766ea55eb9cbf945495bcff2015157716674e9c642",
+    "run.tap": "d04eb46bd92a8a2e707abedb390cc30b5c400592a33238eee651cf99b4016f2c"
+  }
+}

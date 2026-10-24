@@ -46,6 +46,8 @@ The upstream bundled component/API summaries are useful indexes, but not exhaust
 
 ## Permissions
 
+For camera → model → speech implementations, use [community adaptation patterns](community-patterns.md#bind-camera-model-and-speech-to-official-019-contracts) for the narrow official capture, image-input, request-abort, and independently controllable speech contracts. That guide also covers operation ownership, late acquisitions, sample/live separation, and failure tests. Third-party code is not API authority.
+
 For 0.19, the documented declarations for location, camera, and microphone are `GEOLOCATION`, `CAMERA`, and `RECORD_AUDIO`, respectively. The separate `SPEECH_RECOGNITION` permission was removed; external-audio recognition does not itself open a microphone. See the [0.19 compatibility checklist](aiui-0.19.md#compatibility-checks-before-changing-existing-code). Declare only exact permissions used by inspected code and handle platform authorization separately.
 
 For explicit 0.17 work, the pinned capabilities manifest shows `CAMERA` on [line 57](https://github.com/yodaos-project/AIUI/blob/88e70bb0382525c1a93ef077c2401dcc31a273ce/samples/capabilities/app.json#L57). Use that single line only as CAMERA declaration evidence: the surrounding permission array also contains GEOLOCATION and RECORD_AUDIO, while lines 5–54 contain Widget declarations, so never copy the full array or manifest as a clean 0.17 template. `RECORD_AUDIO` elsewhere in the sample does not prove that an unqualified voice feature uses SpeechRecognition, `onVoiceWakeup`, or any permission; inspect the actual mechanism first.
