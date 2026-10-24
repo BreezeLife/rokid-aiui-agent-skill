@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "captureDate": "2026-10-24",
+  "sourceCommit": "0acb0b14a9a3c69572c726dd126076ca2d758c35",
+  "sourceRoot": "skills/rokid-aiui-agent/assets/focus-timer-agent",
+  "sourceTarget": "0.17.0",
+  "sourceFiles": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "fb43f84d967c990b87d254c566a3eea9da7c787059c14213727959b39a0483ac"
+    },
+    {
+      "path": "aiui-audit-claims.json",
+      "sha256": "bed5bfd3d741c5e1dc6a94648367961a302dd345759ccf7c5eeefa02023450aa"
+    },
+    {
+      "path": "app.js",
+      "sha256": "450f0af4f4c1ecc4c7180f2e364c8a59bfed69dd350fb6b47bce8641c2a37786"
+    },
+    {
+      "path": "app.json",
+      "sha256": "99653e8f4b9d35435ca8f09166163e5716a7519db8cc58ad7c6f1eedf86ad701"
+    },
+    {
+      "path": "pages/index/index.ink",
+      "sha256": "53468ef909db523663a0fff2cbcce91178e3b594b9d89850dc00054f28994381"
+    }
+  ],
+  "aixCliVersion": "0.8.2",
+  "exportHtmlSha256": "89d17f53ceea19182f834d094bedd175d2dff53d7f642f51be194ba36f39ab44",
+  "exportUnmodified": true,
+  "inkImport": "https://esm.sh/@yodaos-pkg/ink",
+  "observedInkModule": "https://esm.sh/@yodaos-pkg/ink@0.19.1/es2022/ink.mjs",
+  "runtimeLogExcerpts": [
+    {
+      "level": "log",
+      "message": "Ink Web view created",
+      "timestamp": "2026-10-24T14:26:47.092Z",
+      "url": "https://esm.sh/@yodaos-pkg/ink@0.19.1/es2022/ink.mjs"
+    },
+    {
+      "level": "log",
+      "message": "%cDEBUG%c packages/ink-scripting/src/js_runtime.rs:619%c JsRuntime::eval_module namespace success module='/__ink_bundle__/focus-timer-agent/pages/index/index.js' color: white; padding: 0 3px; background: blue; font-weight: bold; color: inherit background: inherit; color: inherit",
+      "timestamp": "2026-10-24T14:26:47.283Z",
+      "url": "https://esm.sh/@yodaos-pkg/ink@0.19.1/es2022/ink.mjs"
+    }
+  ],
+  "sdkPatched": false,
+  "query": {},
+  "target": "_current (default compact view)",
+  "canvasCssPixels": [
+    480,
+    352
+  ],
+  "browserViewportCssPixels": [
+    1280,
+    720
+  ],
+  "captureClipCss": {
+    "x": 178,
+    "y": 179.0859375,
+    "width": 480,
+    "height": 352
+  },
+  "imageProcessing": "Browser screenshot API crop only; no redraw, retouching, or compositing.",
+  "interaction": "Open native AIX HTML; capture idle; click AIX Enter; capture running; click AIX Enter; capture paused.",
+  "assets": [
+    {
+      "file": "idle.jpg",
+      "state": "idle",
+      "displayTime": "10:00",
+      "pixels": [
+        480,
+        352
+      ],
+      "sha256": "5217dce3175ca70b499dfe9fd21d4447e855b6adff5f0757ef0da31b3defe5cd",
+      "capturedAtUtc": "2026-10-24T14:27:37.462123+00:00"
+    },
+    {
+      "file": "running.jpg",
+      "state": "running",
+      "displayTime": "09:54",
+      "pixels": [
+        480,
+        352
+      ],
+      "sha256": "183c0e2f07183b87216223c71b6dc3b011e24af20820711a9d2c6e069c670b17",
+      "capturedAtUtc": "2026-10-24T14:27:49.210963+00:00"
+    },
+    {
+      "file": "paused.jpg",
+      "state": "paused",
+      "displayTime": "09:53",
+      "pixels": [
+        480,
+        352
+      ],
+      "sha256": "b6a74d2abaf193d0c96faa81c894189abe49800da282c8ba9c6347213af01dcd",
+      "capturedAtUtc": "2026-10-24T14:27:49.776407+00:00"
+    },
+    {
+      "file": "aix-preview.jpg",
+      "state": "idle",
+      "displayTime": "10:00",
+      "pixels": [
+        1280,
+        720
+      ],
+      "sha256": "7266bafe6599c04107e5d7884da08793a3f4297102d03516e0f4863677c4931b",
+      "capturedAtUtc": "2026-10-24T14:27:37.892846+00:00"
+    }
+  ],
+  "evidenceScope": "Browser preview only; no Studio, physical-device, voice, gesture, full-view, completion-state, or release-readiness claim."
+}

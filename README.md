@@ -155,11 +155,13 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 
 对话中修改为新时长会打开一个新 Page。语音触发仍需 AIUI Studio 和 Rokid Glasses 真机验证，状态为 `BLOCKED`；点头和触摸板仍需真机验证，同样为 `BLOCKED`。该示例不承诺后台计时、系统通知或持久化恢复。
 
-下图是基于源码与 AIX 模拟器行为绘制的流程示意，不是真机实拍，不替代 Studio 或物理眼镜验证：
+以下是 2026-10-24 实际运行内置源码后截取的界面，依次通过预览器的 Enter 控件开始、暂停计时。保留原始 480 × 352 画布比例，点击可查看原图。
 
-![Focus Timer 的设时、开始、暂停、继续与完成流程](docs/assets/focus-timer-user-journey.png)
+| 待开始 · `idle` | 计时中 · `running` | 已暂停 · `paused` |
+| --- | --- | --- |
+| ![Focus Timer 实际预览：10:00，開始按钮](docs/assets/focus-timer-preview/idle.jpg) | ![Focus Timer 实际预览：09:54，一時停止按钮](docs/assets/focus-timer-preview/running.jpg) | ![Focus Timer 实际预览：09:53，再開按钮](docs/assets/focus-timer-preview/paused.jpg) |
 
-[下载六页开发者 PDF](output/pdf/focus-timer-developer-reference.pdf)
+截图环境：AIX CLI `0.8.2`，浏览器实际加载 Ink `0.19.1`，默认紧凑视图（`_current`）；示例源码仍按 AIUI `0.17.0` 维护。截图来自浏览器预览，不是真机实拍，不替代 Studio、语音或物理眼镜验证。[完整预览画面与复现记录](docs/focus-timer-screenshots.md)
 
 ## 自动检查
 

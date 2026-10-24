@@ -2,6 +2,7 @@
 
 ## Done
 
+- [x] Replaced the README's drawn Focus Timer journey with actual idle/running/paused browser screenshots, complete preview context, source/image hashes, and reproduction instructions; retained explicit version and Studio/device evidence boundaries.
 - [x] Integrated pinned goriri/sakai community observations into a routed adaptation reference, official camera/model/speech contracts, functional/UX recipes, and conditional Studio import diagnosis; independently reviewed and verified with 323 unit tests, all 20 local gates, and a retained 26-case synthetic ownership probe.
 - [x] Added Codex/Claude web and desktop App installation guidance, including GUI Skill installation, complete ZIP structure, cloud/local scope boundaries, and a Claude-web-compatible Skill description.
 - [x] Clarified README onboarding with one install flow and task prompt, explicit Codex/Claude Code/Cursor invocation, deliverable and check tables, and early 0.19/0.17 version context; preserved the two routes and all existing delivery/evidence contracts.
