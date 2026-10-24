@@ -2,6 +2,7 @@
 
 ## Done
 
+- [x] Rebuilt the README presentation with original concept artwork, a clear introduction, complete Chinese/English/Japanese homepages, task-specific prerequisites, and getting-started navigation; preserved the two routes, actual screenshots, multimedia checks, and delivery/evidence boundaries.
 - [x] Added app.json feature/permission configuration and a routed multimedia implementation/testing reference requiring actual start calls, useful output, downstream data, completion and cleanup; preserved official wx/autoplay variants and existing device/audit evidence boundaries.
 - [x] Replaced the README's drawn Focus Timer journey with actual idle/running/paused browser screenshots, complete preview context, source/image hashes, and reproduction instructions; retained explicit version and Studio/device evidence boundaries.
 - [x] Integrated pinned goriri/sakai community observations into a routed adaptation reference, official camera/model/speech contracts, functional/UX recipes, and conditional Studio import diagnosis; independently reviewed and verified with 323 unit tests, all 20 local gates, and a retained 26-case synthetic ownership probe.

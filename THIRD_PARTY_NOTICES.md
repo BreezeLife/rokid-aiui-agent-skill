@@ -42,3 +42,9 @@ Inspected on 2026-10-24; both repositories were publicly readable:
 - [sakai55/rokid at `6d30ed4367ee60be911d06c5d59f19df5cbde19d`](https://github.com/sakai55/rokid/tree/6d30ed4367ee60be911d06c5d59f19df5cbde19d). No license grant was identified in the inspected tree.
 
 The [community adaptation reference](skills/rokid-aiui-agent/references/community-patterns.md) contains independently written workflow synthesis, official API cross-checks, and original acceptance cases. No source implementation, upstream Skill text, media, credentials, or service configuration is redistributed. Community reports are non-normative observations, not evidence that this Skill's generated projects passed on a device or were approved for release.
+
+## README presentation
+
+The user supplied [makecindy/cindy](https://github.com/makecindy/cindy) as a reference for README organization: a hero, concise introduction, language navigation, prerequisites and getting started. No Cindy artwork, character, logo or prose is included here.
+
+`docs/assets/readme-hero.png` is original AI-generated concept artwork created for this repository on 2026-10-25. Its smart glasses are a conceptual illustration, not an official product photograph, application screenshot or device-validation artifact. The Focus Timer screenshots retain their separate [capture provenance](docs/focus-timer-screenshots.md).

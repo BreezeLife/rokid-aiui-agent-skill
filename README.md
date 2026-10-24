@@ -1,14 +1,27 @@
+![ROKID AIUI Agent Skill — Describe. Build. Verify. 智能眼镜概念头图](docs/assets/readme-hero.png)
+
+<p align="center">
+  <strong>简体中文</strong> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a><br>
+  使用指南：<a href="docs/usage.zh-CN.md">中文</a> · <a href="docs/usage.en.md">English</a> · <a href="docs/usage.ja.md">日本語</a>
+</p>
+
+<div align="center">
+
+[![CI](https://github.com/BreezeLife/rokid-aiui-agent-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/BreezeLife/rokid-aiui-agent-skill/actions/workflows/ci.yml) [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE) [![AIUI target: 0.19.0](https://img.shields.io/badge/AIUI_target-0.19.0-9BE564.svg)](skills/rokid-aiui-agent/references/aiui-0.19.md)
+
+</div>
+
 # ROKID AIUI Agent Skill
 
-[![CI](https://github.com/BreezeLife/rokid-aiui-agent-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/BreezeLife/rokid-aiui-agent-skill/actions/workflows/ci.yml)
+**从一句需求，到可导入 AIUI Studio 的完整 Agent。**
 
-[简体中文指南](docs/usage.zh-CN.md) | [English](docs/usage.en.md) | [日本語](docs/usage.ja.md)
+这是一个社区维护的开源 Agent Skill，让 **Codex、Claude Code、Cursor** 等编码工具按 ROKID AIUI 规范开发。你描述需求，工具生成可继续编辑的源码工程，检查功能与交互体验，并准备提交材料。
 
-让 Codex、Claude Code、Cursor 等编码工具按 ROKID AIUI 规范开发 Agent。安装这个 Skill 后，你描述需求，编码工具生成可继续编辑、可导入 AIUI Studio 的完整项目，并检查功能、交互体验和提交材料。
+把 Skill 安装到你正在使用的编码工具中，即可创建新 Agent，也可以审查、调试和扩展现有项目。它把版本匹配的参考文档、工程验证脚本和完整示例放在一起，帮助开发者核对 API 是否实际执行、结果是否有效，以及哪些检查仍需 Studio 或目标眼镜完成。
 
-新项目默认使用 **AIUI 0.19.0**。仓库内的日文 Focus Timer 示例保留在 **0.17.0**，用于兼容性回归。
+新项目默认使用 **AIUI 0.19.0**；内置日文 Focus Timer 保留在 **0.17.0**，用于兼容性回归。源码采用 **Apache-2.0**，可查看、修改和扩展。
 
-[选择入口](#选择使用入口) · [开始开发](#快速开始) · [查看交付物](#你会得到什么) · [了解验证范围](#自动检查)
+[快速开始](#快速开始) · [环境要求](#环境要求) · [网页与桌面安装](docs/web-and-desktop.zh-CN.md) · [查看示例](#内置-focus-timer) · [验证范围](#自动检查)
 
 ## 这个 Skill 能做什么
 
@@ -21,6 +34,22 @@
 - 审查和调试 AIUI 代码、交互与版本兼容性
 - 验证项目，交付可由 AIUI Studio 导入的源码；满足打包条件时，额外交付 `.aix` 包
 - 检查功能与 UX，准备 Agent 介绍、权限说明和审核材料
+
+## 环境要求
+
+*Prerequisites · 按你要执行的工作准备环境。*
+
+| 你要做什么 | 需要准备什么 |
+| --- | --- |
+| 在编码工具中使用 Skill | 支持 Agent Skills 的工具、可用账号，以及读取 Skill 和编辑项目的能力；执行本地检查时还需终端权限 |
+| 通过下方 `npx skills` 命令安装 | **Node.js ≥22.20.0**，以及 npm / npx，见 [Skills CLI 要求](https://github.com/vercel-labs/skills#install-a-skill) |
+| 执行内置工程检查 | 推荐 **Python 3.12**，与本仓库 CI 一致；核心结构、指纹和能力清单脚本使用标准库 |
+| 本地预览和打包 | 可选 **AIX CLI**；本仓库锁定 `0.8.2`，要求 Node.js ≥20。先运行 `aix --help`，按实际支持的命令操作 |
+| Studio / 真机验收 | 有权限的 **AIUI Studio** 账号；验证设备行为时需要目标 **Rokid Glasses** |
+
+网页和桌面 App 的安装方式见[专门指南](docs/web-and-desktop.zh-CN.md)，按对应方式配置即可。工具、账号或设备条件不足时，相关检查记录为 `BLOCKED`。
+
+维护本仓库或运行完整测试时，另按[开发验证步骤](docs/usage.zh-CN.md#5-如何检查交付结果)安装开发依赖；CI 基准为 Node `24.19.0` 和 Python `3.12`。
 
 ## 选择使用入口
 
@@ -38,7 +67,9 @@
 
 ## 快速开始
 
-已有项目或想先看示例，选择路线 1；想让 AI 帮你开发，选择路线 2。
+*Getting started · 选择一个入口，完成第一个可验证的 AIUI 项目。*
+
+已有项目或想先看示例，选择路线 1；想让 AI 帮你开发，选择路线 2。常用安装命令和第一条开发提示词都在下方，可直接复制。
 
 ### 路线 1：在 AIUI Studio 中打开项目
 
@@ -48,7 +79,7 @@
 
 ### 路线 2：用 Codex 等 Vibe Coding 工具开发
 
-以下以 Codex 的 CLI / IDE 安装方式为例；其他支持 Agent Skills 的编码工具也适用。运行这里的 Skills CLI 需要 Node.js `22.20` 或更高版本，见[运行要求](https://github.com/vercel-labs/skills#install-a-skill)。桌面 App 用户也可用上方指南中的安装方式，再复用下面的开发需求。
+以下以 Codex 的 CLI / IDE 安装方式为例；其他支持 Agent Skills 的编码工具也适用。先满足[环境要求](#环境要求)，桌面 App 用户也可按上方指南安装，再复用下面的开发需求。
 
 1. 安装 Skill。在支持 Agent Skills 的编码环境终端运行。推荐以下命令，将 Skill 安装到当前用户，并检查安装结果：
 
@@ -208,6 +239,12 @@ Skill 会按项目实际能力组织检查，并区分本地证据与 Studio、�
 - [中文完整指南](docs/usage.zh-CN.md)：创建、修改、审查、调试和打包
 - [Skill 入口](skills/rokid-aiui-agent/SKILL.md)：任务流程与交付要求
 - [来源优先级](skills/rokid-aiui-agent/references/source-of-truth.md)：官方文档、实现和示例冲突时如何取舍
+
+## 参与改进
+
+欢迎通过 [Issues](https://github.com/BreezeLife/rokid-aiui-agent-skill/issues) 提交问题或需求。报告问题时，请附上目标 AIUI 版本、所用工具、最小复现步骤和实际结果；日志请去除密钥与个人数据。
+
+提交代码或文档改进前，阅读 [AGENTS.md](AGENTS.md) 和[开发验证步骤](docs/usage.zh-CN.md#5-如何检查交付结果)，执行受影响检查及完整本地验证。版本结论引用对应官方来源，实际截图和日志注明验证环境。
 
 ## 来源与许可证
 
