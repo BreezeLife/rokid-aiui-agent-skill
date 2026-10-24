@@ -16,6 +16,7 @@
 
 - 创建完整、可编辑的 AIUI 项目
 - 修改或扩展现有 AIUI 工程
+- 帮助配置 [`app.json` 的页面、权限与应用入口](skills/rokid-aiui-agent/references/project-anatomy.md#configure-appjson-from-actual-features)，按实际功能选择权限
 - 借鉴社区示例构建相机、模型与语音流程，检查取消重试、重复输入及真实数据链路，见[实践指南](skills/rokid-aiui-agent/references/community-patterns.md)
 - 审查和调试 AIUI 代码、交互与版本兼容性
 - 验证项目，交付可由 AIUI Studio 导入的源码；满足打包条件时，额外交付 `.aix` 包
@@ -164,6 +165,8 @@ Directory: skills/rokid-aiui-agent/assets/focus-timer-agent
 截图环境：AIX CLI `0.8.2`，浏览器实际加载 Ink `0.19.1`，默认紧凑视图（`_current`）；示例源码仍按 AIUI `0.17.0` 维护。截图来自浏览器预览，不是真机实拍，不替代 Studio、语音或物理眼镜验证。[完整预览画面与复现记录](docs/focus-timer-screenshots.md)
 
 ## 自动检查
+
+**多媒体功能必须确认 API 实际执行。** 实现和测试都要追踪“用户或 Agent 入口 → 实际 API 调用 → 有效数据或事件 → 功能结果”。拍照仅声明 `CAMERA`、取得视频流或创建相机对象还不够：必须确认执行并等待 `capture.takePhoto()`，或官方 `CameraContext.takePhoto()` 等价路径，取得有效照片后再处理。音频、短音效、录音、视频等也按各自启动与结果合同检查，见[多媒体实现与测试](skills/rokid-aiui-agent/references/media-implementation-and-testing.md)。
 
 Skill 会按项目实际能力组织检查，并区分本地证据与 Studio、真机证据：
 

@@ -46,6 +46,8 @@ The upstream bundled component/API summaries are useful indexes, but not exhaust
 
 ## Permissions
 
+For every multimedia feature being implemented or tested, read [media implementation and testing](media-implementation-and-testing.md). Trace the actual start call and useful output; declarations, constructors, availability checks, and handlers alone do not execute the feature. Configure `app.json` from the [actual feature set](project-anatomy.md#configure-appjson-from-actual-features).
+
 For camera → model → speech implementations, use [community adaptation patterns](community-patterns.md#bind-camera-model-and-speech-to-official-019-contracts) for the narrow official capture, image-input, request-abort, and independently controllable speech contracts. That guide also covers operation ownership, late acquisitions, sample/live separation, and failure tests. Third-party code is not API authority.
 
 For 0.19, the documented declarations for location, camera, and microphone are `GEOLOCATION`, `CAMERA`, and `RECORD_AUDIO`, respectively. The separate `SPEECH_RECOGNITION` permission was removed; external-audio recognition does not itself open a microphone. See the [0.19 compatibility checklist](aiui-0.19.md#compatibility-checks-before-changing-existing-code). Declare only exact permissions used by inspected code and handle platform authorization separately.

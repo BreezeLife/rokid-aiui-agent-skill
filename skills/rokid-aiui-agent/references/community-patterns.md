@@ -24,6 +24,8 @@ No upstream code, prose, or media is bundled. At inspection, goriri's metadata/R
 
 ## Bind camera, model, and speech to official 0.19 contracts
 
+Apply the [media execution checks](media-implementation-and-testing.md) during both implementation and testing. For a still-photo feature, confirm the actual handler reaches `capture.takePhoto()` or `CameraContext.takePhoto()` and uses the returned image; a CAMERA declaration, acquired stream, or constructed camera is insufficient.
+
 Use official snapshot `7d62c2d9ac1cdc1389ba06ed0651b395903accff` below, not community API lists.
 
 | Stage | Contract and implementation decision |

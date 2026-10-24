@@ -1,6 +1,6 @@
 # Project anatomy and Studio import contract
 
-Read this when creating a project, reviewing its tree, adding routes, or preparing a GitHub repository for AIUI Studio.
+Read this when creating a project, configuring `app.json`, reviewing its tree, adding routes, or preparing a GitHub repository for AIUI Studio.
 
 Default new projects to **0.19.0** and read [aiui-0.19.md](aiui-0.19.md). The 0.17/0.18 sources below remain compatibility evidence for explicit older targets; an existing fixture keeps its stated version.
 
@@ -52,6 +52,45 @@ A minimal manifest is intentionally small:
   }
 }
 ```
+
+## Configure app.json from actual features
+
+Use the user's [0.18 app.json documentation](https://js.rokid.com/AIUI/framework/open-agent-format-app-json?version=0.18.0&lang=zh-CN) as the navigation entrypoint. The official [0.18 release source](https://github.com/yodaos-project/AIUI/blob/cfa902ba2732121808ddf07a4e71465545977742/documentation/1-framework/open-agent-format/app-json.md) and [0.19 source](https://github.com/yodaos-project/AIUI/blob/7d62c2d9ac1cdc1389ba06ed0651b395903accff/documentation/1-framework/open-agent-format/app-json.md) were checked on 2026-10-25. Preserve the project's selected version; do not downgrade new work because a reference URL selects 0.18.
+
+Configure the selected import root, then explain each field in terms of the shipped feature:
+
+| Field | Configuration decision |
+| --- | --- |
+| `pages` | List real route entries without source extensions; resolve every declared path as described below. |
+| `window` | Set shared window configuration such as `navigationBarTitleText`; keep Page-specific UI in the Page. |
+| `permissions` | Use exact, case-sensitive strings for APIs actually used. A declaration does not grant OS authorization or execute the API. |
+| `usingComponents` | Declare actual component entries when needed; 0.19 requires a concrete entry path. |
+| `widgets` / `agentWorkers` | Add only required, version-supported surfaces with the contracts below. Do not add a Worker merely to enable a camera. |
+| `app.<locale>.json` | Optional Widget text overrides keyed by Widget path; retain default text and runtime configuration in `app.json`. |
+
+For a Page that **only takes photos**, this manifest is sufficient configuration for the declared route and camera permission; it is not a complete camera implementation:
+
+```json
+{
+  "pages": ["pages/camera/index"],
+  "window": { "navigationBarTitleText": "Photo Agent" },
+  "permissions": ["CAMERA"]
+}
+```
+
+Create the corresponding Page and application entry. Do not copy all permissions from an upstream demo:
+
+| Actual operation | Manifest permission |
+| --- | --- |
+| Camera photos or video input | `CAMERA` |
+| Microphone input or audio recording | `RECORD_AUDIO` |
+| Location access | `GEOLOCATION` |
+| Read / add images in the system media library | `READ_MEDIA_IMAGES` / `CREATE_MEDIA_IMAGES`, respectively |
+| Read / add audio in the system media library | `READ_MEDIA_AUDIO` / `CREATE_MEDIA_AUDIO`, respectively |
+
+Taking a photo does not itself request system-library storage, and playing supplied audio does not itself open a microphone. Add library or recording permissions only for those actual operations. Missing declarations, denied authorization, and unavailable devices need separate recovery paths. For 0.19, do not add the removed `SPEECH_RECOGNITION` permission.
+
+For camera or other multimedia features, also read [media implementation and testing](media-implementation-and-testing.md). In particular, `"CAMERA"`, `getUserMedia()` and `new ImageCapture(...)` do not take a still photo: the selected interaction must reach and await `capture.takePhoto()` (or the documented wx equivalent). `_blank` is a runtime target requirement, not an invented `app.json` permission or target field.
 
 ## Routes: validate declarations, do not invent a registry rule
 

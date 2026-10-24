@@ -1,0 +1,167 @@
+{
+  "scope": "Formatting repair after independent review; no capability/evidence/status upgrades.",
+  "originalSha256": "b6fa9ad0e6e3a56a9be9bfc5b2801552c3b3a3777b19a7c446ffcf5a99f9dd41",
+  "normalizedSha256": "32d9ffc62d78ec396b06d06569a12350cd9c09f262df9f34513a097d342b5f86",
+  "originalValidatorExit": 1,
+  "diagnostics": [
+    "source-unavailable target tuple is not exact",
+    "Reason must be an exact FAIL/BLOCKED ledger"
+  ],
+  "changes": [
+    {
+      "line": 28,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 29,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 30,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 31,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 32,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 33,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 34,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 35,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 36,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 37,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 38,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 39,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 40,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 41,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 42,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 43,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 44,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 45,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 46,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 47,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 48,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 49,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 50,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 51,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 52,
+      "column": 2,
+      "before": "AIUI 0.19.0; device/host UNAVAILABLE; Page",
+      "after": "AIUI 0.19.0; device=UNAVAILABLE; surface=UNAVAILABLE"
+    },
+    {
+      "line": 58,
+      "prefixBefore": "Reason: FAIL=none;",
+      "prefixAfter": "Reason: FAIL=[none];"
+    }
+  ]
+}

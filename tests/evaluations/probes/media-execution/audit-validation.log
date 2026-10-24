@@ -1,0 +1,2 @@
+AIUI audit structurally valid: Final status=BLOCKED; Release-ready=NO
+Exit code: 2 (valid BLOCKED, not release-ready)

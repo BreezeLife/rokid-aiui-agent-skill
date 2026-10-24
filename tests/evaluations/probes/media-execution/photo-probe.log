@@ -1,0 +1,10 @@
+Reference SHA-256: 9217117b334609646ae5286ee0f20bc0800830b237cc9b11d2db0bd08ff06a2f
+PASS real helper reaches takePhoto once and returns the same PNG Blob
+PASS denied acquisition never constructs or captures
+PASS missing video track releases acquired resources
+PASS constructor failure releases acquired resources
+PASS capture failure releases acquired resources
+PASS empty photo is rejected
+PASS non-image MIME is rejected
+PASS non-Blob result is rejected
+8/8 synthetic logic cases passed; no device or encoded-image decoding claim.

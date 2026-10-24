@@ -22,10 +22,10 @@ Bundle only the Focus Timer at `assets/focus-timer-agent/`; keep other applicati
 
 - Authority: `references/source-of-truth.md`.
 - AIUI 0.19: `references/aiui-0.19.md`.
-- Structure: `references/project-anatomy.md`.
+- Structure/app.json: `references/project-anatomy.md`.
 - Ink/WXML/WXSS: `references/ink-authoring.md`.
 - Interaction/design: `references/interaction-and-design.md`.
-- Runtime APIs: `references/runtime-capabilities.md`.
+- Runtime/media: `references/runtime-capabilities.md`.
 - Community demos, camera/cloud/speech: `references/community-patterns.md`.
 - UX/capability evidence: `references/ux-and-capability-testing.md`.
 - AIX: `references/aix-workflow.md`.
