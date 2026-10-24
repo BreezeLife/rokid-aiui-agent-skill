@@ -2,6 +2,7 @@
 
 ## Done
 
+- [x] Corrected the README hero to depict Rokid Glasses with display using an official product render, independently checked its frame/camera/temple details, and documented the reference and compositing boundary.
 - [x] Rebuilt the README presentation with original concept artwork, a clear introduction, complete Chinese/English/Japanese homepages, task-specific prerequisites, and getting-started navigation; preserved the two routes, actual screenshots, multimedia checks, and delivery/evidence boundaries.
 - [x] Added app.json feature/permission configuration and a routed multimedia implementation/testing reference requiring actual start calls, useful output, downstream data, completion and cleanup; preserved official wx/autoplay variants and existing device/audit evidence boundaries.
 - [x] Replaced the README's drawn Focus Timer journey with actual idle/running/paused browser screenshots, complete preview context, source/image hashes, and reproduction instructions; retained explicit version and Studio/device evidence boundaries.

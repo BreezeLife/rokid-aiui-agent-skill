@@ -1,4 +1,4 @@
-![ROKID AIUI Agent Skill — Describe. Build. Verify. Smart glasses concept artwork](docs/assets/readme-hero.png)
+![ROKID AIUI Agent Skill — Describe. Build. Verify. Rokid Glasses, based on official product imagery](docs/assets/readme-hero-rokid-glasses.png)
 
 <p align="center">
   <a href="README.md">简体中文</a> · <strong>English</strong> · <a href="README.ja.md">日本語</a><br>
